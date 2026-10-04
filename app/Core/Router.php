@@ -143,54 +143,20 @@ final class Router
     /**
      * صفحهٔ ۴۰۴.
      *
-     * عمداً به موتور ویو وصل نیست: اگر مسیر پیدا نشده، ممکن است خودِ
-     * ویو یا نشست هم در دسترس نباشد و رندر کردن قالب، خطای ۵۰۰ روی
-     * خطای ۴۰۴ سوار کند. پس تک‌فایل و خودبسنده می‌ماند.
-     *
-     * ولی «ساده» دلیل نمی‌شود بی‌ریخت باشد: همان CSS برنامه را می‌گیرد،
-     * روشن/تیره را از حافظهٔ مرورگر می‌خواند، و راهِ برگشت می‌دهد —
-     * وگرنه کاربر در بن‌بست می‌ماند.
+     * اگر رندر قالب خودش شکست بخورد (مثلاً دیتابیس در دسترس نیست)، یک
+     * صفحهٔ سادهٔ خودبسنده برمی‌گردد تا ۵۰۰ روی ۴۰۴ سوار نشود.
      */
     private function notFoundBody(): string
     {
-        $css = htmlspecialchars(asset('css/app.css'), ENT_QUOTES);
-        $tokens = htmlspecialchars(asset('css/design-tokens.css'), ENT_QUOTES);
-        $comfort = htmlspecialchars(asset('css/comfort.css'), ENT_QUOTES);
-        $home = htmlspecialchars(url(''), ENT_QUOTES);
-
-        return <<<HTML
-            <!doctype html>
-            <html lang="fa" dir="rtl" data-theme="forest">
-            <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>صفحه پیدا نشد — رشن</title>
-            <link rel="stylesheet" href="{$css}">
-            <link rel="stylesheet" href="{$tokens}">
-            <link rel="stylesheet" href="{$comfort}">
-            <meta name="color-scheme" content="light dark">
-            <script>
-            (function () {
-              var saved = null;
-              try { saved = localStorage.getItem('reshen-mode'); } catch (e) {}
-              var dark = saved ? saved === 'dark'
-                               : window.matchMedia('(prefers-color-scheme: dark)').matches;
-              document.documentElement.classList.toggle('dark', dark);
-              document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
-            })();
-            </script>
-            </head>
-            <body class="min-h-dvh grid place-items-center p-6 text-center">
-              <main>
-                <p class="text-6xl font-extrabold text-ink-300 tabular-nums mb-3">۴۰۴</p>
-                <h1 class="text-lg font-extrabold text-ink-900 mb-2">این صفحه پیدا نشد.</h1>
-                <p class="text-[13px] text-ink-400 mb-6 leading-relaxed">
-                  شاید نشانی را اشتباه وارد کرده‌ای، یا این صفحه دیگر وجود ندارد.
-                </p>
-                <a href="{$home}" class="btn-accent metal inline-flex">بازگشت به صفحهٔ اصلی</a>
-              </main>
-            </body>
-            </html>
-            HTML;
+        try {
+            return View::renderWithLayout('layouts.minimal', 'errors.404', [
+                'title' => 'پیدا نشد',
+                'message' => 'شاید نشانی را اشتباه وارد کرده‌اید، یا این صفحه دیگر وجود ندارد.',
+            ]);
+        } catch (\Throwable) {
+            return '<!doctype html><html lang="fa" dir="rtl"><meta charset="utf-8"><title>پیدا نشد</title>'
+                . '<body style="font-family:sans-serif;text-align:center;padding:4rem">'
+                . '<h1>این صفحه پیدا نشد.</h1><p><a href="' . htmlspecialchars(url('')) . '">بازگشت به صفحهٔ اصلی</a></p></body></html>';
+        }
     }
 }

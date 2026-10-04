@@ -7,21 +7,24 @@ namespace App\Http\Middleware;
 use App\Core\Auth;
 use App\Core\Request;
 use App\Core\Response;
+use App\Domain\Salon\SalonRepository;
+use App\Support\SalonContext;
 
 /**
  * سالن فعال در نشست هست، و کاربر واقعاً عضو همان سالن است؟
  *
- * لایهٔ اول از سه لایهٔ جداسازی داده بین سالن‌ها. اهمیتش اینجاست: حتی
- * اگر یک کوئری یادش برود با salon_id محدود شود، هیچ اکشنی پیش از رد
- * شدن از این بررسی اجرا نمی‌شود. یعنی یک اشتباه در یک کوئری، به‌تنهایی
- * دادهٔ سالن دیگری را لو نمی‌دهد.
+ * لایهٔ اول جداسازی داده بین سالن‌ها: حتی اگر یک کوئری یادش برود با
+ * salon_id محدود شود، هیچ اکشنی پیش از رد شدن از این بررسی اجرا نمی‌شود.
+ *
+ * سالن همین‌جا یک بار خوانده و در SalonContext گذاشته می‌شود تا قالب
+ * و واژه‌ها (آرایشگر/متخصص) بدون کوئری دوباره در دسترس باشند.
  */
 final class TenantRequired implements Middleware
 {
     public function handle(Request $request, callable $next): Response
     {
         if (Auth::isPlatformAdmin() && Auth::isImpersonating()) {
-            return $next($request);
+            return $this->withSalon($request, $next);
         }
 
         $memberships = Auth::memberships();
@@ -40,6 +43,19 @@ final class TenantRequired implements Middleware
                 return Response::redirect('/salons');
             }
         }
+
+        return $this->withSalon($request, $next);
+    }
+
+    private function withSalon(Request $request, callable $next): Response
+    {
+        $salon = (new SalonRepository())->find((int) Auth::salonId());
+        if ($salon === null) {
+            Auth::logout();
+
+            return Response::redirect('/login');
+        }
+        SalonContext::set($salon);
 
         return $next($request);
     }

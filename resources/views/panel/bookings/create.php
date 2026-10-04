@@ -1,192 +1,116 @@
 <?php
 /**
- * رزرو دستی — یک فرم، از تاریخ تا ثبت.
+ * رزرو دستی (تلفنی یا حضوری برای بعد).
  *
  * @var DateTimeImmutable $date
  * @var ?int $staffId
  * @var int[] $serviceIds
- * @var array $services
+ * @var array $groups
  * @var array $staffList
- * @var array $slots   "H:i" => staff_ids
- * @var int $duration
- * @var bool $isClosed
+ * @var int[] $capable
+ * @var string[] $slots
+ * @var ?string $pickError
+ * @var ?array $estimate
+ * @var bool $multi
  */
-
 use App\Support\Clock;
 use App\Support\JalaliCalendar;
 
-$groups = ['صبح' => [], 'ظهر' => [], 'عصر' => [], 'شب' => []];
-foreach (array_keys($slots) as $time) {
-    $groups[Clock::partOfDay($time)][] = $time;
-}
+$parts = ['صبح' => [], 'ظهر' => [], 'عصر' => [], 'شب' => []];
+foreach ($slots as $t) { $parts[Clock::partOfDay($t)][] = $t; }
+$oldTime = (string) old('time');
 ?>
-
-<div class="flex items-center gap-2 mb-5">
-  <a href="<?= e(url('panel/bookings')) ?>"
-     class="w-11 h-11 grid place-items-center rounded-xl text-ink-500 hover:bg-ink-100 tap shrink-0"
-     aria-label="بازگشت به رزروها"><?= icon('chevron-start', 'w-4 h-4') ?></a>
-  <div class="min-w-0">
-    <h1 class="page-title">رزرو جدید</h1>
-    <p class="text-[12px] text-ink-400 mt-0.5">برای مشتری‌ای که زنگ زده یا سر پیشخوان است.</p>
+<a class="back-link" href="<?= e(url('panel/bookings')) ?>"><?= icon('chevron-start') ?> رزروها</a>
+<div class="page-head">
+  <div class="page-head__text">
+    <h1 class="page-head__title">رزرو جدید</h1>
+    <p class="page-head__sub">برای مشتری‌ای که تماس گرفته یا برای نوبت بعدی‌اش برنامه می‌ریزد.</p>
   </div>
 </div>
 
-<div class="grid lg:grid-cols-[1fr_1.2fr] gap-4 items-start">
-
-  <!-- گام ۱: تاریخ، آرایشگر، خدمت — با GET تا بدون جاوااسکریپت هم کار کند -->
-  <form method="get" action="<?= e(url('panel/bookings/new')) ?>" id="pick-form"
-        class="glass rounded-2xl p-4 sm:p-5 space-y-4">
-
-    <div>
-      <span class="block text-[12px] font-bold text-ink-600 mb-2">۱. تاریخ</span>
-      <?php $name = 'date'; $value = $date->format('Y-m-d'); $label = 'نوبت'; $years = [0, 1];
-            include BASE_PATH . '/resources/views/components/jalali-date-input.php'; ?>
-      <p class="text-[12px] text-ink-400 mt-1.5"><?= e(JalaliCalendar::relativeDate($date)) ?></p>
-    </div>
-
-    <div>
-      <label for="staff-pick" class="block text-[12px] font-bold text-ink-600 mb-2">۲. آرایشگر</label>
-      <select name="staff_id" id="staff-pick"
-              class="w-full h-11 rounded-xl border border-ink-200 bg-transparent px-3 text-[13px]
-                     focus:outline-none focus:ring-2 focus:ring-accent">
-        <option value="">هر آرایشگری که آزاد باشد</option>
-        <?php foreach ($staffList as $st): ?>
-          <option value="<?= (int) $st['id'] ?>" <?= $staffId === (int) $st['id'] ? 'selected' : '' ?>>
-            <?= e($st['name']) ?>
-          </option>
+<div class="grid grid-2" style="align-items:start">
+  <form method="get" action="<?= e(url('panel/bookings/new')) ?>" class="card" id="pick-form">
+    <div class="card__header"><h2 class="card__title">۱. خدمت، فرد و روز</h2></div>
+    <div class="card__body stack">
+      <fieldset class="stack stack-sm">
+        <legend class="field__label">خدمات</legend>
+        <?php foreach ($groups as $group): ?>
+          <span class="text-xs muted"><?= e($group['name']) ?></span>
+          <div class="choice-grid" style="--min:140px">
+            <?php foreach ($group['services'] as $s): ?>
+              <label class="choice choice--compact choice--check">
+                <input class="choice__input" type="checkbox" name="service_ids[]" value="<?= (int) $s['id'] ?>" <?= in_array((int) $s['id'], $serviceIds, true) ? 'checked' : '' ?>>
+                <span class="choice__card"><span class="truncate"><?= e($s['name']) ?></span></span>
+              </label>
+            <?php endforeach; ?>
+          </div>
         <?php endforeach; ?>
-      </select>
-    </div>
-
-    <div>
-      <span class="block text-[12px] font-bold text-ink-600 mb-2">۳. خدمت</span>
-      <?php if ($services === []): ?>
-        <p class="text-[12px] text-ink-400">
-          هنوز خدمتی ثبت نشده.
-          <a href="<?= e(url('panel/services/create')) ?>" class="text-accent font-semibold">یکی اضافه کن</a>.
-        </p>
-      <?php else: ?>
-        <fieldset class="space-y-1.5">
-          <legend class="sr-only">انتخاب خدمت</legend>
-          <?php foreach ($services as $s): ?>
-            <label class="pick block relative tap">
-              <input type="checkbox" name="service_ids[]" value="<?= (int) $s['id'] ?>" class="sr-only"
-                     <?= in_array((int) $s['id'], $serviceIds, true) ? 'checked' : '' ?>>
-              <span class="pick-card flex items-center gap-2.5 rounded-xl px-3 py-2.5
-                           transition-all duration-200 ease-out-soft cursor-pointer"
-                    >
-                <span class="pick-box w-5 h-5 shrink-0 rounded-md border-2 border-ink-300 grid place-items-center"
-                      aria-hidden="true">
-                  <?= icon('check', 'pick-tick w-3 h-3 opacity-0 transition-opacity duration-200') ?>
-                </span>
-                <span class="flex-1 min-w-0 text-[13px] font-bold text-ink-800 truncate"><?= e($s['name']) ?></span>
-                <span class="text-[12px] text-ink-500 tabular-nums shrink-0">
-                  <?= e(fa_num((int) $s['duration_minutes'])) ?> دقیقه
-                </span>
-              </span>
-            </label>
+        <?php if ($groups === []): ?><p class="text-sm muted">هنوز خدمتی فعال نیست. <a class="link" href="<?= e(url('panel/services')) ?>">افزودن خدمت</a></p><?php endif; ?>
+      </fieldset>
+      <div class="field">
+        <label class="field__label" for="staff-pick"><?= e(term('staff')) ?></label>
+        <select class="select" id="staff-pick" name="staff_id">
+          <option value=""><?= $multi ? 'چند نفر به ترتیب (خودکار)' : 'هر کسی که آزاد و توانا باشد' ?></option>
+          <?php foreach ($staffList as $st): $able = $serviceIds === [] || in_array((int) $st['id'], $capable, true); ?>
+            <option value="<?= (int) $st['id'] ?>" <?= $staffId === (int) $st['id'] ? 'selected' : '' ?> <?= $able ? '' : 'disabled' ?>><?= e($st['name']) ?><?= $able ? '' : ' (این خدمات را انجام نمی‌دهد)' ?></option>
           <?php endforeach; ?>
-        </fieldset>
+        </select>
+      </div>
+      <div class="field">
+        <span class="field__label" id="date-label">روز</span>
+        <?= partial('jalali-date-input', ['name' => 'date', 'value' => $date->format('Y-m-d'), 'label' => 'نوبت', 'years' => [0, 1]]) ?>
+        <span class="field__hint"><?= e(JalaliCalendar::relativeDate($date)) ?></span>
+      </div>
+      <button type="submit" class="btn btn--secondary btn--block"><?= icon('refresh') ?> نمایش ساعت‌های آزاد</button>
+      <?php if ($estimate !== null): ?>
+        <p class="text-sm muted">مدت: <?= e(duration_text($estimate['minutes_min'])) ?><?= $estimate['minutes_max'] !== $estimate['minutes_min'] ? ' تا ' . e(duration_text($estimate['minutes_max'])) : '' ?> · قیمت: <?= e(price_range_text($estimate['min'], $estimate['max'], $estimate['from'])) ?></p>
       <?php endif; ?>
     </div>
-
-    <button type="submit" class="btn-ink w-full">نمایش سانس‌های آزاد</button>
-    <p class="text-[12px] text-ink-400 text-center">
-      مدت محاسبه‌شده: <span class="tabular-nums"><?= e(fa_num($duration)) ?> دقیقه</span>
-    </p>
   </form>
 
-  <!-- گام ۲: سانس و مشتری -->
-  <form method="post" action="<?= e(url('panel/bookings')) ?>" class="glass rounded-2xl p-4 sm:p-5 space-y-4">
-    <?= csrf_field() ?>
-    <input type="hidden" name="date_y" value="<?= e((string) App\Support\Jalali::fromDateTime($date)[0]) ?>">
-    <input type="hidden" name="date_m" value="<?= e((string) App\Support\Jalali::fromDateTime($date)[1]) ?>">
-    <input type="hidden" name="date_d" value="<?= e((string) App\Support\Jalali::fromDateTime($date)[2]) ?>">
-    <input type="hidden" name="staff_id" value="<?= $staffId !== null ? (int) $staffId : '' ?>">
-    <?php foreach ($serviceIds as $sid): ?>
-      <input type="hidden" name="service_ids[]" value="<?= (int) $sid ?>">
-    <?php endforeach; ?>
+  <form method="post" action="<?= e(url('panel/bookings')) ?>" class="card" novalidate>
+    <div class="card__header"><h2 class="card__title">۲. ساعت و مشتری</h2></div>
+    <div class="card__body stack">
+      <?= csrf_field() ?>
+      <input type="hidden" name="date" value="<?= e($date->format('Y-m-d')) ?>">
+      <input type="hidden" name="staff_id" value="<?= $staffId !== null ? (int) $staffId : '' ?>">
+      <?php foreach ($serviceIds as $sid): ?><input type="hidden" name="service_ids[]" value="<?= (int) $sid ?>"><?php endforeach; ?>
 
-    <div>
-      <span class="block text-[12px] font-bold text-ink-600 mb-2">۴. سانس</span>
-
-      <?php if ($slots === []): ?>
-        <div class="rounded-xl py-8 px-4 text-center" style="background:var(--accent-soft)">
-          <?= icon('calendar-x', 'w-7 h-7 mx-auto text-ink-400 mb-2') ?>
-          <p class="text-[13px] font-bold text-ink-700">
-            <?= $isClosed ? 'این روز سانس آزادی ندارد.' : 'اول خدمت را انتخاب کن.' ?>
-          </p>
-          <?php if ($isClosed): ?>
-            <p class="text-[12px] text-ink-400 mt-1.5 leading-relaxed">
-              یا سالن تعطیل است، یا همهٔ سانس‌ها پر شده‌اند.<br>
-              تاریخ یا آرایشگر دیگری را امتحان کن.
-            </p>
-          <?php endif; ?>
-        </div>
+      <?php if ($pickError !== null): ?>
+        <div class="alert alert--warning"><?= icon('alert') ?><div class="alert__body"><?= e($pickError) ?></div></div>
+      <?php elseif ($serviceIds === []): ?>
+        <div class="alert alert--info"><?= icon('info') ?><div class="alert__body">اول خدمت را انتخاب کنید؛ ساعت‌ها بر اساس مدت واقعی و توانایی افراد حساب می‌شوند.</div></div>
+      <?php elseif ($slots === []): ?>
+        <div class="alert alert--warning"><?= icon('calendar-x') ?><div class="alert__body">این روز برای این خدمات ساعت آزادی ندارد. روز یا فرد دیگری را امتحان کنید.</div></div>
       <?php else: ?>
-        <fieldset class="space-y-3">
-          <legend class="sr-only">انتخاب سانس</legend>
-          <?php foreach ($groups as $part => $times): ?>
-            <?php if ($times === []) { continue; } ?>
-            <div>
-              <div class="flex items-center gap-2 mb-1.5">
-                <span class="text-[12px] font-bold text-ink-500"><?= e($part) ?></span>
-                <span class="flex-1 h-px" style="background:var(--line)" aria-hidden="true"></span>
-                <span class="text-[12px] text-ink-400 tabular-nums"><?= e(fa_num(count($times))) ?></span>
-              </div>
-              <div class="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
-                <?php foreach ($times as $time): ?>
-                  <label class="pick relative block tap">
-                    <input type="radio" name="time" value="<?= e($time) ?>" required class="sr-only">
-                    <span class="slot h-11 grid place-items-center rounded-xl text-[13px] font-bold
-                                 text-ink-800 tabular-nums cursor-pointer transition-all duration-200"
-                          style="background:var(--accent-soft)"><?= e(fa_time($time)) ?></span>
-                  </label>
-                <?php endforeach; ?>
-              </div>
+        <?php if ($multi): ?><div class="alert alert--accent"><?= icon('users') ?><div class="alert__body">هیچ‌کس به‌تنهایی همهٔ این خدمات را انجام نمی‌دهد؛ نوبت بین چند نفر پشت سر هم چیده می‌شود.</div></div><?php endif; ?>
+        <fieldset>
+          <legend class="field__label mb-2">ساعت</legend>
+          <?php foreach ($parts as $label => $times): if ($times === []) { continue; } ?>
+            <p class="text-xs muted mt-2"><?= e($label) ?></p>
+            <div class="slot-grid">
+              <?php foreach ($times as $t): ?>
+                <label class="choice slot"><input class="choice__input" type="radio" name="time" value="<?= e($t) ?>" required <?= $oldTime === $t ? 'checked' : '' ?>><span class="choice__card"><?= e(fa_time($t)) ?></span></label>
+              <?php endforeach; ?>
             </div>
           <?php endforeach; ?>
+          <?= partial('field-error', ['key' => 'time']) ?>
         </fieldset>
       <?php endif; ?>
+
+      <hr class="divider">
+      <div class="field">
+        <label class="field__label" for="b-phone">موبایل مشتری</label>
+        <input class="input input--ltr num" id="b-phone" name="phone" type="tel" inputmode="tel" dir="ltr" required value="<?= e((string) old('phone')) ?>" data-numeric <?= field_error('phone') ? 'aria-invalid="true" aria-describedby="phone-error"' : '' ?>>
+        <?= partial('field-error', ['key' => 'phone']) ?>
+      </div>
+      <div class="field"><label class="field__label" for="b-name">نام <span class="field__optional">(اختیاری)</span></label><input class="input" id="b-name" name="name" value="<?= e((string) old('name')) ?>"></div>
+      <div class="field"><label class="field__label" for="b-note">یادداشت <span class="field__optional">(اختیاری)</span></label><input class="input" id="b-note" name="note" maxlength="300" value="<?= e((string) old('note')) ?>"></div>
+      <button type="submit" class="btn btn--primary btn--lg btn--block" <?= $slots === [] ? 'disabled' : '' ?>>ثبت نوبت</button>
     </div>
-
-    <div class="h-px" style="background:var(--line)" aria-hidden="true"></div>
-
-    <div class="space-y-2.5">
-      <span class="block text-[12px] font-bold text-ink-600">۵. مشتری</span>
-      <input type="tel" name="phone" inputmode="numeric" dir="ltr" required
-             placeholder="۰۹۱۲۳۴۵۶۷۸۹" aria-label="شمارهٔ موبایل مشتری"
-             class="w-full h-11 rounded-xl border border-ink-200 bg-transparent px-3 text-left text-[14px]
-                    tabular-nums focus:outline-none focus:ring-2 focus:ring-accent">
-      <input type="text" name="name" placeholder="نام (اختیاری)" aria-label="نام مشتری"
-             class="w-full h-11 rounded-xl border border-ink-200 bg-transparent px-3 text-[13px]
-                    focus:outline-none focus:ring-2 focus:ring-accent">
-      <p class="text-[12px] text-ink-400 leading-relaxed">
-        شماره لازم است تا پیامک تأیید برایش برود و بتواند نوبتش را پیگیری کند.
-      </p>
-    </div>
-
-    <?php
-    /*
-     * همان نوار چسبیدهٔ صفحهٔ رزرو مشتری. اینجا هم لازم است: فرم بلند
-     * است و آرایشگر پشت پیشخوان، با مشتری روبه‌رویش، نباید دنبال دکمه
-     * بگردد.
-     */
-    echo App\Core\View::render('components.sticky-action', [
-        'label' => 'ثبت نوبت',
-        'disabled' => $slots === [],
-        'hint' => $slots === [] ? 'این روز سانس آزادی ندارد' : null,
-    ]);
-    ?>
   </form>
 </div>
-
 <script>
-// عوض شدن تاریخ، آرایشگر یا خدمت → سانس‌ها دوباره حساب شوند.
-// بدون این هم دکمهٔ «نمایش سانس‌های آزاد» کار می‌کند.
-(function () {
-  var form = document.getElementById('pick-form');
-  if (!form) return;
-  form.addEventListener('change', function () { form.submit(); });
-})();
+/* تغییر انتخاب‌ها ساعت‌ها را دوباره حساب کند (بدون این هم دکمه کار می‌کند). */
+(function () { var f = document.getElementById('pick-form'); if (f) f.addEventListener('change', function () { f.submit(); }); })();
 </script>

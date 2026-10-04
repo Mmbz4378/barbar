@@ -5,10 +5,21 @@ declare(strict_types=1);
 namespace App\Domain\Appointment;
 
 use App\Core\DB;
+use App\Support\Now;
 use App\Support\Str;
 
+/**
+ * نوبت‌ها.
+ *
+ * همهٔ فیلترهای تاریخ به‌صورت بازه نوشته شده‌اند (>= شروع روز و < شروع
+ * روز بعد)، نه DATE(ستون) = …؛ تابع روی ستون جلوی استفاده از ایندکس را
+ * می‌گیرد و با بزرگ شدن جدول، صفحهٔ امروز هر ۱۵ ثانیه کل نوبت‌های
+ * سالن را پیمایش می‌کرد.
+ */
 final class AppointmentRepository
 {
+    public const LIVE = ['confirmed', 'queued', 'in_chair'];
+
     public function find(int $salonId, int $id): ?array
     {
         return DB::selectOne('SELECT * FROM appointments WHERE salon_id = ? AND id = ?', [$salonId, $id]);
@@ -16,15 +27,34 @@ final class AppointmentRepository
 
     public function findByToken(string $token): ?array
     {
+        if (!preg_match('/^[a-z0-9]{6,24}$/', $token)) {
+            return null;
+        }
+
         return DB::selectOne('SELECT * FROM appointments WHERE public_token = ?', [$token]);
     }
 
     /**
-     * هر چیزی که امروز در سالن هنوز «زنده» است.
+     * همهٔ بخش‌های یک رزرو چندنفره، به ترتیب زمان؛ برای نوبت تکی خودش.
      *
-     * یعنی: در صف، روی صندلی، یا رزروشده‌ای که هنوز نرسیده. همین سه
-     * حالت‌اند که صفحهٔ صف و تخمین‌ها را می‌سازند.
+     * @return array<int,array>
      */
+    public function group(array $appointment): array
+    {
+        if (empty($appointment['group_token'])) {
+            return [$appointment];
+        }
+
+        return DB::select(
+            'SELECT a.*, st.name AS staff_name FROM appointments a
+               LEFT JOIN staff st ON st.id = a.staff_id
+              WHERE a.salon_id = ? AND a.group_token = ?
+              ORDER BY a.scheduled_at, a.id',
+            [$appointment['salon_id'], $appointment['group_token']]
+        );
+    }
+
+    /** نوبت‌های زندهٔ سالن — صف، روی صندلی، و رزروهای امروز. */
     public function activeForSalon(int $salonId): array
     {
         return DB::select(
@@ -39,27 +69,23 @@ final class AppointmentRepository
     }
 
     /**
-     * رزروهای زمان‌دار در یک بازهٔ تاریخی.
-     *
-     * برخلاف activeForSalon که «همین حالا» را نشان می‌دهد، این متد برای
-     * صفحهٔ رزروهاست: سالن باید بتواند فردا و هفتهٔ بعد را هم ببیند،
-     * وگرنه رزرو آنلاین یک‌طرفه می‌شود — مشتری وقت می‌گیرد و آرایشگر
-     * تا لحظهٔ آمدنش خبر ندارد.
-     *
-     * لغوشده‌ها هم می‌آیند: سالن باید بفهمد جای خالیِ امروز از کجا آمده.
+     * رزروهای زمان‌دار در یک بازهٔ تاریخی (شامل لغوشده‌ها و منتظر بیعانه).
      *
      * @return array<int,array>
      */
     public function scheduledBetween(int $salonId, string $fromDate, string $toDate, ?int $staffId = null): array
     {
+        [$from, $to] = self::range($fromDate, $toDate);
         $sql = "SELECT a.*, c.name AS customer_name, c.phone AS customer_phone,
-                       s.name AS staff_name, s.color AS staff_color
+                       s.name AS staff_name, s.color AS staff_color,
+                       (SELECT GROUP_CONCAT(sv.name ORDER BY ai.id SEPARATOR '، ')
+                          FROM appointment_items ai JOIN services sv ON sv.id = ai.service_id
+                         WHERE ai.appointment_id = a.id) AS service_names
                 FROM appointments a
                 JOIN customers c ON c.id = a.customer_id
                 LEFT JOIN staff s ON s.id = a.staff_id
-                WHERE a.salon_id = ? AND a.scheduled_at IS NOT NULL
-                  AND DATE(a.scheduled_at) BETWEEN ? AND ?";
-        $params = [$salonId, $fromDate, $toDate];
+                WHERE a.salon_id = ? AND a.scheduled_at >= ? AND a.scheduled_at < ?";
+        $params = [$salonId, $from, $to];
 
         if ($staffId !== null) {
             $sql .= ' AND a.staff_id = ?';
@@ -69,30 +95,25 @@ final class AppointmentRepository
         return DB::select($sql . ' ORDER BY a.scheduled_at, a.id', $params);
     }
 
-    /** شمارش رزروهای آیندهٔ هر وضعیت — برای نشان‌های بالای صفحهٔ رزروها. */
-    public function scheduledCounts(int $salonId, string $fromDate, string $toDate): array
+    /** شمارش رزروهای هر وضعیت — برای نشان‌های بالای صفحهٔ رزروها. */
+    public function scheduledCounts(int $salonId, string $fromDate, string $toDate, ?int $staffId = null): array
     {
-        $rows = DB::select(
-            "SELECT status, cancelled_by, COUNT(*) AS n FROM appointments
-             WHERE salon_id = ? AND scheduled_at IS NOT NULL
-               AND DATE(scheduled_at) BETWEEN ? AND ?
-             GROUP BY status, cancelled_by",
-            [$salonId, $fromDate, $toDate]
-        );
+        [$from, $to] = self::range($fromDate, $toDate);
+        $sql = "SELECT status, cancelled_by, COUNT(*) AS n FROM appointments
+                 WHERE salon_id = ? AND scheduled_at >= ? AND scheduled_at < ?";
+        $params = [$salonId, $from, $to];
+        if ($staffId !== null) {
+            $sql .= ' AND staff_id = ?';
+            $params[] = $staffId;
+        }
+        $rows = DB::select($sql . ' GROUP BY status, cancelled_by', $params);
 
         $out = [];
         foreach ($rows as $r) {
             $status = (string) $r['status'];
             $out[$status] = ($out[$status] ?? 0) + (int) $r['n'];
 
-            /*
-             * لغوها را جدا هم می‌شماریم.
-             *
-             * «۵ لغو» چیزی نمی‌گوید؛ «۴ تا را خودمان لغو کردیم» یعنی
-             * مشکل از ماست، و «۴ تا را مشتری لغو کرد» یعنی بحث بیعانه.
-             * قاطی کردنشان در یک عدد، همان چیزی را پنهان می‌کند که
-             * صاحب سالن باید ببیند.
-             */
+            // «۴ تا را خودمان لغو کردیم» با «۴ تا را مشتری لغو کرد» فرق دارد
             if ($status === 'cancelled') {
                 $by = $r['cancelled_by'] ?? 'unknown';
                 $out['cancelled_by'][$by] = ($out['cancelled_by'][$by] ?? 0) + (int) $r['n'];
@@ -104,14 +125,43 @@ final class AppointmentRepository
 
     public function activeForStaff(int $salonId, int $staffId): array
     {
+        [$from, $to] = self::range(Now::today()->format('Y-m-d'));
+
         return DB::select(
-            "SELECT a.*, c.name AS customer_name, c.phone AS customer_phone
+            "SELECT a.*, c.name AS customer_name, c.phone AS customer_phone, c.no_show_count AS customer_no_shows
              FROM appointments a JOIN customers c ON c.id = a.customer_id
-             WHERE a.salon_id = ? AND a.staff_id = ? AND a.status IN ('confirmed','queued','in_chair')
-               AND (a.status IN ('queued','in_chair') OR (a.scheduled_at >= ? AND a.scheduled_at < ?))
+             WHERE a.salon_id = ? AND a.staff_id = ?
+               AND (a.status IN ('queued','in_chair')
+                    OR (a.status = 'confirmed' AND a.scheduled_at >= ? AND a.scheduled_at < ?))
              ORDER BY a.id",
-            [$salonId, $staffId, date('Y-m-d').' 00:00:00', date('Y-m-d', strtotime('+1 day')).' 00:00:00']
+            [$salonId, $staffId, $from, $to]
         );
+    }
+
+    /**
+     * نوبت‌های زندهٔ امروزِ همهٔ کارکنان در یک کوئری — برای صفحهٔ امروز.
+     *
+     * @return array<int,array<int,array>> کلید: شناسهٔ نفر
+     */
+    public function activeTodayByStaff(int $salonId): array
+    {
+        [$from, $to] = self::range(Now::today()->format('Y-m-d'));
+        $rows = DB::select(
+            "SELECT a.*, c.name AS customer_name, c.phone AS customer_phone, c.no_show_count AS customer_no_shows
+             FROM appointments a JOIN customers c ON c.id = a.customer_id
+             WHERE a.salon_id = ? AND a.staff_id IS NOT NULL
+               AND (a.status IN ('queued','in_chair')
+                    OR (a.status = 'confirmed' AND a.scheduled_at >= ? AND a.scheduled_at < ?))
+             ORDER BY a.id",
+            [$salonId, $from, $to]
+        );
+
+        $byStaff = [];
+        foreach ($rows as $row) {
+            $byStaff[(int) $row['staff_id']][] = $row;
+        }
+
+        return $byStaff;
     }
 
     public function inChairFor(int $salonId, int $staffId): ?array
@@ -125,19 +175,16 @@ final class AppointmentRepository
     public function itemsFor(int $salonId, int $appointmentId): array
     {
         return DB::select(
-            'SELECT ai.*, sv.name AS service_name FROM appointment_items ai
+            'SELECT ai.*, sv.name AS service_name, sv.price_type FROM appointment_items ai
              JOIN services sv ON sv.id = ai.service_id
-             WHERE ai.salon_id = ? AND ai.appointment_id = ?',
+             WHERE ai.salon_id = ? AND ai.appointment_id = ?
+             ORDER BY ai.id',
             [$salonId, $appointmentId]
         );
     }
 
     /**
      * خدمت‌های چند نوبت، در یک کوئری.
-     *
-     * صفحهٔ صف هر ۱۵ ثانیه تازه می‌شود و برای هر نفرِ صف یک بار
-     * itemsFor() صدا می‌زد. با ۳۰ نفر یعنی ۳۰ کوئریِ اضافه در هر
-     * تازه‌سازی.
      *
      * @param int[] $appointmentIds
      * @return array<int,array<int,array>> کلید: شناسهٔ نوبت
@@ -150,10 +197,11 @@ final class AppointmentRepository
 
         $placeholders = implode(',', array_fill(0, count($appointmentIds), '?'));
         $rows = DB::select(
-            "SELECT ai.*, sv.name AS service_name FROM appointment_items ai
+            "SELECT ai.*, sv.name AS service_name, sv.price_type FROM appointment_items ai
              JOIN services sv ON sv.id = ai.service_id
-             WHERE ai.salon_id = ? AND ai.appointment_id IN ({$placeholders})",
-            array_merge([$salonId], $appointmentIds)
+             WHERE ai.salon_id = ? AND ai.appointment_id IN ({$placeholders})
+             ORDER BY ai.id",
+            array_merge([$salonId], array_values($appointmentIds))
         );
 
         $byAppointment = [];
@@ -172,7 +220,7 @@ final class AppointmentRepository
         return (int) DB::insert('appointments', $data);
     }
 
-    public function addItem(int $salonId, int $appointmentId, int $serviceId, int $price, ?int $durationMinutes): void
+    public function addItem(int $salonId, int $appointmentId, int $serviceId, int $price, ?int $durationMinutes, int $bufferMinutes = 0): void
     {
         DB::insert('appointment_items', [
             'salon_id' => $salonId,
@@ -180,6 +228,7 @@ final class AppointmentRepository
             'service_id' => $serviceId,
             'price' => $price,
             'duration_minutes' => $durationMinutes,
+            'buffer_minutes' => max(0, $bufferMinutes),
         ]);
     }
 
@@ -190,8 +239,10 @@ final class AppointmentRepository
 
     public function todayCompletedCount(int $salonId, ?int $staffId = null): int
     {
-        $sql = "SELECT COUNT(*) AS c FROM appointments WHERE salon_id = ? AND status = 'completed' AND DATE(actual_end_at) = CURDATE()";
-        $params = [$salonId];
+        [$from, $to] = self::range(Now::today()->format('Y-m-d'));
+        $sql = "SELECT COUNT(*) AS c FROM appointments
+                 WHERE salon_id = ? AND status = 'completed' AND actual_end_at >= ? AND actual_end_at < ?";
+        $params = [$salonId, $from, $to];
         if ($staffId !== null) {
             $sql .= ' AND staff_id = ?';
             $params[] = $staffId;
@@ -201,35 +252,99 @@ final class AppointmentRepository
     }
 
     /**
-     * خلاصهٔ امروزِ کل سالن، در یک کوئری.
+     * خلاصهٔ امروزِ سالن (یا یک نفر)، در یک کوئری.
      *
-     * چرا یک کوئری و نه چهارتا: این عدد بالای صفحهٔ صف زنده است و هر ۱۵
-     * ثانیه با هر بار تازه‌شدن صفحه دوباره خوانده می‌شود. چهار رفت‌وبرگشت
-     * جدا، روی هاست اشتراکی ضعیف دیده می‌شود.
+     * نوبت امروز یعنی رزروِ امروز، یا مراجعهٔ حضوریِ امروز. هر دو شاخه
+     * روی ایندکس (salon_id, scheduled_at) و (salon_id, queued_at) می‌نشینند.
      *
-     * @return array{total:int,completed:int,waiting:int,in_chair:int,no_show:int}
+     * @return array{total:int,completed:int,waiting:int,in_chair:int,no_show:int,cancelled:int,pending:int}
      */
-    public function todaySummary(int $salonId): array
+    public function todaySummary(int $salonId, ?int $staffId = null): array
     {
+        [$from, $to] = self::range(Now::today()->format('Y-m-d'));
+        $staffSql = $staffId !== null ? ' AND staff_id = ' . (int) $staffId : '';
+
         $row = DB::selectOne(
-            "SELECT
-                COUNT(*) AS total,
-                SUM(status = 'completed') AS completed,
-                SUM(status IN ('confirmed','queued')) AS waiting,
-                SUM(status = 'in_chair') AS in_chair,
-                SUM(status = 'no_show') AS no_show
-             FROM appointments
-             WHERE salon_id = ?
-               AND DATE(COALESCE(actual_end_at, actual_start_at, scheduled_at, queued_at, created_at)) = CURDATE()",
-            [$salonId]
+            "SELECT COUNT(*) AS total,
+                    SUM(status = 'completed') AS completed,
+                    SUM(status IN ('confirmed','queued')) AS waiting,
+                    SUM(status = 'in_chair') AS in_chair,
+                    SUM(status = 'no_show') AS no_show,
+                    SUM(status = 'cancelled') AS cancelled,
+                    SUM(status = 'pending') AS pending
+               FROM appointments
+              WHERE salon_id = ? {$staffSql}
+                AND ((scheduled_at >= ? AND scheduled_at < ?)
+                     OR (scheduled_at IS NULL AND queued_at >= ? AND queued_at < ?))",
+            [$salonId, $from, $to, $from, $to]
         );
 
-        return [
-            'total' => (int) ($row['total'] ?? 0),
-            'completed' => (int) ($row['completed'] ?? 0),
-            'waiting' => (int) ($row['waiting'] ?? 0),
-            'in_chair' => (int) ($row['in_chair'] ?? 0),
-            'no_show' => (int) ($row['no_show'] ?? 0),
-        ];
+        $out = [];
+        foreach (['total', 'completed', 'waiting', 'in_chair', 'no_show', 'cancelled', 'pending'] as $key) {
+            $out[$key] = (int) ($row[$key] ?? 0);
+        }
+
+        return $out;
+    }
+
+    /**
+     * کارهای تمام‌شدهٔ امروز که هنوز تسویه نشده‌اند.
+     *
+     * آرایشگر «تمام شد» را می‌زند و مشتری سراغ پیشخوان می‌رود؛ پذیرش
+     * باید همین فهرست را ببیند، وگرنه پولِ کارِ انجام‌شده جا می‌ماند.
+     *
+     * @return array<int,array>
+     */
+    public function awaitingSettlement(int $salonId, int $days = 2): array
+    {
+        $from = Now::today()->modify('-' . max(0, $days - 1) . ' days')->format('Y-m-d 00:00:00');
+
+        return DB::select(
+            "SELECT a.*, c.name AS customer_name, c.phone AS customer_phone, st.name AS staff_name,
+                    (SELECT COALESCE(SUM(ai.price), 0) FROM appointment_items ai WHERE ai.appointment_id = a.id) AS total_price
+               FROM appointments a
+               JOIN customers c ON c.id = a.customer_id
+               LEFT JOIN staff st ON st.id = a.staff_id
+              WHERE a.salon_id = ? AND a.status = 'completed' AND a.actual_end_at >= ?
+                AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.appointment_id = a.id AND p.kind = 'settlement')
+              ORDER BY a.actual_end_at DESC
+              LIMIT 50",
+            [$salonId, $from]
+        );
+    }
+
+    /**
+     * رزروهای در انتظار تأیید بیعانه.
+     *
+     * @return array<int,array>
+     */
+    public function pendingDeposits(int $salonId): array
+    {
+        return DB::select(
+            "SELECT a.*, c.name AS customer_name, c.phone AS customer_phone, st.name AS staff_name,
+                    (SELECT GROUP_CONCAT(sv.name ORDER BY ai.id SEPARATOR '، ')
+                       FROM appointment_items ai JOIN services sv ON sv.id = ai.service_id
+                      WHERE ai.appointment_id = a.id) AS service_names
+               FROM appointments a
+               JOIN customers c ON c.id = a.customer_id
+               LEFT JOIN staff st ON st.id = a.staff_id
+              WHERE a.salon_id = ? AND a.status = 'pending' AND a.deposit_amount > 0
+              ORDER BY a.hold_expires_at, a.id
+              LIMIT 50",
+            [$salonId]
+        );
+    }
+
+    /**
+     * [شروع روز اول، شروع روزِ بعد از روز آخر] برای فیلتر بازه‌ای.
+     *
+     * @return array{0:string,1:string}
+     */
+    public static function range(string $fromDate, ?string $toDate = null): array
+    {
+        $toDate ??= $fromDate;
+        $end = (new \DateTimeImmutable($toDate))->modify('+1 day');
+
+        return [$fromDate . ' 00:00:00', $end->format('Y-m-d') . ' 00:00:00'];
     }
 }

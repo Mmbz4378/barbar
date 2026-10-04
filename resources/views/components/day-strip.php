@@ -1,46 +1,26 @@
 <?php
 /**
- * نوار افقی روزهای نزدیک.
+ * نوار روزهای نزدیک. روزِ بدون وقت آزاد هم دیده می‌شود ولی خاموش —
+ * مشتری باید بداند آن روز پر است، نه اینکه روز غیب شود.
  *
- * جایگزین تقویم ماهانه به‌عنوان انتخاب پیش‌فرض. تقویم ماه سی خانه
- * نشان می‌داد که بیشترشان گذشته و خاکستری بودند — روی موبایل یک صفحهٔ
- * کامل اسکرول تا رسیدن به ساعت‌ها.
- *
- * شمارِ سانس آزاد روی هر روز می‌آید چون تصمیم را عوض می‌کند: «۱ سانس»
- * یعنی عجله کن، «۱۲ سانس» یعنی خیالت راحت است. روزِ پر هم نشان داده
- * می‌شود ولی خاموش — مشتری باید بداند سالن آن روز پر است، نه اینکه
- * روز اصلاً وجود نداشته باشد.
- *
- * @var array<int,array{date:string,label:string,day:string,free:int,available:bool,selected:bool}> $days
+ * @var array<int,array{date:string,label:string,day:string,month:string,available:bool,selected:bool}> $days
  * @var callable(string):string $linkFor
  */
 ?>
-<div class="-mx-5 px-5 overflow-x-auto no-scrollbar" role="group" aria-label="انتخاب روز">
-  <div class="flex gap-2 pb-1 w-max">
-    <?php foreach ($days as $d): ?>
-      <?php $box = 'shrink-0 w-[4.5rem] rounded-2xl px-2 py-2.5 text-center'; ?>
-
-      <?php if ($d['available'] || $d['selected']): ?>
-        <a href="<?= e($linkFor($d['date'])) ?>"
-           class="tap day-chip <?= $d['selected'] ? 'day-chip-on' : '' ?> <?= $box ?>
-                  transition-all duration-200 ease-out-soft
-                  focus-visible:outline-2 focus-visible:outline-accent"
-           <?= $d['selected'] ? 'aria-current="date"' : '' ?>>
-          <span class="block text-[13px] font-bold leading-tight"><?= e($d['label']) ?></span>
-          <span class="block text-lg font-extrabold tabular-nums leading-tight mt-0.5"><?= e($d['day']) ?></span>
-          <span class="day-chip-note block text-[12px] mt-1 tabular-nums
-                       <?= $d['selected'] ? '' : 'text-ink-400' ?>">
-            <?= e(fa_num((string) $d['free'])) ?> سانس
-          </span>
-        </a>
-      <?php else: ?>
-        <div class="day-chip-off <?= $box ?>"
-             aria-label="<?= e($d['label']) ?> — بدون سانس آزاد">
-          <span class="block text-[13px] font-bold leading-tight"><?= e($d['label']) ?></span>
-          <span class="block text-lg font-extrabold tabular-nums leading-tight mt-0.5"><?= e($d['day']) ?></span>
-          <span class="block text-[12px] mt-1">پر</span>
-        </div>
-      <?php endif; ?>
-    <?php endforeach; ?>
-  </div>
+<div class="day-strip" role="list" aria-label="انتخاب روز">
+  <?php foreach ($days as $d): ?>
+    <?php if ($d['available'] || $d['selected']): ?>
+      <a role="listitem" class="day" href="<?= e($linkFor($d['date'])) ?>" <?= $d['selected'] ? 'aria-current="date"' : '' ?>>
+        <span class="day__label"><?= e($d['label']) ?></span>
+        <span class="day__num"><?= e($d['day']) ?></span>
+        <span class="day__note"><?= e($d['available'] ? $d['month'] : 'پر') ?></span>
+      </a>
+    <?php else: ?>
+      <span role="listitem" class="day day--off" aria-label="<?= e($d['label'] . ' ' . $d['day'] . ' ' . $d['month'] . '، بدون وقت آزاد') ?>">
+        <span class="day__label"><?= e($d['label']) ?></span>
+        <span class="day__num"><?= e($d['day']) ?></span>
+        <span class="day__note">پر</span>
+      </span>
+    <?php endif; ?>
+  <?php endforeach; ?>
 </div>

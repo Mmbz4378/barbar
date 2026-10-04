@@ -27,6 +27,9 @@ final class QueueService
 {
     private array $notifyPending = [];
 
+    /** @var array<int,array> نوبت‌هایی که سالن لغو کرد؛ پیامکشان پس از commit می‌رود */
+    private array $cancelledBySalon = [];
+
     /** Serialize writes with booking and defer notifications until commit. */
     private function mutate(int $salonId, callable $callback): mixed
     {
@@ -38,7 +41,12 @@ final class QueueService
         });
         } catch (\Throwable $e) {
             $this->notifyPending = [];
+            $this->cancelledBySalon = [];
             throw $e;
+        }
+        $cancelled = $this->cancelledBySalon; $this->cancelledBySalon = [];
+        foreach ($cancelled as $appt) {
+            (new \App\Domain\Booking\BookingService())->notifySalonCancellation($salonId, $appt);
         }
         $pending = $this->notifyPending; $this->notifyPending = [];
         foreach ($pending as [$sid,$staffId]) {
@@ -87,19 +95,41 @@ final class QueueService
      */
     private function addWalkinUnlocked(int $salonId, ?string $customerName, ?string $customerPhone, ?int $staffId, array $serviceIds): array
     {
+        $serviceIds = \App\Domain\Booking\BookingPlanner::normalizeIds($serviceIds);
         if ($serviceIds === []) {
             throw new RuntimeException('حداقل یک خدمت را انتخاب کنید.');
         }
 
-        $serviceIds = array_values(array_unique(array_map('intval',$serviceIds)));
-        foreach ($serviceIds as $serviceId) {
-            $service = (new \App\Domain\Catalog\ServiceRepository())->find($salonId,$serviceId);
-            if (!$service || !$service['is_active']) throw new RuntimeException('خدمت انتخاب‌شده در این سالن فعال نیست.');
+        \App\Domain\Catalog\ServiceRepository::flushCache();
+        $planner = new \App\Domain\Booking\BookingPlanner();
+        if (($error = $planner->validate($salonId, $serviceIds, false)) !== null) {
+            throw new RuntimeException($error);
         }
-        if ($staffId !== null && !DB::selectOne('SELECT id FROM staff WHERE salon_id=? AND id=? AND is_active=1',[$salonId,$staffId])) throw new RuntimeException('آرایشگر انتخاب‌شده معتبر نیست.');
-        $staffId ??= (new StaffAssigner())->pickLeastBusy($salonId);
+
+        /*
+         * فقط کسی که همهٔ این خدمات را انجام می‌دهد. در سالن بانوان
+         * «کم‌کارترین» ممکن است ناخن‌کار باشد و مشتری برای رنگ آمده.
+         */
+        $capable = $planner->capableStaff($salonId, $serviceIds, false);
+        if ($capable === []) {
+            throw new RuntimeException('هیچ‌کس به‌تنهایی همهٔ این خدمات را انجام نمی‌دهد. برای هر بخش جداگانه پذیرش کنید.');
+        }
+
+        if ($staffId !== null) {
+            if (!DB::selectOne('SELECT id FROM staff WHERE salon_id=? AND id=? AND is_active=1', [$salonId, $staffId])) {
+                throw new RuntimeException('فرد انتخاب‌شده معتبر نیست.');
+            }
+            if (!in_array($staffId, $capable, true)) {
+                throw new RuntimeException('فرد انتخاب‌شده همهٔ این خدمات را انجام نمی‌دهد.');
+            }
+        }
+        $staffId ??= (new StaffAssigner())->pickLeastBusy($salonId, $capable);
         if ($staffId === null) {
-            throw new RuntimeException('هیچ آرایشگر فعالی برای تخصیص وجود ندارد.');
+            throw new RuntimeException('هیچ فرد فعالی برای تخصیص وجود ندارد.');
+        }
+
+        if ($customerPhone !== null && $customerPhone !== '' && \App\Support\IranMobile::tryParse($customerPhone) === null) {
+            throw new RuntimeException('شمارهٔ موبایل نامعتبر است. خالی بگذارید یا درست وارد کنید.');
         }
 
         $customer = (new CustomerRepository())->findOrCreate($salonId, $customerName, $customerPhone);
@@ -110,11 +140,14 @@ final class QueueService
             'kind' => 'walkin',
             'status' => 'queued',
             'queued_at' => date('Y-m-d H:i:s'),
+            'created_by_user_id' => \App\Core\Auth::id(),
         ]);
 
-        foreach ($serviceIds as $serviceId) {
-            $effective = (new \App\Domain\Catalog\ServiceRepository())->effective($salonId, $staffId, $serviceId);
-            $this->appointments->addItem($salonId, $appointmentId, $serviceId, $effective['price'], $effective['duration_minutes']);
+        $services = new \App\Domain\Catalog\ServiceRepository();
+        $lastIndex = count($serviceIds) - 1;
+        foreach ($serviceIds as $i => $serviceId) {
+            $effective = $services->effective($salonId, $staffId, $serviceId);
+            $this->appointments->addItem($salonId, $appointmentId, $serviceId, $effective['price'], $effective['duration_minutes'], $i === $lastIndex ? $effective['buffer_minutes'] : 0);
         }
 
         $this->autoStartIfChairFree($salonId, $staffId);
@@ -181,14 +214,21 @@ final class QueueService
     private function cancelUnlocked(int $salonId, int $appointmentId, string $reason = ''): void
     {
         $appt = $this->appointments->find($salonId, $appointmentId);
-        if (!$appt || !in_array($appt['status'],['confirmed','queued','in_chair'],true)) return;
+        if (!$appt || !in_array($appt['status'], ['pending', 'confirmed', 'queued', 'in_chair'], true)) {
+            return;
+        }
         $this->appointments->update($salonId, $appointmentId, [
             'status' => 'cancelled',
-            'cancel_reason' => $reason ?: null,
+            'cancel_reason' => $reason !== '' ? mb_substr($reason, 0, 150) : null,
             // از پنل لغو شده، یعنی کار خود آرایشگاه
             'cancelled_by' => 'salon',
+            'hold_expires_at' => null,
         ]);
-        if ($appt !== null && $appt['staff_id'] !== null) {
+        $this->cancelledBySalon[] = $appt;
+        if ($appt['staff_id'] !== null) {
+            if ($appt['status'] === 'in_chair') {
+                $this->autoStartIfChairFree($salonId, (int) $appt['staff_id']);
+            }
             $this->notify($salonId, (int) $appt['staff_id']);
         }
     }
@@ -196,18 +236,17 @@ final class QueueService
     private function markNoShowUnlocked(int $salonId, int $appointmentId): void
     {
         $appt = $this->appointments->find($salonId, $appointmentId);
-        if (!$appt || !in_array($appt['status'],['confirmed','queued'],true)) return;
+        if (!$appt || !in_array($appt['status'], ['confirmed', 'queued'], true)) {
+            return;
+        }
         $this->appointments->update($salonId, $appointmentId, ['status' => 'no_show']);
-        if ($appt !== null) {
-            DB::update(
-                'customers',
-                ['no_show_count' => DB::selectOne('SELECT no_show_count FROM customers WHERE id = ?', [$appt['customer_id']])['no_show_count'] + 1],
-                'id = :id',
-                ['id' => $appt['customer_id']]
-            );
-            if ($appt['staff_id'] !== null) {
-                $this->notify($salonId, (int) $appt['staff_id']);
-            }
+        // افزایش اتمی؛ خواندن و نوشتن جدا، در دو درخواست هم‌زمان یکی را گم می‌کرد
+        DB::statement(
+            'UPDATE customers SET no_show_count = no_show_count + 1 WHERE id = ? AND salon_id = ?',
+            [$appt['customer_id'], $salonId]
+        );
+        if ($appt['staff_id'] !== null) {
+            $this->notify($salonId, (int) $appt['staff_id']);
         }
     }
 
@@ -241,19 +280,27 @@ final class QueueService
      */
     public function salonSnapshot(int $salonId): array
     {
-        $staffRows = DB::select('SELECT id, name, color FROM staff WHERE salon_id = ? AND is_active = 1 ORDER BY sort_order, id', [$salonId]);
+        $staffRows = DB::select('SELECT id, name, title, color FROM staff WHERE salon_id = ? AND is_active = 1 ORDER BY sort_order, id', [$salonId]);
         $now = new DateTimeImmutable();
+
+        /*
+         * یک کوئری برای نوبت‌های همه و یک کوئری برای خدمت‌هایشان. صفحهٔ
+         * امروز هر ۱۵ ثانیه تازه می‌شود؛ کوئری به‌ازای هر نفر، با ده نفر
+         * کادر یعنی ده رفت‌وبرگشت اضافه در هر تازه‌سازیِ هر دستگاه.
+         */
+        $byStaff = $this->appointments->activeTodayByStaff($salonId);
+        $allIds = [];
+        foreach ($byStaff as $rows) {
+            foreach ($rows as $row) {
+                $allIds[] = (int) $row['id'];
+            }
+        }
+        $itemsByAppointment = $this->appointments->itemsForMany($salonId, $allIds);
+
         $snapshot = [];
-
         foreach ($staffRows as $staff) {
-            $appts = $this->appointments->activeForStaff($salonId, (int) $staff['id']);
-            $ordered = $this->ordering->order($appts, $now);
+            $ordered = $this->ordering->order($byStaff[(int) $staff['id']] ?? [], $now);
             $etas = $this->eta->computeForStaffQueue($ordered, $now);
-
-            $itemsByAppointment = $this->appointments->itemsForMany(
-                $salonId,
-                array_map(static fn ($a) => (int) $a['id'], $ordered)
-            );
 
             $rows = [];
             foreach ($ordered as $appt) {

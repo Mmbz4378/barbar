@@ -5,105 +5,109 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Core\Auth;
-use App\Core\DB;
 use App\Core\Request;
 use App\Core\Response;
 use App\Domain\Access\Access;
-use App\Domain\Catalog\ServiceRepository;
-use App\Domain\Customer\CustomerRepository;
 use App\Domain\Appointment\AppointmentRepository;
+use App\Domain\Catalog\ServiceRepository;
+use App\Domain\Payment\PaymentRepository;
 use App\Domain\Queue\QueueService;
 use App\Domain\Staff\StaffRepository;
 use RuntimeException;
 
+/**
+ * «امروز» — صف زنده، پذیرش حضوری و گردش خدمت.
+ */
 final class QueueController extends Controller
 {
     public function index(Request $request): Response
     {
-        $salonId = Auth::salonId();
-        $queue = new QueueService();
-        $snapshot = $queue->salonSnapshot($salonId);
-
+        $salonId = (int) Auth::salonId();
         $myStaffId = Auth::staffId();
-        $services = (new ServiceRepository())->all($salonId, true);
-        $staffList = (new StaffRepository())->all($salonId, true);
-        $todayEarnings = (new \App\Domain\Payment\PaymentRepository())->dailyTotal($salonId, date('Y-m-d'), $myStaffId);
+        $appointments = new AppointmentRepository();
+        $payments = new PaymentRepository();
+        $today = date('Y-m-d');
+        $desk = Access::allows(Access::BOOK_FOR_OTHERS);
+
+        $snapshot = (new QueueService())->salonSnapshot($salonId);
+        if (!$desk) {
+            // آرایشگر فقط صف خودش را می‌بیند
+            $snapshot = array_values(array_filter($snapshot, static fn ($g) => (int) $g['staff']['id'] === $myStaffId));
+        }
+
+        $services = new ServiceRepository();
 
         return $this->page('layouts.panel', 'panel.queue.index', [
-            'title' => 'صف زنده',
+            'title' => 'امروز',
             'snapshot' => $snapshot,
+            'desk' => $desk,
             'myStaffId' => $myStaffId,
-            'services' => $services,
-            'staffList' => $staffList,
-            'todayCount' => (new \App\Domain\Appointment\AppointmentRepository())->todayCompletedCount($salonId, $myStaffId),
-            'todayEarnings' => $todayEarnings,
-            'todaySummary' => (new \App\Domain\Appointment\AppointmentRepository())->todaySummary($salonId),
-            // درآمد کل سالن فقط برای صاحب و مدیر — آرایشگر نباید درآمد
-            // بقیه را ببیند، وگرنه در سالن دعوا می‌شود (سند امنیت، بخش ۴).
-            'salonEarnings' => Access::allows(Access::VIEW_SALON_EARNINGS)
-                ? (new \App\Domain\Payment\PaymentRepository())->dailyTotal($salonId, date('Y-m-d'), null)
-                : null,
+            'serviceGroups' => $desk ? $services->grouped($salonId, true) : [],
+            'staffList' => $desk ? (new StaffRepository())->all($salonId, true) : [],
+            'summary' => $appointments->todaySummary($salonId, $desk ? null : $myStaffId),
+            'myEarnings' => $myStaffId !== null ? $payments->dailyTotal($salonId, $today, $myStaffId) : null,
+            'salonEarnings' => Access::allows(Access::VIEW_SALON_EARNINGS) ? $payments->dailyTotal($salonId, $today) : null,
+            'awaiting' => Access::allows(Access::TAKE_PAYMENT) ? $appointments->awaitingSettlement($salonId) : [],
+            'pendingDeposits' => $desk ? count($appointments->pendingDeposits($salonId)) : 0,
+            'canPay' => Access::allows(Access::TAKE_PAYMENT),
         ]);
     }
 
     /**
-     * نقطهٔ JSON برای به‌روزرسانی صف، تقریباً بی‌درنگ.
-     *
-     * هر ۱۵ ثانیه پرسیده می‌شود و با ETag جواب می‌دهد، پس وقتی چیزی
-     * عوض نشده فقط یک هدر ردوبدل می‌شود. عمداً WebSocket نیست: روی
-     * هاست اشتراکی cPanel چیزی که اتصال باز نگه دارد اجرا نمی‌شود.
+     * JSON صف برای ادغام‌های بیرونی (نمایشگر سالن و…). صفحهٔ امروز خودش
+     * با تازه‌سازی بخشی HTML کار می‌کند.
      */
     public function poll(Request $request): Response
     {
-        $salonId = Auth::salonId();
-        $snapshot = (new QueueService())->salonSnapshot($salonId);
-
-        $body = json_encode($this->simplify($snapshot), JSON_UNESCAPED_UNICODE);
+        $snapshot = (new QueueService())->salonSnapshot((int) Auth::salonId());
+        $body = (string) json_encode(array_map(static fn ($group) => [
+            'staff' => ['id' => (int) $group['staff']['id'], 'name' => $group['staff']['name']],
+            'queue' => array_map(static fn ($row) => [
+                'id' => (int) $row['id'],
+                'status' => $row['status'],
+                'kind' => $row['kind'],
+                'display' => $row['display'],
+            ], $group['queue']),
+        ], $snapshot), JSON_UNESCAPED_UNICODE);
         $etag = '"' . md5($body) . '"';
 
         if ($request->header('If-None-Match') === $etag) {
             return new Response('', 304, ['ETag' => $etag]);
         }
 
-        return new Response($body, 200, ['Content-Type' => 'application/json; charset=UTF-8', 'ETag' => $etag]);
+        return new Response($body, 200, ['Content-Type' => 'application/json; charset=UTF-8', 'ETag' => $etag, 'Cache-Control' => 'private, no-cache']);
     }
 
     public function addWalkin(Request $request): Response
     {
-        $salonId = Auth::salonId();
-        $serviceIds = array_filter(array_map('intval', (array) $request->input('service_ids', [])));
-        $staffId = $request->input('staff_id') !== '' && $request->input('staff_id') !== null ? (int) $request->input('staff_id') : null;
+        $salonId = (int) Auth::salonId();
+        $staffRaw = (string) $request->input('staff_id', '');
 
         try {
             (new QueueService())->addWalkin(
                 $salonId,
                 trim((string) $request->input('name', '')) ?: null,
                 trim((string) $request->input('phone', '')) ?: null,
-                $staffId,
-                $serviceIds
+                $staffRaw !== '' ? (int) $staffRaw : null,
+                (array) $request->input('service_ids', [])
             );
         } catch (RuntimeException $e) {
-            return $this->withError($e->getMessage(), '/panel');
+            \App\Core\Session::flash('_old', array_diff_key($request->all(), ['_csrf' => 1]));
+            \App\Core\Session::flash('walkin_open', true);
+
+            return $this->withError($e->getMessage(), '/panel#walkin');
         }
 
-        return $this->withSuccess('مشتری به صف اضافه شد.', '/panel');
+        return $this->withSuccess('به صف اضافه شد.', '/panel');
     }
 
-    /**
-     * دروازهٔ اکشن‌های صف.
-     *
-     * آرایشگر فقط روی نوبت خودش کار می‌کند. پیش از این هر عضو سالن
-     * می‌توانست نوبتِ آرایشگر دیگری را کامل یا لغو کند — و چون همه‌چیز
-     * درست ثبت می‌شد، هیچ ردی از اشتباه نمی‌ماند جز شاکی شدن مشتری.
-     */
+    /** آرایشگر فقط روی نوبت خودش کار می‌کند. */
     private function denyForeignAppointment(int $appointmentId): ?Response
     {
-        $appointment = (new AppointmentRepository())->find(Auth::salonId(), $appointmentId);
-
+        $appointment = (new AppointmentRepository())->find((int) Auth::salonId(), $appointmentId);
         if ($appointment === null) {
             return $this->withError('نوبت یافت نشد.', '/panel');
         }
-
         if (!Access::canActOnAppointment($appointment)) {
             return $this->withError('این نوبت برای شما نیست.', '/panel');
         }
@@ -113,12 +117,13 @@ final class QueueController extends Controller
 
     public function start(Request $request): Response
     {
-        if ($deny = $this->denyForeignAppointment((int) $request->param('id'))) {
+        $id = (int) $request->param('id');
+        if ($deny = $this->denyForeignAppointment($id)) {
             return $deny;
         }
 
         try {
-            (new QueueService())->startService(Auth::salonId(), (int) $request->param('id'));
+            (new QueueService())->startService((int) Auth::salonId(), $id);
         } catch (RuntimeException $e) {
             return $this->withError($e->getMessage(), '/panel');
         }
@@ -128,61 +133,50 @@ final class QueueController extends Controller
 
     public function complete(Request $request): Response
     {
-        $salonId = Auth::salonId();
-        $appointmentId = (int) $request->param('id');
-
-        if ($deny = $this->denyForeignAppointment($appointmentId)) {
+        $id = (int) $request->param('id');
+        if ($deny = $this->denyForeignAppointment($id)) {
             return $deny;
         }
 
         try {
-            $result = (new QueueService())->completeService($salonId, $appointmentId);
+            (new QueueService())->completeService((int) Auth::salonId(), $id);
         } catch (RuntimeException $e) {
             return $this->withError($e->getMessage(), '/panel');
         }
 
-        $total = array_sum(array_column($result['items'], 'price'));
+        /*
+         * کسی که اجازهٔ تسویه دارد مستقیم به صفحهٔ تسویه می‌رود. آرایشگر
+         * نه — قبلاً به صفحه‌ای فرستاده می‌شد که ۴۰۳ می‌داد؛ حالا کار در
+         * فهرست «منتظر تسویه»ی پذیرش می‌نشیند.
+         */
+        if (Access::allows(Access::TAKE_PAYMENT)) {
+            return $this->redirect('/panel/pay/' . $id);
+        }
 
-        return $this->redirect('/panel/pay/' . $appointmentId . '?amount=' . $total);
+        return $this->withSuccess('خدمت تمام شد. تسویه در پذیرش انجام می‌شود.', '/panel');
     }
 
     public function noShow(Request $request): Response
     {
-        if ($deny = $this->denyForeignAppointment((int) $request->param('id'))) {
+        $id = (int) $request->param('id');
+        if ($deny = $this->denyForeignAppointment($id)) {
             return $deny;
         }
+        (new QueueService())->markNoShow((int) Auth::salonId(), $id);
 
-        (new QueueService())->markNoShow(Auth::salonId(), (int) $request->param('id'));
-
-        return $this->withSuccess('به‌عنوان غایب ثبت شد.', '/panel');
+        return $this->withSuccess('غیبت ثبت شد.', '/panel');
     }
 
     public function cancel(Request $request): Response
     {
-        if ($deny = $this->denyForeignAppointment((int) $request->param('id'))) {
+        $id = (int) $request->param('id');
+        if ($deny = $this->denyForeignAppointment($id)) {
             return $deny;
         }
+        (new QueueService())->cancel((int) Auth::salonId(), $id, trim((string) $request->input('reason', '')));
 
-        (new QueueService())->cancel(Auth::salonId(), (int) $request->param('id'), (string) $request->input('reason', ''));
+        $back = (string) $request->input('back', '');
 
-        return $this->withSuccess('نوبت لغو شد.', '/panel');
-    }
-
-    private function simplify(array $snapshot): array
-    {
-        return array_map(static function ($group) {
-            return [
-                'staff' => $group['staff'],
-                'queue' => array_map(static function ($row) {
-                    return [
-                        'id' => $row['id'],
-                        'status' => $row['status'],
-                        'kind' => $row['kind'],
-                        'customer_name' => $row['customer_name'],
-                        'display' => $row['display'],
-                    ];
-                }, $group['queue']),
-            ];
-        }, $snapshot);
+        return $this->withSuccess('نوبت لغو شد. اگر نوبتِ آینده بود، به مشتری پیامک لغو فرستاده می‌شود.', str_starts_with($back, '/panel/bookings') || $back === '/panel' ? $back : '/panel');
     }
 }

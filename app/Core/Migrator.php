@@ -47,7 +47,16 @@ final class Migrator
             }
 
             try {
-                DB::connection()->exec($sql);
+                /*
+                 * دستورها یکی‌یکی اجرا می‌شوند، نه با یک exec چنددستوری.
+                 *
+                 * در اجرای چنددستوری، PDO فقط خطای دستور اول را گزارش
+                 * می‌کند؛ اگر ALTER سوم شکست بخورد، مهاجرت «موفق» ثبت
+                 * می‌شد و اسکیمای نیمه‌کاره بی‌صدا در تولید می‌ماند.
+                 */
+                foreach (self::splitStatements($sql) as $statement) {
+                    DB::connection()->exec($statement);
+                }
                 DB::insert('schema_migrations', ['filename' => $name]);
                 $report[] = ['file' => $name, 'ok' => true, 'error' => null];
             } catch (Throwable $e) {
@@ -91,6 +100,79 @@ final class Migrator
             $pdo->exec('DROP TABLE IF EXISTS `' . $table . '`');
         }
         $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
+    }
+
+    /**
+     * متن یک فایل SQL را به دستورهای جدا می‌شکند.
+     *
+     * «;» داخل رشته‌ها و توضیح‌ها جداکننده حساب نمی‌شود. توضیح‌های
+     * «--» و «/* … *\/» حذف می‌شوند چون بعضی نسخه‌های MariaDB دستورِ
+     * فقط-توضیح را خطا می‌دانند.
+     *
+     * @return string[]
+     */
+    public static function splitStatements(string $sql): array
+    {
+        $statements = [];
+        $buffer = '';
+        $length = strlen($sql);
+        $quote = null;
+
+        for ($i = 0; $i < $length; $i++) {
+            $char = $sql[$i];
+            $next = $i + 1 < $length ? $sql[$i + 1] : '';
+
+            if ($quote !== null) {
+                $buffer .= $char;
+                if ($char === '\\' && $quote !== '`') {
+                    $buffer .= $next;
+                    $i++;
+                } elseif ($char === $quote) {
+                    $quote = null;
+                }
+                continue;
+            }
+
+            if ($char === '-' && $next === '-') {
+                $end = strpos($sql, "\n", $i);
+                $i = $end === false ? $length : $end;
+                $buffer .= "\n";
+                continue;
+            }
+            if ($char === '#') {
+                $end = strpos($sql, "\n", $i);
+                $i = $end === false ? $length : $end;
+                $buffer .= "\n";
+                continue;
+            }
+            if ($char === '/' && $next === '*') {
+                $end = strpos($sql, '*/', $i + 2);
+                $i = $end === false ? $length : $end + 1;
+                continue;
+            }
+
+            if ($char === "'" || $char === '"' || $char === '`') {
+                $quote = $char;
+                $buffer .= $char;
+                continue;
+            }
+
+            if ($char === ';') {
+                if (trim($buffer) !== '') {
+                    $statements[] = trim($buffer);
+                }
+                $buffer = '';
+                continue;
+            }
+
+            $buffer .= $char;
+        }
+
+        if (trim($buffer) !== '') {
+            $statements[] = trim($buffer);
+        }
+
+        return $statements;
     }
 
     private function ensureLedger(): void

@@ -1,37 +1,148 @@
-<?php $reviewTotal=(int)($reviewSummary['total']??0); $startingPrice=$services?min(array_column($services,'price')):null; ?>
-<a class="text-action profile-back" href="<?= e(url('discover')) ?>"><?= icon('chevron-start') ?> بازگشت به سالن‌ها</a>
-<section class="salon-profile glass">
- <div class="salon-profile__cover"><img src="<?= e(salon_cover_url($salon)) ?>" alt="<?= !empty($salon['cover_path'])?'تصویر سالن '.e($salon['name']):'تصویر نمونهٔ خدمت کوتاهی مو' ?>" width="640" height="480" fetchpriority="high"><?php if(empty($salon['cover_path'])): ?><span class="photo-caption">تصویر نمونهٔ خدمات</span><?php endif; ?></div>
- <div class="salon-profile__intro">
-  <span class="discovery-eyebrow">یک انتخاب برای حال خوبت</span><h1 class="page-title"><?= e($salon['name']) ?></h1>
-  <p class="profile-location"><?= icon('map-pin') ?> <?= e($salon['city'].' · '.$salon['address']) ?></p>
-  <a class="rating-label text-action" href="#salon-reviews"><?= icon('star') ?> <?= $reviewTotal?e(fa_num(number_format((float)$reviewSummary['average'],1))).' از ۵ · '.e(fa_num($reviewTotal)).' نظر':'اولین تجربه‌ات را ثبت کن' ?></a>
-  <?php if(!empty($salon['introduction'])): ?><p class="profile-description"><?= e($salon['introduction']) ?></p><?php endif; ?>
-  <div class="profile-booking-summary"><div><span class="eyebrow">قیمت پایهٔ خدمات</span><strong><?= $startingPrice!==null?'از '.e(toman((int)$startingPrice)):'قیمت اعلام نشده' ?></strong></div><a class="btn-accent" href="<?= e(url('s/'.$salon['slug'])) ?>">انتخاب وقت و رزرو <?= icon('chevron-end') ?></a></div>
-  <div class="profile-actions profile-actions--secondary">
-   <a class="btn-ink" href="tel:<?= e($salon['phone']) ?>"><?= icon('phone') ?> تماس</a>
-   <form method="post" action="<?= e(url('salons/view/'.$salon['slug'].'/favorite')) ?>"><?= csrf_field() ?><input type="hidden" name="saved" value="<?= $favorite?'0':'1' ?>"><button class="btn-ink" type="submit" aria-pressed="<?= $favorite?'true':'false' ?>"><?= icon('heart') ?> <?= $favorite?'ذخیره شده':'ذخیرهٔ سالن' ?></button></form>
-   <?php if(App\Core\Config::get('reshen.discovery.maps_enabled',true)&&$salon['map_lat']!==null&&$salon['map_lng']!==null): ?><a class="btn-ink" rel="noopener noreferrer" target="_blank" href="https://www.openstreetmap.org/?mlat=<?= e((string)$salon['map_lat']) ?>&amp;mlon=<?= e((string)$salon['map_lng']) ?>#map=16/<?= e((string)$salon['map_lat']) ?>/<?= e((string)$salon['map_lng']) ?>"><?= icon('map-pin') ?> مسیریابی</a><?php endif; ?>
-  </div>
- </div>
-</section>
-<nav class="profile-section-nav" aria-label="بخش‌های معرفی سالن"><a href="#salon-services">خدمات و قیمت‌ها</a><a href="#salon-team">تیم و ساعت کاری</a><a href="#salon-reviews">نظرها</a></nav>
-<section class="profile-section" id="salon-services"><div class="section-heading"><div><span class="eyebrow">متناسب با سلیقهٔ تو</span><h2 class="page-title">خدمات سالن</h2></div><span class="text-ink-500 text-sm"><?= e(fa_num(count($services))) ?> خدمت</span></div>
-<p class="text-ink-500 text-sm mb-4">قیمت نهایی با انتخاب آرایشگر مشخص می‌شود. برای رزرو، ابتدا زمان را انتخاب کن.</p>
-<?php include BASE_PATH.'/resources/views/components/service-discovery.php'; ?>
-<div class="salon-grid profile-services">
-<?php foreach($services as $i=>$s): ?><article class="glass service-menu-card" data-service-card="<?= e($s['name']) ?>" data-category="<?= e(service_visual($s['name'])['category']) ?>">
- <div class="service-menu-card__media"><?= service_photo($s['name'],'service-photo service-menu-card__photo',false,$s['image_file']??null) ?><span class="service-menu-card__badge" aria-hidden="true"><?= icon(service_icon($s['name'])) ?></span></div>
- <div class="service-menu-card__body"><h3 class="card-title"><?= e($s['name']) ?></h3><?php if(!empty($s['description'])): ?><p class="text-ink-500 text-sm"><?= e($s['description']) ?></p><?php endif; ?><span class="service-meta"><?= icon('clock') ?> <?= e(fa_num($s['duration_minutes'])) ?> دقیقه</span><strong class="service-menu-card__price"><?= e(toman((int)$s['price'])) ?></strong></div>
-</article><?php endforeach; ?></div>
-</section>
-<div class="profile-columns" id="salon-team">
- <section class="glass p-5"><div class="section-heading"><h2 class="card-title">تیم سالن</h2><?= icon('scissors') ?></div><p class="text-ink-500 text-sm mb-4">در مرحلهٔ رزرو، افراد آزاد در زمان انتخابی را می‌بینی.</p><div class="profile-team-grid">
- <?php foreach($staff as $member): ?><div class="profile-team-member"><span class="profile-team-avatar" aria-hidden="true"><?= icon('barber-mark') ?></span><strong><?= e($member['name']) ?></strong><span class="text-ink-500 text-sm">آرایشگر سالن</span></div><?php endforeach; ?></div></section>
- <section class="glass p-5"><div class="section-heading"><h2 class="card-title">ساعت کاری</h2><?= icon('clock') ?></div><?php $names=['شنبه','یکشنبه','دوشنبه','سه‌شنبه','چهارشنبه','پنجشنبه','جمعه']; foreach($names as $day=>$label): $h=$hours[$day]??null; ?><p class="hours-row"><span><?= $label ?></span><span><?= !$h?'اعلام نشده':($h['is_closed']?'تعطیل':e(fa_num(substr($h['opens_at'],0,5).' تا '.substr($h['closes_at'],0,5)))) ?></span></p><?php endforeach; ?></section>
+<?php
+/**
+ * معرفی عمومی سالن.
+ *
+ * @var array $salon
+ * @var array $groups
+ * @var array $staff
+ * @var array $hours
+ * @var array $reviews
+ * @var bool $favorite
+ */
+use App\Support\JalaliCalendar;
+use App\Support\ServiceVisual;
+
+$mapsEnabled = (bool) App\Core\Config::get('reshen.discovery.maps_enabled', true);
+$hasMap = $mapsEnabled && $salon['map_lat'] !== null && $salon['map_lng'] !== null;
+$serviceCount = array_sum(array_map(static fn ($g) => count($g['services']), $groups));
+?>
+<a class="back-link" href="<?= e(url('discover')) ?>"><?= icon('chevron-start') ?> همهٔ سالن‌ها</a>
+
+<div class="salon-cover mb-4">
+  <?= salon_cover($salon, true) ?>
 </div>
-<section class="profile-section" id="salon-reviews"><div class="section-heading"><h2 class="page-title">نظر مراجعه‌کنندگان</h2><?php if($reviewTotal): ?><span class="rating-label"><?= icon('star') ?> <?= e(fa_num(number_format((float)$reviewSummary['average'],1))) ?> از ۵</span><?php endif; ?></div><p class="text-ink-500 mb-4">نظرها مربوط به مراجعهٔ انجام‌شده‌اند. ثبت نظر از بخش نوبت‌های من امکان‌پذیر است.</p>
- <?php if(!$reviews): ?><div class="glass empty-state"><?= icon('message','empty-state__icon') ?><h3 class="card-title">هنوز نظری منتشر نشده</h3><p>پس از مراجعه، تجربه‌ات را با دیگران به اشتراک بگذار.</p></div><?php endif; ?>
- <div class="review-grid"><?php foreach($reviews as $review): ?><article class="glass salon-review-card"><div class="section-heading"><strong class="rating-label"><?= icon('star') ?> <?= e(fa_num($review['rating'])) ?> از ۵</strong><span class="eyebrow"><?= e(jdate($review['created_at'],'Y/m/d')) ?></span></div><p><?= e($review['comment']) ?></p><details class="mt-3"><summary>گزارش این نظر</summary><form method="post" action="<?= e(url('reviews/'.$review['id'].'/report')) ?>" class="space-y-3 mt-3"><?= csrf_field() ?><label>دلیل گزارش<input class="w-full rounded-xl border p-3" name="reason" maxlength="300" required></label><button class="btn-ink">ثبت گزارش</button></form></details></article><?php endforeach; ?></div>
-</section>
-<aside class="profile-reserve-bar" aria-label="رزرو از این سالن"><div><strong><?= e($salon['name']) ?></strong><span><?= $startingPrice!==null?'از '.e(toman((int)$startingPrice)):'انتخاب خدمات و زمان' ?></span></div><a class="btn-accent" href="<?= e(url('s/'.$salon['slug'])) ?>">رزرو نوبت <?= icon('chevron-end') ?></a></aside>
+
+<div class="grid grid-main-aside" style="--gap:24px">
+  <div class="stack stack-lg" style="min-width:0">
+    <header class="stack stack-sm">
+      <div class="cluster"><span class="badge badge--accent"><?= e(term('salon_type')) ?></span><?php if (!empty($salon['neighborhood'])): ?><span class="badge"><?= e($salon['neighborhood']) ?></span><?php endif; ?></div>
+      <h1 class="title-lg"><?= e($salon['name']) ?></h1>
+      <p class="muted"><?= icon('map-pin', 'icon') ?> <?= e(trim(($salon['city'] ?? '') . '، ' . ($salon['address'] ?? ''), '، ')) ?></p>
+      <a class="rating" href="#reviews"><?= icon('star') ?>
+        <?php if ((int) $salon['rating_count'] > 0): ?>
+          <?= e(fa_num(number_format((float) $salon['rating_avg'], 1))) ?> از ۵ <span class="muted">· <?= e(fa_num($salon['rating_count'])) ?> نظر</span>
+        <?php else: ?><span class="muted">هنوز نظری منتشر نشده</span><?php endif; ?>
+      </a>
+      <?php if (!empty($salon['introduction'])): ?><p><?= nl2br(e($salon['introduction'])) ?></p><?php endif; ?>
+      <div class="btn-row mt-2">
+        <a class="btn btn--primary btn--lg" href="<?= e(url('s/' . $salon['slug'])) ?>"><?= icon('calendar') ?> رزرو نوبت</a>
+        <a class="btn btn--secondary btn--lg" href="tel:<?= e($salon['phone']) ?>"><?= icon('phone') ?> تماس</a>
+        <form method="post" action="<?= e(url('salons/view/' . $salon['slug'] . '/favorite')) ?>">
+          <?= csrf_field() ?><input type="hidden" name="saved" value="<?= $favorite ? '0' : '1' ?>">
+          <button class="btn btn--ghost btn--lg" type="submit" aria-pressed="<?= $favorite ? 'true' : 'false' ?>"><?= icon('heart') ?> <?= $favorite ? 'ذخیره شده' : 'ذخیرهٔ سالن' ?></button>
+        </form>
+        <?php if ($hasMap): ?>
+          <a class="btn btn--ghost btn--lg" target="_blank" rel="noopener noreferrer" href="https://www.openstreetmap.org/?mlat=<?= e((string) $salon['map_lat']) ?>&amp;mlon=<?= e((string) $salon['map_lng']) ?>#map=17/<?= e((string) $salon['map_lat']) ?>/<?= e((string) $salon['map_lng']) ?>"><?= icon('navigation') ?> مسیریابی</a>
+        <?php endif; ?>
+      </div>
+    </header>
+
+    <nav class="tabs" aria-label="بخش‌های صفحه">
+      <a class="tab" href="#services">خدمات <span class="badge"><?= e(fa_num($serviceCount)) ?></span></a>
+      <a class="tab" href="#team">تیم و ساعت کاری</a>
+      <a class="tab" href="#reviews">نظرها</a>
+    </nav>
+
+    <section class="section" id="services" aria-labelledby="services-title">
+      <div class="section__head"><h2 class="section__title" id="services-title">خدمات و قیمت‌ها</h2></div>
+      <?php foreach ($groups as $group): ?>
+        <div class="service-group">
+          <h3 class="service-group__title"><?= icon(ServiceVisual::icon($group['visual'] ?? 'haircut')) ?><?= e($group['name']) ?></h3>
+          <div class="stack stack-sm">
+            <?php foreach ($group['services'] as $s): ?>
+              <div class="menu-item">
+                <?= service_media($s) ?>
+                <div class="menu-item__body">
+                  <div class="menu-item__row"><strong><?= e($s['name']) ?></strong><span class="service-price"><?= e(price_text((int) $s['price'], (string) $s['price_type'])) ?></span></div>
+                  <?php if (!empty($s['description'])): ?><p class="text-sm muted"><?= e($s['description']) ?></p><?php endif; ?>
+                  <div class="service-meta"><span><?= icon('clock') ?><?= e(duration_text((int) $s['duration_minutes'])) ?></span><?php if ((int) $s['online_booking'] !== 1): ?><span><?= icon('phone') ?>رزرو تلفنی</span><?php endif; ?></div>
+                </div>
+              </div>
+            <?php endforeach; ?>
+          </div>
+        </div>
+      <?php endforeach; ?>
+      <p class="text-sm muted">قیمت ممکن است برای هر <?= e(term('staff')) ?> کمی فرق کند؛ قیمت قطعی در خلاصهٔ رزرو نمایش داده می‌شود.</p>
+    </section>
+
+    <section class="section" id="team" aria-labelledby="team-title">
+      <h2 class="section__title" id="team-title">تیم سالن</h2>
+      <div class="grid-auto" style="--min:200px;--gap:12px">
+        <?php foreach ($staff as $member): ?>
+          <div class="card card--flat"><div class="card__body row">
+            <span class="avatar" style="--avatar-bg:<?= e(staff_color($member['color'])) ?>" aria-hidden="true"><?= e(initial($member['name'])) ?></span>
+            <div class="stack stack-xs" style="min-width:0"><strong class="truncate"><?= e($member['name']) ?></strong><span class="text-sm muted truncate"><?= e($member['title'] ?: term('staff')) ?></span></div>
+          </div></div>
+        <?php endforeach; ?>
+      </div>
+    </section>
+
+    <section class="section" id="reviews" aria-labelledby="reviews-title">
+      <div class="section__head">
+        <h2 class="section__title" id="reviews-title">نظر مراجعان</h2>
+        <?php if ((int) $salon['rating_count'] > 0): ?><span class="rating"><?= icon('star') ?><?= e(fa_num(number_format((float) $salon['rating_avg'], 1))) ?> از ۵</span><?php endif; ?>
+      </div>
+      <p class="section__sub">فقط کسی که نوبتش انجام شده می‌تواند نظر بدهد؛ نظرها پیش از انتشار بررسی می‌شوند.</p>
+      <?php if ($reviews === []): ?>
+        <div class="card card--flat"><?= partial('empty-state', ['icon' => 'message', 'title' => 'هنوز نظری منتشر نشده', 'text' => 'پس از مراجعه، از «نوبت‌های من» می‌توانی تجربه‌ات را ثبت کنی.']) ?></div>
+      <?php else: ?>
+        <div class="stack stack-sm">
+          <?php foreach ($reviews as $review): ?>
+            <article class="card card--flat"><div class="card__body stack stack-sm">
+              <div class="spread">
+                <span class="rating"><?php for ($i = 1; $i <= 5; $i++): ?><svg class="icon" aria-hidden="true" style="<?= $i > (int) $review['rating'] ? 'opacity:.25' : '' ?>"><use href="#i-star"></use></svg><?php endfor; ?><span class="sr-only"><?= e(fa_num($review['rating'])) ?> از ۵</span></span>
+                <span class="text-xs muted"><?= e(trim(explode(' ', (string) ($review['customer_name'] ?? ''))[0]) ?: 'مراجع') ?> · <?= e(jdate($review['created_at'], 'j M Y')) ?></span>
+              </div>
+              <?php if (!empty($review['comment'])): ?><p><?= e($review['comment']) ?></p><?php endif; ?>
+              <details>
+                <summary class="btn btn--link btn--sm" style="list-style:none">گزارش این نظر</summary>
+                <form method="post" action="<?= e(url('reviews/' . $review['id'] . '/report')) ?>" class="stack stack-sm mt-2">
+                  <?= csrf_field() ?>
+                  <div class="field"><label class="field__label" for="rr-<?= (int) $review['id'] ?>">دلیل گزارش</label><input class="input" id="rr-<?= (int) $review['id'] ?>" name="reason" maxlength="300" required></div>
+                  <button class="btn btn--secondary btn--sm" type="submit">ثبت گزارش</button>
+                </form>
+              </details>
+            </div></article>
+          <?php endforeach; ?>
+        </div>
+      <?php endif; ?>
+    </section>
+  </div>
+
+  <aside class="stack" aria-label="ساعت کاری و رزرو">
+    <div class="card">
+      <div class="card__header"><h2 class="card__title">ساعت کاری</h2></div>
+      <div class="card__body">
+        <dl class="kv">
+          <?php foreach (JalaliCalendar::WEEKDAY_NAMES as $day => $label): $h = $hours[$day] ?? null; ?>
+            <div class="kv__row"><dt><?= e($label) ?></dt><dd class="num <?= ($h['is_closed'] ?? 1) ? 'muted' : '' ?>">
+              <?php if (!$h): ?>اعلام نشده<?php elseif ($h['is_closed']): ?>تعطیل<?php else: ?>
+                <?= e(fa_time($h['opens_at'])) ?> تا <?= e(fa_time($h['closes_at'])) ?>
+                <?php if (!empty($h['break_start'])): ?><br><span class="text-xs muted">استراحت <?= e(fa_time($h['break_start'])) ?>–<?= e(fa_time($h['break_end'])) ?></span><?php endif; ?>
+              <?php endif; ?>
+            </dd></div>
+          <?php endforeach; ?>
+        </dl>
+      </div>
+    </div>
+    <div class="card card--accent only-desktop"><div class="card__body stack stack-sm">
+      <strong>آمادهٔ رزرو؟</strong>
+      <p class="text-sm">ساعت‌های آزاد همین حالا را ببین؛ پرداخت پس از انجام خدمت است.</p>
+      <a class="btn btn--primary btn--block" href="<?= e(url('s/' . $salon['slug'])) ?>">انتخاب زمان و رزرو</a>
+    </div></div>
+  </aside>
+</div>
+
+<div class="action-bar only-mobile">
+  <a class="btn btn--primary btn--lg btn--block" href="<?= e(url('s/' . $salon['slug'])) ?>"><?= icon('calendar') ?> رزرو نوبت در <?= e($salon['name']) ?></a>
+</div>

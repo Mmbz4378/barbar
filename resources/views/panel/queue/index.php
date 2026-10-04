@@ -1,283 +1,231 @@
 <?php
-/** @var array $snapshot
+/**
+ * امروز.
+ *
+ * @var array $snapshot
+ * @var bool $desk
  * @var ?int $myStaffId
- * @var array $services
+ * @var array $serviceGroups
  * @var array $staffList
- * @var int $todayCount
- * @var array $todaySummary
+ * @var array $summary
+ * @var ?array $myEarnings
  * @var ?array $salonEarnings
+ * @var array $awaiting
+ * @var int $pendingDeposits
+ * @var bool $canPay
  */
-use App\Core\Auth;
 use App\Support\JalaliCalendar;
+use App\Support\ServiceVisual;
 
-$role = Auth::role();
-$today = new DateTimeImmutable('today');
-$sum = $todaySummary ?? ['total'=>0,'completed'=>0,'waiting'=>0,'in_chair'=>0,'no_show'=>0];
+$walkinOpen = (bool) flash('walkin_open');
+$oldServices = array_map('intval', (array) old('service_ids', []));
+
+/** دکمه‌های اقدام یک ردیف صف. */
+$rowActions = static function (array $row, bool $big = false): void {
+    $inChair = $row['status'] === 'in_chair';
+    $who = $row['customer_name'] ?: 'مشتری';
+    ?>
+    <div class="queue-row__actions">
+      <?php if ($inChair): ?>
+        <form method="post" action="<?= e(url('panel/queue/' . $row['id'] . '/complete')) ?>">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn--success btn--grow <?= $big ? 'btn--xl btn--block' : '' ?>"><?= icon('check') ?> تمام شد</button>
+        </form>
+      <?php else: ?>
+        <form method="post" action="<?= e(url('panel/queue/' . $row['id'] . '/start')) ?>">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn btn--primary btn--grow <?= $big ? 'btn--xl btn--block' : '' ?>"><?= icon('play') ?> شروع</button>
+        </form>
+      <?php endif; ?>
+      <details class="more-menu">
+        <summary class="btn btn--ghost btn--icon <?= $big ? 'btn--lg' : '' ?>" aria-label="اقدام‌های بیشتر برای <?= e($who) ?>"><?= icon('more') ?></summary>
+        <div class="more-menu__panel">
+          <?php if (!$inChair): ?>
+            <form method="post" action="<?= e(url('panel/queue/' . $row['id'] . '/no-show')) ?>" data-confirm="غیبت «<?= e($who) ?>» ثبت شود؟" data-confirm-ok="ثبت غیبت">
+              <?= csrf_field() ?><button type="submit" class="btn btn--ghost"><?= icon('user-x') ?> ثبت غیبت</button>
+            </form>
+          <?php endif; ?>
+          <form method="post" action="<?= e(url('panel/queue/' . $row['id'] . '/cancel')) ?>" data-confirm="نوبت «<?= e($who) ?>» لغو شود؟" data-confirm-ok="لغو نوبت">
+            <?= csrf_field() ?><button type="submit" class="btn btn--danger-ghost"><?= icon('x') ?> لغو نوبت</button>
+          </form>
+          <?php if (!empty($row['customer_phone'])): ?>
+            <a class="btn btn--ghost" href="tel:<?= e($row['customer_phone']) ?>"><?= icon('phone') ?> تماس با مشتری</a>
+          <?php endif; ?>
+        </div>
+      </details>
+    </div>
+    <?php
+};
+
+/** توضیح زمان یک ردیف: رزرو ساعت فلان یا تخمین صف. */
+$rowTime = static function (array $row): string {
+    if ($row['status'] === 'in_chair') {
+        return 'از ' . fa_time(substr((string) $row['actual_start_at'], 11, 5));
+    }
+    if ($row['kind'] === 'booked' && !empty($row['scheduled_at'])) {
+        return 'رزرو ' . fa_time(substr((string) $row['scheduled_at'], 11, 5));
+    }
+
+    return (string) ($row['display']['text'] ?? '');
+};
 ?>
-<div class="today-heading">
-  <div class="flex items-center gap-2.5">
-    <div><h1 class="page-title">امروز در سالن</h1><p class="text-ink-500 text-sm">پذیرش، انجام خدمت و تسویه در یک نگاه</p></div>
-    <button type="button" onclick="window.reshenRefreshQueue?.()" aria-label="به‌روزرسانی صف" title="به‌روزرسانی صف"
-            class="w-11 h-11 grid place-items-center rounded-xl text-ink-500 hover:bg-ink-100 tap">
-      <?= icon('refresh', 'w-5 h-5') ?>
-    </button>
+<div class="page-head">
+  <div class="page-head__text">
+    <h1 class="page-head__title"><?= $desk ? 'امروز در سالن' : 'امروزِ من' ?></h1>
+    <p class="page-head__sub"><?= e(JalaliCalendar::humanDate(new DateTimeImmutable('today'), true)) ?> · <span id="sync-status" role="status">به‌روز</span></p>
   </div>
-  <?php if (in_array($role, ['owner','manager','reception'], true)): ?>
-  <button type="button" data-walkin-toggle aria-controls="walkin-box" aria-expanded="false" class="btn-accent metal h-11 text-[13px] px-4">پذیرش حضوری</button>
+  <div class="page-head__actions">
+    <button type="button" class="btn btn--ghost btn--icon" data-refresh-now aria-label="به‌روزرسانی"><?= icon('refresh') ?></button>
+    <?php if ($desk): ?>
+      <a class="btn btn--secondary" href="<?= e(url('panel/bookings/new')) ?>"><?= icon('calendar') ?> رزرو برای بعد</a>
+      <button type="button" class="btn btn--primary" data-toggle="walkin" aria-expanded="<?= $walkinOpen ? 'true' : 'false' ?>" aria-controls="walkin"><?= icon('user-plus') ?> پذیرش حضوری</button>
+    <?php endif; ?>
+  </div>
+</div>
+
+<div id="live" data-auto-refresh="30" data-refresh-ids="today-stats,today-attention,queue-board" data-refresh-status="sync-status">
+
+<div class="stats mb-6" id="today-stats" style="--cols:<?= $salonEarnings !== null || $myEarnings !== null ? 4 : 3 ?>">
+  <div class="stat"><span class="stat__label"><?= icon('hourglass') ?> در انتظار</span><span class="stat__value"><?= e(fa_num($summary['waiting'])) ?></span></div>
+  <div class="stat"><span class="stat__label"><?= icon('play') ?> در حال انجام</span><span class="stat__value"><?= e(fa_num($summary['in_chair'])) ?></span></div>
+  <div class="stat"><span class="stat__label"><?= icon('circle-check') ?> انجام‌شده</span><span class="stat__value"><?= e(fa_num($summary['completed'])) ?></span><?php if ($summary['no_show'] + $summary['cancelled'] > 0): ?><span class="stat__hint"><?= e(fa_num($summary['no_show'])) ?> غیبت · <?= e(fa_num($summary['cancelled'])) ?> لغو</span><?php endif; ?></div>
+  <?php if ($salonEarnings !== null): ?>
+    <div class="stat stat--accent"><span class="stat__label"><?= icon('wallet') ?> دریافتی امروز</span><span class="stat__value stat__value--sm"><?= e(toman((int) $salonEarnings['total'])) ?></span></div>
+  <?php elseif ($myEarnings !== null): ?>
+    <div class="stat stat--accent"><span class="stat__label"><?= icon('wallet') ?> فروش امروز من</span><span class="stat__value stat__value--sm"><?= e(toman((int) $myEarnings['total'])) ?></span></div>
   <?php endif; ?>
 </div>
 
-<p class="text-sm text-ink-500 mb-3" id="queue-sync-status" role="status">آخرین دریافت: <?= e(fa_num(date('H:i'))) ?></p>
-<script src="<?= e(asset('js/queue-refresh.js')) ?>" defer></script>
-
-<!--
-  نوار خلاصهٔ امروز.
-
-  چرا تاریخ شمسی اینجاست: صاحب سالن روز را با تاریخ شمسی می‌شناسد، و
-  «پنج‌شنبه» برایش معنای عملیاتی دارد (شلوغ‌ترین روز هفته). تاریخ میلادی
-  یا نبودِ تاریخ، این صفحه را از واقعیت جدا می‌کند.
--->
-<div id="queue-summary" class="dashboard-summary glass rounded-2xl p-4 mb-4 rise hairline-accent">
-  <div class="flex items-baseline justify-between mb-3">
-    <div>
-      <div class="text-[15px] font-extrabold text-ink-900">
-        <?= e(JalaliCalendar::humanDate($today, true)) ?>
-      </div>
-
-    </div>
-    <?php if ($salonEarnings !== null): ?>
-      <div class="text-left">
-        <div class="text-[12px] text-ink-400">فروش امروز</div>
-        <div class="text-xl font-extrabold text-accent tabular-nums">
-          <?= e(toman((int) ($salonEarnings['total'] ?? 0))) ?>
-        </div>
+<div id="today-attention">
+<?php if ($awaiting !== [] || $pendingDeposits > 0): ?>
+  <section class="section mb-6" aria-labelledby="attention-title">
+    <h2 class="section__title" id="attention-title">نیاز به اقدام</h2>
+    <?php if ($pendingDeposits > 0): ?>
+      <a class="alert alert--warning" href="<?= e(url('panel/bookings?view=deposits')) ?>" style="text-decoration:none"><?= icon('wallet') ?><div class="alert__body"><strong><?= e(fa_num($pendingDeposits)) ?> رزرو منتظر تأیید بیعانه</strong> — پس از دیدن واریز، تأیید کنید تا نوبت قطعی شود.</div><?= icon('chevron-end', 'icon') ?></a>
+    <?php endif; ?>
+    <?php if ($awaiting !== []): ?>
+      <div class="card">
+        <div class="card__header"><h3 class="card__title">منتظر تسویه <span class="badge badge--danger"><?= e(fa_num(count($awaiting))) ?></span></h3></div>
+        <ul class="list mt-2">
+          <?php foreach ($awaiting as $a): ?>
+            <li class="list-row">
+              <span class="list-row__body">
+                <span class="list-row__title"><?= e($a['customer_name'] ?: 'مشتری') ?></span>
+                <span class="list-row__meta"><?= e($a['staff_name'] ?? '') ?> · پایان <?= e(fa_time(substr((string) $a['actual_end_at'], 11, 5))) ?> · <span class="num"><?= e(toman((int) $a['total_price'])) ?></span></span>
+              </span>
+              <?php if ($canPay): ?><a class="btn btn--primary btn--sm" href="<?= e(url('panel/pay/' . $a['id'])) ?>">تسویه</a><?php endif; ?>
+            </li>
+          <?php endforeach; ?>
+        </ul>
       </div>
     <?php endif; ?>
-  </div>
-
-  <dl class="dashboard-metrics grid grid-cols-4 gap-2">
-    <?php foreach ([
-      ['در انتظار', $sum['waiting'],   'text-accent', 'bg-gold-50'],
-      ['روی صندلی', $sum['in_chair'],  'text-ink-900', 'bg-ink-100'],
-      ['انجام‌شده', $sum['completed'], 'text-green-700', 'bg-green-50'],
-      ['غیبت',      $sum['no_show'],   'text-ink-500', 'bg-ink-50'],
-    ] as [$label, $value, $fg, $bg]): ?>
-      <div class="<?= $bg ?> rounded-xl py-2 px-1 text-center">
-        <dd class="text-xl font-extrabold <?= $fg ?> tabular-nums"><?= e(fa_num((int) $value)) ?></dd>
-        <dt class="text-[12px] text-ink-500 mt-0.5"><?= e($label) ?></dt>
-      </div>
-    <?php endforeach; ?>
-  </dl>
+  </section>
+<?php endif; ?>
 </div>
 
-<nav class="dashboard-shortcuts" aria-label="دسترسی سریع سالن">
-<a href="<?= e(url('panel/bookings')) ?>"><?= icon('calendar-days') ?><span>برنامهٔ رزروها</span><?= icon('chevron-end') ?></a>
-<?php if(App\Domain\Access\Access::allows(App\Domain\Access\Access::MANAGE_SALON)): ?><a href="<?= e(url('panel/services')) ?>"><?= icon('scissors') ?><span>خدمات و قیمت‌ها</span><?= icon('chevron-end') ?></a><a href="<?= e(url('panel/reports')) ?>"><?= icon('chart') ?><span>گزارش عملکرد</span><?= icon('chevron-end') ?></a><?php endif; ?>
-</nav>
-<div id="walkin-box" class="hidden bg-white rounded-2xl border border-ink-100 p-5 mb-5">
-  <div class="more-sheet-heading"><h2 class="card-title">پذیرش حضوری</h2><button type="button" class="text-action" data-walkin-close>بستن فرم</button></div>
-  <form method="post" action="<?= url('panel/queue/walkin') ?>" class="space-y-3">
+</div><?php /* #live: فرم پذیرش بیرون از ناحیهٔ تازه‌شونده است تا تایپ کاربر پاک نشود */ ?>
+
+<?php if ($desk): ?>
+<section class="card mb-6" id="walkin" <?= $walkinOpen ? '' : 'hidden' ?> aria-labelledby="walkin-title">
+  <div class="card__header card__header--divided">
+    <h2 class="card__title" id="walkin-title">پذیرش حضوری</h2>
+    <button type="button" class="btn btn--ghost btn--sm" data-toggle="walkin">بستن</button>
+  </div>
+  <form method="post" action="<?= e(url('panel/queue/walkin')) ?>" class="card__body stack">
     <?= csrf_field() ?>
-    <div class="grid sm:grid-cols-2 gap-3">
-      <!--
-        برچسب‌ها sr-only هستند، نه غایب: placeholder به‌محض تایپ کردن
-        ناپدید می‌شود و صفحه‌خوان هم آن را نام فیلد حساب نمی‌کند. اینجا
-        فرم باید فشرده بماند (آرایشگر وسط کار، مشتری جلوی پیشخوان)،
-        پس برچسب هست ولی دیده نمی‌شود.
-      -->
-      <div>
-        <label for="walkin-name" class="field-label">نام مشتری (اختیاری)</label>
-        <input type="text" id="walkin-name" name="name" placeholder="نام مشتری (اختیاری)"
-               autocomplete="name"
-               class="w-full rounded-xl border border-ink-200 px-3 py-2.5 text-sm">
-      </div>
-      <div>
-        <label for="walkin-phone" class="field-label">شمارهٔ موبایل (اختیاری)</label>
-        <input inputmode="numeric" type="tel" id="walkin-phone" name="phone" dir="ltr"
-               autocomplete="tel" placeholder="شمارهٔ موبایل (اختیاری)"
-               class="w-full rounded-xl border border-ink-200 px-3 py-2.5 text-sm text-left">
-      </div>
+    <div class="form-grid form-grid--2">
+      <div class="field"><label class="field__label" for="w-name">نام مشتری <span class="field__optional">(اختیاری)</span></label><input class="input" id="w-name" name="name" autocomplete="off" value="<?= e((string) old('name')) ?>"></div>
+      <div class="field"><label class="field__label" for="w-phone">موبایل <span class="field__optional">(برای پیامک نوبت)</span></label><input class="input input--ltr num" id="w-phone" name="phone" type="tel" inputmode="tel" dir="ltr" autocomplete="off" value="<?= e((string) old('phone')) ?>" data-numeric></div>
     </div>
-    <div>
-      <p class="field-label">خدمات</p>
-      <div class="flex flex-wrap gap-2">
-        <?php foreach ($services as $s): ?>
-        <label class="flex items-center gap-1.5 text-xs bg-ink-50 border border-ink-200 rounded-lg px-2.5 py-1.5 cursor-pointer">
-          <input type="checkbox" name="service_ids[]" value="<?= (int)$s['id'] ?>"><?= e($s['name']) ?>
-        </label>
-        <?php endforeach; ?>
-      </div>
-    </div>
-    <div>
-      <label class="field-label" for="staff_id">آرایشگر</label>
-      <select id="staff_id" name="staff_id" class="rounded-xl border border-ink-200 px-3 py-2.5 text-sm">
-        <option value="">فرقی نمی‌کند (کمترین صف)</option>
-        <?php foreach ($staffList as $st): ?>
-        <option value="<?= (int)$st['id'] ?>"><?= e($st['name']) ?></option>
-        <?php endforeach; ?>
+    <fieldset class="stack stack-sm">
+      <legend class="field__label">خدمات</legend>
+      <?php foreach ($serviceGroups as $group): ?>
+        <div class="stack stack-xs">
+          <span class="text-xs muted"><?= e($group['name']) ?></span>
+          <div class="choice-grid" style="--min:140px">
+            <?php foreach ($group['services'] as $s): ?>
+              <label class="choice choice--compact choice--check">
+                <input class="choice__input" type="checkbox" name="service_ids[]" value="<?= (int) $s['id'] ?>" <?= in_array((int) $s['id'], $oldServices, true) ? 'checked' : '' ?>>
+                <span class="choice__card"><span class="truncate"><?= e($s['name']) ?></span></span>
+              </label>
+            <?php endforeach; ?>
+          </div>
+        </div>
+      <?php endforeach; ?>
+    </fieldset>
+    <div class="field">
+      <label class="field__label" for="w-staff"><?= e(term('staff')) ?></label>
+      <select class="select" id="w-staff" name="staff_id">
+        <option value="">کم‌صف‌ترین فردی که این خدمات را انجام می‌دهد</option>
+        <?php foreach ($staffList as $st): ?><option value="<?= (int) $st['id'] ?>" <?= (string) old('staff_id') === (string) $st['id'] ? 'selected' : '' ?>><?= e($st['name']) ?><?= $st['title'] ? ' — ' . e($st['title']) : '' ?></option><?php endforeach; ?>
       </select>
     </div>
-    <button type="submit" class="btn-accent metal px-5">افزودن به صف</button>
+    <div class="form-actions"><button type="submit" class="btn btn--primary"><?= icon('plus') ?> افزودن به صف</button></div>
   </form>
-</div>
-
-<div id="queue-live-content">
-<?php if ($role === 'staff' && $myStaffId !== null): ?>
-  <?php $mine = null; foreach ($snapshot as $g) { if ((int)$g['staff']['id'] === $myStaffId) { $mine = $g; } } ?>
-  <div class="glass rounded-2xl p-5 mb-5 text-center">
-    <div class="text-xs text-ink-400 mb-1">امروز تو چقدر درآوردی</div>
-    <div class="text-3xl font-extrabold text-accent"><?= toman((int)($todayEarnings['total'] ?? 0)) ?></div>
-    <div class="text-xs text-ink-400 mt-1"><?= fa_num($todayCount) ?> نوبت انجام‌شده</div>
-  </div>
-
-  <?php if ($mine && !empty($mine['queue'])): $current = $mine['queue'][0]; ?>
-    <?php if ($current['status'] === 'in_chair'): ?>
-      <div class="glass rounded-2xl p-5 mb-3">
-        <div class="text-xs text-ink-400 mb-1">روی صندلی</div>
-        <div class="text-xl font-bold text-ink-800"><?= e($current['customer_name'] ?: 'مشتری') ?></div>
-        <div class="text-xs text-ink-400 mt-1"><?= e(implode('، ', array_column($current['items'], 'service_name'))) ?></div>
-      </div>
-      <form method="post" action="<?= url('panel/queue/' . $current['id'] . '/complete') ?>">
-        <?= csrf_field() ?>
-        <button type="submit" class="btn-done w-full font-extrabold text-xl rounded-2xl py-8">تمام شد</button>
-      </form>
-    <?php else: ?>
-      <div class="glass rounded-2xl p-5 mb-3">
-        <div class="text-xs text-ink-400 mb-1">نفر بعدی</div>
-        <div class="text-xl font-bold text-ink-800"><?= e($current['customer_name'] ?: 'مشتری') ?></div>
-        <div class="text-xs text-ink-400 mt-1"><?= e(implode('، ', array_column($current['items'], 'service_name'))) ?></div>
-      </div>
-      <form method="post" action="<?= url('panel/queue/' . $current['id'] . '/start') ?>">
-        <?= csrf_field() ?>
-        <button type="submit" class="btn-accent w-full font-extrabold text-xl rounded-2xl py-8 h-auto">شروع</button>
-      </form>
-    <?php endif; ?>
-
-    <?php if (count($mine['queue']) > 1): ?>
-    <div class="mt-5">
-      <h3 class="text-[12px] font-bold text-ink-500 mb-2">در صف</h3>
-      <div class="space-y-2">
-        <?php foreach (array_slice($mine['queue'], 1) as $row): ?>
-        <div class="glass rounded-xl px-4 py-3 flex items-center justify-between">
-          <span class="text-sm text-ink-700"><?= e($row['customer_name'] ?: 'مشتری') ?></span>
-          <span class="text-xs text-ink-400"><?= e($row['display']['text'] ?? '') ?></span>
-        </div>
-        <?php endforeach; ?>
-      </div>
-    </div>
-    <?php endif; ?>
-  <?php else: ?>
-    <div class="bg-white rounded-2xl border border-dashed border-ink-200 p-10 text-center text-ink-400">صف شما خالی است.</div>
-  <?php endif; ?>
-
-<?php else: ?>
-  <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-    <?php foreach ($snapshot as $gi => $group): ?>
-    <section class="glass rounded-2xl overflow-hidden shadow-card rise rise-<?= min($gi + 1, 5) ?>"
-             aria-label="صف <?= e($group['staff']['name']) ?>">
-
-      <header class="px-4 py-3 flex items-center gap-2.5 border-b" style="border-color:var(--line)">
-        <span class="w-8 h-8 rounded-lg grid place-items-center text-[12px] font-extrabold text-white shrink-0"
-              style="background:<?= e($group['staff']['color'] ?: '#57534E') ?>" aria-hidden="true">
-          <?= e(mb_substr($group['staff']['name'], 0, 1)) ?>
-        </span>
-        <span class="font-extrabold text-[14px] text-ink-900 flex-1"><?= e($group['staff']['name']) ?></span>
-        <?php $n = count($group['queue']); ?>
-        <span class="text-[12px] font-bold tabular-nums px-2 py-1 rounded-lg
-                     <?= $n > 0 ? 'bg-gold-50 text-accent' : 'text-ink-400' ?>">
-          <?= $n > 0 ? e(fa_num($n)) . ' نفر' : 'خالی' ?>
-        </span>
-      </header>
-
-      <?php if (empty($group['queue'])): ?>
-        <div class="px-4 py-8 text-center">
-          <p class="text-[12px] text-ink-400">کسی در صف نیست</p>
-        </div>
-      <?php endif; ?>
-
-      <div class="divide-y" style="--tw-divide-opacity:1">
-        <?php foreach ($group['queue'] as $row): $inChair = $row['status'] === 'in_chair'; ?>
-        <div class="px-4 py-3.5 <?= $inChair ? 'bg-gold-50/50' : '' ?>"
-             style="border-color:var(--line)">
-
-          <div class="flex items-start justify-between gap-3 mb-2.5">
-            <div class="min-w-0">
-              <div class="flex items-center gap-1.5 flex-wrap">
-                <?php if ($inChair): ?>
-                  <span class="relative flex w-2 h-2 shrink-0" aria-hidden="true">
-                    <span class="absolute inline-flex w-full h-full rounded-full bg-gold-500 opacity-70 animate-ping"></span>
-                    <span class="relative inline-flex w-2 h-2 rounded-full bg-gold-600"></span>
-                  </span>
-                <?php endif; ?>
-                <span class="text-[14px] font-extrabold text-ink-900 truncate">
-                  <?= e($row['customer_name'] ?: 'مشتری') ?>
-                </span>
-                <?php if ($row['kind'] === 'booked'): ?>
-                  <span class="text-[12px] font-bold bg-ink-100 text-ink-600 rounded px-1.5 py-0.5 whitespace-nowrap">رزرو</span>
-                <?php endif; ?>
-              </div>
-              <p class="text-[12px] text-ink-500 mt-0.5 truncate">
-                <?= e(implode('، ', array_column($row['items'], 'service_name'))) ?>
-              </p>
-            </div>
-
-            <span class="text-[12px] font-bold shrink-0 text-left tabular-nums
-                         <?= $inChair ? 'text-accent' : 'text-ink-500' ?>">
-              <?= e($row['display']['text'] ?? '') ?>
-            </span>
-          </div>
-
-          <!--
-            دکمه‌ها ۴۴ پیکسل‌اند، نه ۲۲. آرایشگری که قیچی دستش است،
-            دکمهٔ ریز را نمی‌زند — یا بدتر، اشتباهی «لغو» را می‌زند.
-            کنشِ اصلی رنگِ پالت را دارد و کنش‌های خطرناک فقط متن‌اند.
-            پیش‌تر «شروع» خاکستری بود — همان خاکستریِ دکمهٔ غیرفعال — و
-            در عکس صفحه شبیه دکمه‌ای می‌شد که کار نمی‌کند. مسیر رنگ‌ها
-            حالا خوانا است: طلایی «شروع کن»، سبز «تمام شد».
-          -->
-          <div class="queue-row-actions flex items-center gap-2">
-            <?php if (!$inChair): ?>
-              <form method="post" action="<?= e(url('panel/queue/' . $row['id'] . '/start')) ?>" class="flex-1">
-                <?= csrf_field() ?>
-                <button class="btn-accent w-full h-11 text-[13px]">شروع</button>
-              </form>
-            <?php else: ?>
-              <form method="post" action="<?= e(url('panel/queue/' . $row['id'] . '/complete')) ?>" class="flex-1">
-                <?= csrf_field() ?>
-                <!--
-                  سبز، نه رنگِ پالت: «تمام شد» تنها کنشی است که آرایشگر
-                  وسط کار و بدون خواندن باید پیدایش کند، پس هرجا بیاید
-                  یک رنگ دارد. پیش از این نسخهٔ بزرگش سبز بود و همین
-                  نسخهٔ فهرستی آبی — یک کار با دو رنگ.
-                -->
-                <button class="btn-done w-full h-11 text-[13px]">تمام شد و تسویه</button>
-              </form>
-            <?php endif; ?>
-
-            <details class="row-more"><summary>بیشتر</summary><div class="row-more__actions">
-            <?php if (!$inChair): ?><form method="post" action="<?= e(url('panel/queue/' . $row['id'] . '/no-show')) ?>" onsubmit="return confirm('غیبت این مشتری ثبت شود؟')">
-              <?= csrf_field() ?>
-              <button class="h-11 min-w-11 px-3.5 rounded-xl text-[12px] font-semibold text-ink-500
-                             hover:bg-ink-100 transition-colors cursor-pointer
-                             focus-visible:outline-2 focus-visible:outline-ink-400"
-                      aria-label="ثبت غیبت برای <?= e($row['customer_name'] ?: 'مشتری') ?>">غیبت</button>
-            </form><?php endif; ?>
-
-            <form method="post" action="<?= e(url('panel/queue/' . $row['id'] . '/cancel')) ?>"
-                  onsubmit="return confirm('این نوبت لغو شود؟')">
-              <?= csrf_field() ?>
-              <button class="h-11 min-w-11 px-3.5 rounded-xl text-[12px] font-semibold text-red-600
-                             hover:bg-red-50 transition-colors cursor-pointer
-                             focus-visible:outline-2 focus-visible:outline-red-500"
-                      aria-label="لغو نوبت <?= e($row['customer_name'] ?: 'مشتری') ?>">لغو</button>
-            </form></div></details>
-          </div>
-        </div>
-        <?php endforeach; ?>
-      </div>
-    </section>
-    <?php endforeach; ?>
-  </div>
+</section>
 <?php endif; ?>
 
+<div id="queue-board">
+<?php if (!$desk): ?>
+  <?php $mine = $snapshot[0]['queue'] ?? []; ?>
+  <?php if ($myStaffId === null): ?>
+    <div class="card"><?= partial('empty-state', ['icon' => 'user-x', 'title' => 'حساب شما به هیچ ' . term('staff') . 'ی وصل نیست', 'text' => 'از صاحب سالن بخواهید شمارهٔ شما را در «تیم و دسترسی‌ها» برای پروفایلتان ثبت کند.']) ?></div>
+  <?php elseif ($mine === []): ?>
+    <div class="card"><?= partial('empty-state', ['icon' => 'clock', 'title' => 'فعلاً کسی در صف شما نیست', 'text' => 'نوبت‌های رزروشدهٔ امروز و مراجعه‌های حضوری اینجا نمایش داده می‌شوند.', 'actionHref' => url('panel/bookings'), 'actionLabel' => 'نوبت‌های پیش رو']) ?></div>
+  <?php else: $current = $mine[0]; ?>
+    <section class="card focus-card mb-4" aria-label="مشتری فعلی">
+      <p class="focus-card__label"><?= $current['status'] === 'in_chair' ? e(term('in_service')) : 'نفر بعدی' ?> · <?= e($rowTime($current)) ?></p>
+      <p class="focus-card__name"><?= e($current['customer_name'] ?: 'مشتری') ?></p>
+      <p class="muted mb-4"><?= e(implode('، ', array_column($current['items'], 'service_name'))) ?></p>
+      <?php if (!empty($current['customer_note'])): ?><p class="alert alert--info mb-4"><?= icon('message') ?><span class="alert__body"><?= e($current['customer_note']) ?></span></p><?php endif; ?>
+      <?php $rowActions($current, true); ?>
+    </section>
+    <?php if (count($mine) > 1): ?>
+      <section class="card" aria-labelledby="later-title">
+        <div class="card__header"><h2 class="card__title" id="later-title">بعدی‌ها</h2></div>
+        <ul class="list mt-2">
+          <?php foreach (array_slice($mine, 1) as $row): ?>
+            <li class="list-row"><span class="list-row__body"><span class="list-row__title"><?= e($row['customer_name'] ?: 'مشتری') ?></span><span class="list-row__meta"><?= e(implode('، ', array_column($row['items'], 'service_name'))) ?></span></span><span class="list-row__end text-sm muted"><?= e($rowTime($row)) ?></span></li>
+          <?php endforeach; ?>
+        </ul>
+      </section>
+    <?php endif; ?>
+  <?php endif; ?>
+<?php else: ?>
+  <?php if ($snapshot === []): ?>
+    <div class="card"><?= partial('empty-state', ['icon' => 'users', 'title' => 'هنوز کسی در تیم نیست', 'text' => 'برای گرفتن نوبت، دست‌کم یک ' . term('staff') . ' فعال لازم است.', 'actionHref' => url('panel/staff'), 'actionLabel' => 'افزودن به تیم']) ?></div>
+  <?php else: ?>
+    <div class="queue-board">
+      <?php foreach ($snapshot as $group): $n = count($group['queue']); ?>
+        <section class="card" aria-label="صف <?= e($group['staff']['name']) ?>">
+          <header class="queue-col__head">
+            <span class="avatar avatar--sm" style="--avatar-bg:<?= e(staff_color($group['staff']['color'])) ?>" aria-hidden="true"><?= e(initial($group['staff']['name'])) ?></span>
+            <span class="grow stack stack-xs"><strong class="truncate"><?= e($group['staff']['name']) ?></strong><?php if (!empty($group['staff']['title'])): ?><span class="text-xs muted truncate"><?= e($group['staff']['title']) ?></span><?php endif; ?></span>
+            <span class="badge <?= $n ? 'badge--accent' : '' ?>"><?= $n ? e(fa_num($n)) . ' نفر' : 'آزاد' ?></span>
+          </header>
+          <?php if ($n === 0): ?>
+            <p class="text-sm muted center" style="padding:24px 16px">کسی در صف نیست</p>
+          <?php endif; ?>
+          <?php foreach ($group['queue'] as $row): $inChair = $row['status'] === 'in_chair'; ?>
+            <div class="queue-row <?= $inChair ? 'queue-row--active' : '' ?>">
+              <div class="queue-row__top">
+                <div class="stack stack-xs" style="min-width:0">
+                  <span class="row" style="--gap:6px">
+                    <?php if ($inChair): ?><span class="dot dot--live" aria-hidden="true"></span><?php endif; ?>
+                    <strong class="truncate"><?= e($row['customer_name'] ?: 'مشتری') ?></strong>
+                    <?php if ((int) ($row['customer_no_shows'] ?? 0) > 0): ?><span class="badge badge--warning" title="سابقهٔ غیبت"><?= e(fa_num($row['customer_no_shows'])) ?> غیبت</span><?php endif; ?>
+                  </span>
+                  <span class="text-sm muted truncate"><?= e(implode('، ', array_column($row['items'], 'service_name'))) ?></span>
+                  <?php if (!empty($row['customer_note'])): ?><span class="text-xs muted clamp-2"><?= icon('message', 'icon') ?> <?= e($row['customer_note']) ?></span><?php endif; ?>
+                </div>
+                <span class="badge <?= $row['kind'] === 'booked' ? 'badge--info' : '' ?> shrink-0"><?= e($rowTime($row)) ?></span>
+              </div>
+              <?php $rowActions($row); ?>
+            </div>
+          <?php endforeach; ?>
+        </section>
+      <?php endforeach; ?>
+    </div>
+  <?php endif; ?>
+<?php endif; ?>
 </div>

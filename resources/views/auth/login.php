@@ -1,20 +1,16 @@
-<?php /** @var ?string $error */ ?>
-<h2 class="text-[15px] font-extrabold text-ink-900 mb-1">ورود / ثبت‌نام</h2>
-<p class="text-sm text-ink-500 mb-5">شمارهٔ موبایل‌تان را وارد کنید تا کد یک‌بارمصرف برایتان پیامک شود.</p>
-
-<?php if ($error): ?>
-<div class="bg-red-50 text-red-700 text-sm rounded-lg px-3 py-2 mb-4 border border-red-100"><?= e($error) ?></div>
-<?php endif; ?>
-
-<form method="post" action="<?= url('login') ?>" class="space-y-4">
-  <?= csrf_field() ?>
-  <div>
-    <label class="block text-sm text-ink-600 mb-1.5" for="phone">شمارهٔ موبایل</label>
-    <input id="phone" type="tel" name="phone" inputmode="numeric" autofocus placeholder="۰۹۱۲۳۴۵۶۷۸۹"
-      class="w-full rounded-xl border border-ink-200 px-4 py-3 text-left ltr text-lg tracking-wider focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent" dir="ltr">
+<div class="stack">
+  <div class="stack stack-xs">
+    <h1 class="title-md">ورود کارکنان سالن</h1>
+    <p class="text-sm muted">شمارهٔ موبایلتان را وارد کنید تا کد یک‌بارمصرف برایتان پیامک شود. اگر سالن ندارید، پس از ورود می‌توانید بسازید.</p>
   </div>
-  <button type="submit" class="btn-ink w-full">
-    ارسال کد
-  </button>
-</form>
-<p class="text-xs text-ink-400 text-center mt-5">با ورود، شرایط استفاده از رشن را می‌پذیرید.</p>
+  <form method="post" action="<?= e(url('login')) ?>" class="stack">
+    <?= csrf_field() ?>
+    <div class="field">
+      <label class="field__label" for="phone">شمارهٔ موبایل</label>
+      <input class="input input--lg input--ltr num" id="phone" type="tel" name="phone" inputmode="tel" autocomplete="tel" autofocus required placeholder="09123456789" dir="ltr" value="<?= e((string) old('phone')) ?>" data-numeric <?= field_error('phone') ? 'aria-invalid="true" aria-describedby="phone-error"' : '' ?>>
+      <?= partial('field-error', ['key' => 'phone']) ?>
+    </div>
+    <button type="submit" class="btn btn--primary btn--lg btn--block">ارسال کد</button>
+  </form>
+  <p class="text-xs muted center">مشتری هستید؟ <a href="<?= e(url('me')) ?>">نوبت‌های من</a> · <a href="<?= e(url('discover')) ?>">کشف سالن</a></p>
+</div>

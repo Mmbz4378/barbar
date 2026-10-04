@@ -1,28 +1,40 @@
-<?php /** @var array $customers @var string $q */ ?>
-<h1 class="page-title mb-4">مشتریان</h1>
+<?php /** @var array $customers @var bool $hasNext @var int $page @var string $q @var int $total */ ?>
+<div class="page-head">
+  <div class="page-head__text">
+    <h1 class="page-head__title">مشتریان</h1>
+    <p class="page-head__sub"><?= e(fa_num($total)) ?> پرونده · مرتب‌شده بر اساس آخرین مراجعه</p>
+  </div>
+</div>
 
-<form method="get" action="<?= url('panel/customers') ?>" class="mb-4">
-  <label for="customer-search" class="sr-only">جستجوی مشتری با نام یا شماره</label>
-  <input type="search" id="customer-search" name="q" value="<?= e($q) ?>"
-    placeholder="جستجو با نام یا شماره..."
-    class="w-full rounded-xl border border-ink-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
+<form method="get" action="<?= e(url('panel/customers')) ?>" class="mb-4" role="search">
+  <label class="input-search">
+    <?= icon('search') ?>
+    <span class="sr-only">جست‌وجوی مشتری با نام یا شماره</span>
+    <input class="input" type="search" name="q" value="<?= e($q) ?>" placeholder="نام یا شمارهٔ موبایل…" autocomplete="off">
+  </label>
 </form>
 
-<?php if (empty($customers)): ?>
-  <div class="glass rounded-2xl p-10 text-center text-ink-400">مشتری‌ای یافت نشد.</div>
+<?php if ($customers === []): ?>
+  <div class="card"><?= partial('empty-state', $q !== ''
+      ? ['icon' => 'search', 'title' => 'مشتری‌ای پیدا نشد', 'text' => 'نام یا بخشی از شماره را امتحان کنید.', 'actionHref' => url('panel/customers'), 'actionLabel' => 'همهٔ مشتریان']
+      : ['icon' => 'users', 'title' => 'هنوز مشتری‌ای ثبت نشده', 'text' => 'با اولین رزرو یا پذیرش حضوری، پروندهٔ مشتری خودکار ساخته می‌شود.']) ?></div>
 <?php else: ?>
-<div class="glass rounded-2xl divide-y divide-ink-100">
-  <?php foreach ($customers as $c): ?>
-  <a href="<?= url('panel/customers/' . $c['id']) ?>" class="flex items-center justify-between px-5 py-3.5 hover:bg-ink-50">
-    <div>
-      <div class="font-bold text-ink-800"><?= e($c['name'] ?: 'بدون نام') ?></div>
-      <div class="text-xs text-ink-400" dir="ltr"><?= $c['phone'] ? e(\App\Support\IranMobile::parse($c['phone'])->local()) : '—' ?></div>
-    </div>
-    <div class="text-left text-xs text-ink-400">
-      <?= fa_num($c['visit_count']) ?> مراجعه
-      <?php if ($c['last_visit_at']): ?><div><?= jdate($c['last_visit_at'], 'Y/m/d') ?></div><?php endif; ?>
-    </div>
-  </a>
-  <?php endforeach; ?>
-</div>
+  <ul class="card list">
+    <?php foreach ($customers as $c): ?>
+      <li><a class="list-row" href="<?= e(url('panel/customers/' . $c['id'])) ?>">
+        <span class="avatar avatar--sm avatar--any" aria-hidden="true"><?= e(initial($c['name'] ?: '؟')) ?></span>
+        <span class="list-row__body">
+          <span class="list-row__title"><?= e($c['name'] ?: 'بدون نام') ?><?php if ((int) $c['no_show_count'] > 0): ?> <span class="badge badge--warning"><?= e(fa_num($c['no_show_count'])) ?> غیبت</span><?php endif; ?></span>
+          <span class="list-row__meta ltr num"><?= $c['phone'] ? e(phone_local($c['phone'])) : '—' ?></span>
+        </span>
+        <span class="list-row__end text-sm muted"><span><?= e(fa_num($c['visit_count'])) ?> مراجعه<?php if ($c['last_visit_at']): ?><br><?= e(jdate($c['last_visit_at'], 'j M Y')) ?><?php endif; ?></span><?= icon('chevron-end', 'list-row__chevron') ?></span>
+      </a></li>
+    <?php endforeach; ?>
+  </ul>
+  <?php if ($page > 1 || $hasNext): ?>
+    <nav class="btn-row mt-4" style="justify-content:center" aria-label="صفحه‌ها">
+      <?php if ($page > 1): ?><a class="btn btn--secondary" href="<?= e(url('panel/customers?' . http_build_query(['q' => $q, 'page' => $page - 1]))) ?>"><?= icon('chevron-start') ?> قبلی</a><?php endif; ?>
+      <?php if ($hasNext): ?><a class="btn btn--secondary" href="<?= e(url('panel/customers?' . http_build_query(['q' => $q, 'page' => $page + 1]))) ?>">بعدی <?= icon('chevron-end') ?></a><?php endif; ?>
+    </nav>
+  <?php endif; ?>
 <?php endif; ?>

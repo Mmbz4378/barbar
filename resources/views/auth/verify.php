@@ -1,32 +1,17 @@
-<?php
-/** @var string $phone
- * @var ?string $error
- * @var ?string $debugLine
- */
-?>
-<h2 class="text-[15px] font-extrabold text-ink-900 mb-1">کد تأیید</h2>
-<p class="text-sm text-ink-500 mb-5">کد ۵ رقمی ارسال‌شده به <span dir="ltr" class="tabular-nums ltr"><?= e($phone) ?></span> را وارد کنید.</p>
-
-<?php if ($error): ?>
-<div class="bg-red-50 text-red-700 text-sm rounded-lg px-3 py-2 mb-4 border border-red-100"><?= e($error) ?></div>
-<?php endif; ?>
-
-<?php if ($debugLine): ?>
-<div class="bg-amber-50 text-amber-800 text-xs rounded-lg px-3 py-2 mb-4 border border-amber-100 code break-all" dir="ltr">
-  DEV: <?= e($debugLine) ?>
-</div>
-<?php endif; ?>
-
-<form method="post" action="<?= url('login/verify') ?>" class="space-y-4">
-  <?= csrf_field() ?>
-  <label for="otp-code" class="sr-only">کد پنج‌رقمی که پیامک شد</label>
-  <input type="text" id="otp-code" name="code" inputmode="numeric" autocomplete="one-time-code"
-    autofocus maxlength="5" placeholder="١٢٣٤٥"
-    class="w-full rounded-xl border border-ink-200 px-4 py-3 text-center text-2xl tracking-[0.5em] focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent">
-  <button type="submit" class="btn-ink w-full">
-    تأیید و ورود
-  </button>
-</form>
-<div class="text-center mt-4">
-  <a href="<?= url('login') ?>" class="text-xs text-ink-400 hover:text-ink-600">تغییر شماره</a>
+<?php /** @var string $phone @var ?string $debugLine */ ?>
+<div class="stack">
+  <div class="stack stack-xs">
+    <h1 class="title-md">کد تأیید</h1>
+    <p class="text-sm muted">کد پیامک‌شده به <span class="ltr num strong"><?= e(phone_local($phone)) ?></span> را وارد کنید.</p>
+  </div>
+  <?php if ($debugLine): ?><div class="alert alert--info" dir="ltr"><?= icon('info') ?><div class="alert__body">DEV: <?= e($debugLine) ?></div></div><?php endif; ?>
+  <form method="post" action="<?= e(url('login/verify')) ?>" class="stack">
+    <?= csrf_field() ?>
+    <div class="field">
+      <label class="field__label" for="otp-code">کد تأیید</label>
+      <input class="input input--code num" type="text" id="otp-code" name="code" inputmode="numeric" autocomplete="one-time-code" autofocus maxlength="6" required data-numeric>
+    </div>
+    <button type="submit" class="btn btn--primary btn--lg btn--block">تأیید و ورود</button>
+  </form>
+  <a class="btn btn--ghost btn--block" href="<?= e(url('login')) ?>">تغییر شماره</a>
 </div>

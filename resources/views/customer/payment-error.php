@@ -1,1 +1,9 @@
-<section class="glass p-5"><h2 class="card-title mb-3">بررسی پرداخت</h2><p><?= e($message) ?></p><p class="text-sm text-ink-500 mt-3">اگر پرداخت کرده‌اید، پیش از پرداخت دوباره نتیجه را بررسی کنید.</p><button type="button" class="btn-ink mt-4" onclick="location.reload()">بررسی دوباره</button><a class="btn-ink mt-4" href="<?= e(url('me')) ?>">نوبت‌های من</a></section>
+<?php /** @var string $message */ ?>
+<div class="card"><div class="card__body stack">
+  <div class="alert alert--warning"><?= icon('alert') ?><div class="alert__body"><span class="alert__title">نتیجهٔ پرداخت هنوز مشخص نیست</span><?= e($message) ?></div></div>
+  <p class="text-sm muted">اگر مبلغ از حسابتان کم شده، پیش از پرداخت دوباره نتیجه را بررسی کنید؛ پرداخت تکراری ثبت نمی‌شود.</p>
+  <div class="btn-row">
+    <a class="btn btn--primary" href="<?= e($_SERVER['REQUEST_URI'] ?? url('me')) ?>">بررسی دوباره</a>
+    <a class="btn btn--secondary" href="<?= e(url('me')) ?>">نوبت‌های من</a>
+  </div>
+</div></div>

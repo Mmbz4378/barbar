@@ -5,56 +5,83 @@ declare(strict_types=1);
 namespace App\Support;
 
 /**
- * پالت رنگی سالن.
+ * رنگ برند هر سالن.
  *
- * هر سالن یک پالت انتخاب می‌کند و صفحهٔ اختصاصی‌اش همان رنگ را می‌گیرد.
- * این برای محصولی که قرار است «صفحهٔ اختصاصی هر آرایشگاه» بدهد مهم است:
- * سالن باید حس کند صفحه مالِ خودش است، نه یک قالب یکسان برای همه.
+ * نام پالت روی <html data-theme="…"> می‌نشیند و reshen.css فقط نقش‌های
+ * «تأکید» را عوض می‌کند؛ سطح‌ها، متن و رنگ‌های وضعیت (موفق، هشدار، خطا)
+ * مستقل از برند می‌مانند تا «لغو» در هیچ سالنی سبز و «تأیید» قرمز
+ * دیده نشود.
  *
- * پیاده‌سازی عمداً ساده است: نام پالت روی <html data-theme="..."> می‌نشیند
- * و CSS بقیه را انجام می‌دهد. نه کلاس اضافه‌ای در ویوها لازم است، نه
- * استایل درون‌خطی.
- *
- * همهٔ این رنگ‌ها با tools/assets/check-contrast.py سنجیده شده‌اند و در
- * هر دو حالت روشن و تیره از آستانهٔ WCAG AA (۴٫۵:۱) عبور می‌کنند.
+ * همهٔ پالت‌ها با tools/check-contrast.mjs سنجیده می‌شوند: متن سفید روی
+ * رنگ تأکید و رنگ تأکید روی سطح، در هر دو حالت روشن و تیره ≥ ۴٫۵:۱.
  */
 final class Theme
 {
     public const DEFAULT = 'forest';
 
-    /** @var array<string,array{name:string,swatch:string}> */
+    /**
+     * swatch همان رنگ تأکیدِ حالت روشن در reshen.css است.
+     *
+     * @var array<string,array{name:string,swatch:string,audience:string}>
+     */
     private const PALETTES = [
-        'forest' => ['name' => 'سبز رشن', 'swatch' => '#285D49'],
-        'gold'    => ['name' => 'طلایی',     'swatch' => '#A16207'],
-        'emerald' => ['name' => 'زمردی',     'swatch' => '#047857'],
-        'indigo'  => ['name' => 'نیلی',      'swatch' => '#4338CA'],
-        'copper'  => ['name' => 'مسی',       'swatch' => '#9A3412'],
-        'teal'    => ['name' => 'فیروزه‌ای', 'swatch' => '#0F766E'],
-        'ruby'    => ['name' => 'یاقوتی',    'swatch' => '#BE123C'],
+        'forest' => ['name' => 'سبز رشن', 'swatch' => '#176B52', 'audience' => 'all'],
+        'ink' => ['name' => 'زغالی', 'swatch' => '#27272A', 'audience' => 'men'],
+        'indigo' => ['name' => 'نیلی', 'swatch' => '#4338CA', 'audience' => 'men'],
+        'teal' => ['name' => 'فیروزه‌ای', 'swatch' => '#0F766E', 'audience' => 'all'],
+        'copper' => ['name' => 'مسی', 'swatch' => '#9A3412', 'audience' => 'men'],
+        'gold' => ['name' => 'طلایی', 'swatch' => '#8A5A00', 'audience' => 'all'],
+        'emerald' => ['name' => 'زمردی', 'swatch' => '#047857', 'audience' => 'all'],
+        'rose' => ['name' => 'رز', 'swatch' => '#BE185D', 'audience' => 'women'],
+        'ruby' => ['name' => 'یاقوتی', 'swatch' => '#BE123C', 'audience' => 'women'],
+        'plum' => ['name' => 'آلویی', 'swatch' => '#86198F', 'audience' => 'women'],
+        'lavender' => ['name' => 'یاسی', 'swatch' => '#6D28D9', 'audience' => 'women'],
+        'mauve' => ['name' => 'گلبهی', 'swatch' => '#9F3A6A', 'audience' => 'women'],
+        'nude' => ['name' => 'کرم‌قهوه‌ای', 'swatch' => '#8C4A32', 'audience' => 'women'],
     ];
 
     /**
-     * کلیدهایی که دیگر پالت نیستند، به نزدیک‌ترین رنگ.
+     * کلیدهایی که دیگر پالت مستقل نیستند.
      *
-     * یک نسخه با رنگ‌های سیستمی iOS منتشر شد و سالن‌هایی که در آن
-     * فاصله رنگ انتخاب کردند، کلیدهای آن نسخه را در دیتابیس دارند.
-     * بدون این نگاشت، resolve آن‌ها را «ناشناخته» می‌دید و همه‌شان
-     * یک‌شبه طلایی می‌شدند.
+     * نسخه‌ای با رنگ‌های سیستمی iOS منتشر شد و سالن‌هایی که آن زمان رنگ
+     * انتخاب کردند این کلیدها را در دیتابیس دارند.
      *
      * @var array<string,string>
      */
     private const LEGACY = [
-        'blue'   => 'indigo',
-        'green'  => 'emerald',
+        'blue' => 'indigo',
+        'green' => 'emerald',
         'orange' => 'copper',
-        'pink'   => 'ruby',
-        'purple' => 'indigo',
+        'pink' => 'rose',
+        'purple' => 'lavender',
     ];
 
-    /** @return array<string,array{name:string,swatch:string}> */
+    /** @return array<string,array{name:string,swatch:string,audience:string}> */
     public static function all(): array
     {
         return self::PALETTES;
+    }
+
+    /**
+     * پالت‌ها به ترتیبِ مناسب‌بودن برای مخاطب سالن.
+     *
+     * همه قابل انتخاب‌اند؛ فقط ترتیب عوض می‌شود تا صاحب سالن بانوان
+     * اول رنگ‌های خودش را ببیند.
+     *
+     * @return array<string,array{name:string,swatch:string,audience:string}>
+     */
+    public static function forAudience(string $audience): array
+    {
+        $rank = static fn (array $p): int => match (true) {
+            $p['audience'] === $audience => 0,
+            $p['audience'] === 'all' => 1,
+            default => 2,
+        };
+
+        $palettes = self::PALETTES;
+        uasort($palettes, static fn (array $a, array $b): int => $rank($a) <=> $rank($b));
+
+        return $palettes;
     }
 
     public static function exists(string $key): bool
@@ -63,14 +90,12 @@ final class Theme
     }
 
     /**
-     * پالت معتبر، یا پیش‌فرض.
-     *
-     * هرگز مقدار خام را به ویو نده — اگر کسی در دیتابیس چیز دیگری
-     * بنویسد، مستقیم در HTML می‌نشیند.
+     * پالت معتبر، یا پیش‌فرض. مقدار خام دیتابیس هرگز مستقیم در HTML
+     * نمی‌نشیند.
      */
     public static function resolve(?string $key): string
     {
-        if ($key === null) {
+        if ($key === null || $key === '') {
             return self::DEFAULT;
         }
         if (self::exists($key)) {

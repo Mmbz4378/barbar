@@ -1,35 +1,17 @@
-<?php /** @var string $phone @var ?string $error @var ?string $debugLine */ ?>
-
-<?php if ($error): ?>
-  <div role="alert" class="flex items-start gap-2 bg-red-50 text-red-800 text-sm rounded-xl px-4 py-3 mb-4 border border-red-100">
-    <?= icon('alert', 'w-4 h-4 mt-0.5 shrink-0') ?>
-    <span><?= e($error) ?></span>
+<?php /** @var string $phone @var ?string $debugLine */ ?>
+<div class="stack stack-lg" style="max-width:440px;margin-inline:auto">
+  <div class="step-head">
+    <h1 class="step-head__title">کد تأیید</h1>
+    <p class="step-head__sub">کد پیامک‌شده به <span class="ltr num strong"><?= e(phone_local($phone)) ?></span> را بزن.</p>
   </div>
-<?php endif; ?>
-
-<p class="text-[13px] text-ink-500 leading-relaxed mb-1">کد پیامک‌شده به این شماره را بزن:</p>
-<p class="text-[13px] font-bold text-ink-900 tabular-nums mb-5" dir="ltr"><?= e(fa_num($phone)) ?></p>
-
-<?php if ($debugLine): ?>
-  <p class="text-[12px] text-ink-500 bg-ink-50 rounded-xl px-4 py-3 mb-4 border border-ink-100">
-    <?= e($debugLine) ?>
-  </p>
-<?php endif; ?>
-
-<form method="post" action="<?= e(url('me/verify')) ?>" class="space-y-4">
-  <?= csrf_field() ?>
-
-  <div>
-    <label for="me-code" class="block text-sm text-ink-600 mb-1.5">کد تأیید</label>
-    <input id="me-code" type="text" name="code" dir="ltr" required autofocus
-           inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*"
-           class="w-full rounded-xl border border-ink-200 px-4 py-3 text-center text-lg font-bold tabular-nums
-                  focus:outline-none focus:ring-2 focus:ring-accent">
-  </div>
-
-  <button type="submit" class="btn-accent metal w-full">ورود</button>
-</form>
-
-<a href="<?= e(url('me/login')) ?>" class="block text-center text-[12px] text-ink-500 mt-4 tap py-2">
-  شماره را اشتباه زدم
-</a>
+  <?php if ($debugLine): ?><div class="alert alert--info" dir="ltr"><?= icon('info') ?><div class="alert__body"><?= e($debugLine) ?></div></div><?php endif; ?>
+  <form method="post" action="<?= e(url('me/verify')) ?>" class="card"><div class="card__body stack">
+    <?= csrf_field() ?>
+    <div class="field">
+      <label class="field__label" for="me-code">کد تأیید</label>
+      <input class="input input--code num" id="me-code" type="text" name="code" required autofocus inputmode="numeric" autocomplete="one-time-code" maxlength="6" data-numeric>
+    </div>
+    <button type="submit" class="btn btn--primary btn--lg btn--block">ورود</button>
+  </div></form>
+  <a class="btn btn--ghost" href="<?= e(url('me/login')) ?>">شماره را اشتباه زدم</a>
+</div>

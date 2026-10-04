@@ -46,13 +46,20 @@ if (Config::get('app.debug')) {
 }
 
 set_exception_handler(static function (Throwable $e): void {
-    http_response_code(500);
+    if (!headers_sent()) {
+        http_response_code(500);
+    }
     error_log($e->getMessage() . "\n" . $e->getTraceAsString());
     if (Config::get('app.debug')) {
-        echo '<pre style="direction:ltr;text-align:left;padding:2rem;background:#1e1e1e;color:#f66">';
+        echo '<pre style="direction:ltr;text-align:left;padding:2rem;background:#1e1e1e;color:#f66;white-space:pre-wrap">';
         echo htmlspecialchars($e->getMessage() . "\n\n" . $e->getTraceAsString());
         echo '</pre>';
-    } else {
-        echo '<h1 style="font-family:sans-serif;text-align:center;padding:4rem">خطایی رخ داد. لطفاً دوباره تلاش کنید.</h1>';
+
+        return;
+    }
+    try {
+        echo View::renderWithLayout('layouts.minimal', 'errors.500', ['title' => 'خطا']);
+    } catch (Throwable) {
+        echo '<!doctype html><html lang="fa" dir="rtl"><meta charset="utf-8"><body style="font-family:sans-serif;text-align:center;padding:4rem"><h1>خطایی رخ داد. لطفاً دوباره تلاش کنید.</h1></body></html>';
     }
 });

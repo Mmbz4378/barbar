@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Core\Request;
 use App\Core\Response;
 use App\Core\Session;
 use App\Core\View;
@@ -30,11 +31,28 @@ abstract class Controller
         return Response::redirect($to);
     }
 
+    /**
+     * بازگشت به صفحهٔ قبل — فقط اگر از همین سایت آمده باشد.
+     *
+     * مسیر ارجاع‌دهنده پیشوند نصب (مثلاً /reshen) را دارد و redirect
+     * دوباره آن را اضافه می‌کرد؛ پس اینجا پیشوند برداشته می‌شود.
+     */
     protected function back(string $fallback = '/'): Response
     {
-        $referer = $_SERVER['HTTP_REFERER'] ?? null;
+        $referer = (string) ($_SERVER['HTTP_REFERER'] ?? '');
+        $host = (string) ($_SERVER['HTTP_HOST'] ?? '');
+        if ($referer === '' || ($host !== '' && parse_url($referer, PHP_URL_HOST) !== explode(':', $host)[0])) {
+            return $this->redirect($fallback);
+        }
 
-        return Response::redirect($referer !== null ? parse_url($referer, PHP_URL_PATH) ?: $fallback : $fallback);
+        $path = (string) (parse_url($referer, PHP_URL_PATH) ?: $fallback);
+        $base = Request::basePath();
+        if ($base !== '' && str_starts_with($path, $base)) {
+            $path = substr($path, strlen($base)) ?: '/';
+        }
+        $query = parse_url($referer, PHP_URL_QUERY);
+
+        return $this->redirect($path . ($query ? '?' . $query : ''));
     }
 
     protected function withError(string $message, string $to): Response
@@ -49,5 +67,32 @@ abstract class Controller
         Session::flash('success', $message);
 
         return $this->redirect($to);
+    }
+
+    /**
+     * خطای اعتبارسنجی: پیام کلی + خطای هر فیلد + مقادیر واردشده، تا
+     * کاربر فرم را از نو پر نکند.
+     *
+     * @param array<string,string> $fieldErrors
+     */
+    protected function invalid(Request $request, array $fieldErrors, string $to, ?string $message = null): Response
+    {
+        $old = $request->all();
+        unset($old['_csrf']);
+        Session::flash('_old', $old);
+        Session::flash('field_errors', $fieldErrors);
+        Session::flash('error', $message ?? 'لطفاً موارد مشخص‌شده را اصلاح کنید.');
+
+        return $this->redirect($to);
+    }
+
+    protected function notFound(string $message = 'صفحه‌ای که دنبالش بودید پیدا نشد.'): Response
+    {
+        return Response::html(View::renderWithLayout('layouts.minimal', 'errors.404', ['title' => 'پیدا نشد', 'message' => $message]), 404);
+    }
+
+    protected function forbidden(): Response
+    {
+        return Response::html(View::render('errors.403'), 403);
     }
 }

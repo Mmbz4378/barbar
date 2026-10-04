@@ -1,127 +1,121 @@
 <?php
 /**
- * گام ۲ — خدمت. روز و سانس در گام قبل قفل شده‌اند.
+ * گام خدمت.
  *
  * @var array $salon
- * @var array $services
- * @var ?string $slotLabel
+ * @var array $stepper
+ * @var array $context
+ * @var array $groups  خدمات به تفکیک دسته
  * @var int[] $selected
  */
+use App\Support\ServiceVisual;
+
+include __DIR__ . '/_next.php';
+$all = array_merge(...array_map(static fn ($g) => $g['services'], $groups ?: [['services' => []]]));
+$online = array_values(array_filter($all, static fn ($s) => (int) $s['online_booking'] === 1));
+$phoneOnly = array_values(array_filter($all, static fn ($s) => (int) $s['online_booking'] !== 1));
+$visuals = [];
+foreach ($groups as $g) {
+    if ($g['visual'] !== null) { $visuals[$g['id']] = $g['name']; }
+}
 ?>
+<div class="wizard">
+  <div class="wizard__main">
+    <?= partial('stepper', ['steps' => $stepper]) ?>
+    <?= partial('context-chips', ['chips' => $context]) ?>
 
-<?php if ($error = flash('error')): ?>
-  <div role="alert"
-       class="flex items-start gap-2 bg-red-50 text-red-800 text-sm rounded-xl px-4 py-3 mb-4 border border-red-100">
-    <?= icon('alert', 'w-4 h-4 mt-0.5 shrink-0') ?>
-    <span><?= e($error) ?></span>
-  </div>
-<?php endif; ?>
-
-<!--
-  وقتِ انتخاب‌شده بالای صفحه می‌ماند.
-
-  مشتری تازه یک تصمیم گرفته و حالا در صفحهٔ دیگری است؛ بدون این، یادش
-  می‌رود چه ساعتی را گرفته و برای اطمینان برمی‌گردد عقب.
--->
-<?php if ($slotLabel !== null): ?>
-  <a href="<?= e(url('s/' . $salon['slug'])) ?>"
-     class="rise glass rounded-2xl px-4 py-3 mb-5 flex items-center gap-3 tap">
-    <?= icon('calendar-days', 'w-4 h-4 text-ink-400 shrink-0') ?>
-    <span class="flex-1 min-w-0">
-      <span class="block text-[12px] text-ink-500">وقت انتخابی</span>
-      <span class="block text-[13px] font-bold text-ink-900 truncate"><?= e($slotLabel) ?></span>
-    </span>
-    <span class="text-[12px] font-semibold text-accent shrink-0">تغییر</span>
-  </a>
-<?php endif; ?>
-
-<div class="rise rise-1">
-  <h1 class="text-[15px] font-extrabold text-ink-900 mb-1">چه خدمتی می‌خواهی؟</h1>
-  <p class="text-[13px] text-ink-500 mb-4">می‌توانی چند خدمت انتخاب کنی. قیمت نهایی پس از انتخاب آرایشگر نمایش داده می‌شود.</p>
-</div>
-
-<?php if (empty($services)): ?>
-  <div class="glass rounded-2xl py-12 px-5 text-center">
-    <?= icon('scissors', 'w-10 h-10 mx-auto text-ink-300 mb-3') ?>
-    <p class="text-sm font-semibold text-ink-600">هنوز خدمتی تعریف نشده</p>
-    <p class="text-[12px] text-ink-400 mt-1">با خود آرایشگاه تماس بگیرید.</p>
-  </div>
-
-<?php else: ?>
-  <?php include BASE_PATH . '/resources/views/components/service-discovery.php'; ?>
-  <form data-require-services method="post" action="<?= e(url('s/' . $salon['slug'] . '/services')) ?>" id="svc-form">
-    <?= csrf_field() ?>
-
-    <fieldset class="space-y-2.5">
-      <legend class="sr-only">انتخاب خدمت</legend>
-
-      <?php foreach ($services as $i => $s): ?>
-        <label data-service-card="<?= e($s['name']) ?>" data-category="<?= e(service_visual($s['name'])['category']) ?>" class="pick rise rise-<?= min($i + 2, 5) ?> block relative tap">
-          <input type="checkbox" name="service_ids[]" value="<?= (int) $s['id'] ?>"
-                 class="sr-only" data-price="<?= (int) $s['price'] ?>"
-                 data-minutes="<?= (int) $s['duration_minutes'] ?>"
-                 <?= in_array((int) $s['id'], $selected, true) ? 'checked' : '' ?>>
-
-          <span class="pick-card glass service-choice">
-            <?= service_photo((string) $s['name'], 'service-photo service-choice__photo', $i < 2, $s['image_file'] ?? null) ?>
-            <span class="service-choice__body">
-              <span class="service-choice__name font-bold text-ink-900" data-service-name><?= e($s['name']) ?></span>
-              <span class="service-meta text-ink-500 tabular-nums">
-                <?= icon('clock', 'service-meta__icon') ?>
-                <?= e(fa_num((int) $s['duration_minutes'])) ?> دقیقه
-              </span>
-              <span class="service-choice__price text-accent tabular-nums"><?= e(toman((int) $s['price'])) ?></span>
-            </span>
-            <span class="pick-box service-choice__check" aria-hidden="true">
-              <?= icon('check', 'pick-tick opacity-0') ?>
-            </span>
-          </span>
-        </label>
-      <?php endforeach; ?>
-    </fieldset>
-
-    <!-- جمع انتخاب‌ها؛ تا چیزی انتخاب نشده دیده نمی‌شود -->
-    <div id="svc-total" class="hidden glass rounded-2xl px-4 py-3 mt-3">
-      <div class="flex items-center justify-between text-[13px]">
-        <span class="text-ink-500">جمع قیمت پایه</span>
-        <span class="font-extrabold text-ink-900 tabular-nums" id="svc-sum"></span>
-      </div>
-      <div class="flex items-center justify-between text-[12px] mt-1">
-        <span class="text-ink-400">مدت تقریبی</span>
-        <span class="text-ink-600 tabular-nums" id="svc-dur"></span>
-      </div>
+    <div class="step-head">
+      <h1 class="step-head__title">چه خدمتی می‌خواهی؟</h1>
+      <p class="step-head__sub">می‌توانی چند خدمت را با هم انتخاب کنی. قیمت پایه نمایش داده می‌شود؛ قیمت قطعی در خلاصهٔ نوبت می‌آید.</p>
     </div>
 
-    <?php
-    echo App\Core\View::render('components.sticky-action', [
-        'label' => 'انتخاب آرایشگر',
-        'hint' => 'دست‌کم یک خدمت را انتخاب کن',
-    ]);
-    ?>
-  </form>
+    <?php if ($online === []): ?>
+      <div class="card card--flat">
+        <?= partial('empty-state', [
+            'icon' => 'tag',
+            'title' => 'فعلاً خدمتی برای رزرو آنلاین نیست',
+            'text' => !empty($salon['phone']) ? 'برای رزرو با سالن تماس بگیر: ' . fa_num($salon['phone']) : 'لطفاً بعداً دوباره سر بزن.',
+        ]) ?>
+      </div>
+    <?php else: ?>
+      <?php if (count($online) > 6): ?>
+        <div class="search-tools" data-filter="service-list" hidden>
+          <label class="input-search">
+            <?= icon('search') ?>
+            <span class="sr-only">جست‌وجوی خدمت</span>
+            <input class="input" type="search" placeholder="جست‌وجوی خدمت…" autocomplete="off">
+          </label>
+          <?php if (count($visuals) > 1): ?>
+            <div class="chips" role="group" aria-label="دسته‌بندی خدمات">
+              <button type="button" class="chip" data-filter-chip="all" aria-pressed="true">همه</button>
+              <?php foreach ($visuals as $id => $name): ?>
+                <button type="button" class="chip" data-filter-chip="<?= (int) $id ?>" aria-pressed="false"><?= e($name) ?></button>
+              <?php endforeach; ?>
+            </div>
+          <?php endif; ?>
+          <p class="sr-only" role="status" aria-live="polite" data-filter-status></p>
+        </div>
+      <?php endif; ?>
 
-  <script>
-  (function () {
-    const form = document.getElementById('svc-form');
-    const box  = document.getElementById('svc-total');
-    const sum  = document.getElementById('svc-sum');
-    const dur  = document.getElementById('svc-dur');
-    const fa   = n => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]);
+      <form method="post" action="<?= e(url('s/' . $salon['slug'] . '/services')) ?>" data-live-summary>
+        <?= csrf_field() ?>
+        <div id="service-list">
+          <?php foreach ($groups as $group):
+              $items = array_values(array_filter($group['services'], static fn ($s) => (int) $s['online_booking'] === 1));
+              if ($items === []) { continue; } ?>
+            <fieldset class="service-group" data-filter-group>
+              <legend class="service-group__title"><?= icon(ServiceVisual::icon($group['visual'] ?? 'haircut')) ?><?= e($group['name']) ?></legend>
+              <div class="choice-list">
+                <?php foreach ($items as $i => $s): ?>
+                  <label class="choice choice--check service-choice" data-filter-item="<?= e($s['name'] . ' ' . ($s['description'] ?? '') . ' ' . $group['name']) ?>" data-filter-cat="<?= (int) ($group['id'] ?? 0) ?>">
+                    <input class="choice__input" type="checkbox" name="service_ids[]" value="<?= (int) $s['id'] ?>"
+                           data-price="<?= (int) $s['price'] ?>" data-minutes="<?= (int) $s['duration_minutes'] ?>" <?= $s['price_type'] === 'from' ? 'data-from' : '' ?>
+                           <?= in_array((int) $s['id'], $selected, true) ? 'checked' : '' ?>>
+                    <span class="choice__card">
+                      <?= service_media($s, 'service-thumb', $i < 3) ?>
+                      <span class="choice__body">
+                        <span class="choice__title"><?= e($s['name']) ?></span>
+                        <?php if (!empty($s['description'])): ?><span class="choice__meta clamp-2"><?= e($s['description']) ?></span><?php endif; ?>
+                        <span class="service-meta">
+                          <span><?= icon('clock') ?><?= e(duration_text((int) $s['duration_minutes'])) ?></span>
+                          <?php if (!empty($s['deposit_amount'])): ?><span><?= icon('wallet') ?>بیعانه <?= e(toman((int) $s['deposit_amount'])) ?></span><?php endif; ?>
+                        </span>
+                        <span class="service-price"><?= e(price_text((int) $s['price'], (string) $s['price_type'])) ?></span>
+                      </span>
+                      <span class="choice__mark" aria-hidden="true"><?= icon('check') ?></span>
+                    </span>
+                  </label>
+                <?php endforeach; ?>
+              </div>
+            </fieldset>
+          <?php endforeach; ?>
+          <div id="service-list-empty" hidden>
+            <?= partial('empty-state', ['icon' => 'search', 'title' => 'خدمتی با این عنوان پیدا نشد', 'text' => 'عبارت دیگری را امتحان کن.']) ?>
+          </div>
+        </div>
 
-    function update() {
-      const picked = [...form.querySelectorAll('input[name="service_ids[]"]:checked')];
-      if (!picked.length) { box.classList.add('hidden'); return; }
+        <div class="action-bar">
+          <p class="action-bar__summary" role="status" aria-live="polite"><span data-summary data-empty="دست‌کم یک خدمت انتخاب کن">دست‌کم یک خدمت انتخاب کن</span></p>
+          <button type="submit" class="btn btn--primary btn--lg btn--block" data-summary-submit><?= e($nextLabel) ?> <?= icon('chevron-end') ?></button>
+        </div>
+      </form>
+    <?php endif; ?>
 
-      const rials   = picked.reduce((t, i) => t + (+i.dataset.price), 0);
-      const minutes = picked.reduce((t, i) => t + (+i.dataset.minutes), 0);
-
-      sum.textContent = fa(Math.round(rials / 10).toLocaleString('en-US')) + ' تومان';
-      dur.textContent = fa(minutes) + ' دقیقه';
-      box.classList.remove('hidden');
-    }
-
-    form.addEventListener('change', update);
-    update();
-  })();
-  </script>
-<?php endif; ?>
+    <?php if ($phoneOnly !== []): ?>
+      <section class="section mt-8" aria-labelledby="phone-only-title">
+        <h2 class="section__title" id="phone-only-title">با هماهنگی تلفنی</h2>
+        <p class="section__sub">این خدمات به مشاوره یا هماهنگی پیش از رزرو نیاز دارند.</p>
+        <ul class="card list">
+          <?php foreach ($phoneOnly as $s): ?>
+            <li class="list-row">
+              <?= service_media($s, 'service-thumb service-thumb--sm') ?>
+              <span class="list-row__body"><span class="list-row__title"><?= e($s['name']) ?></span><span class="list-row__meta"><?= e(duration_text((int) $s['duration_minutes'])) ?> · <?= e(price_text((int) $s['price'], (string) $s['price_type'])) ?></span></span>
+              <?php if (!empty($salon['phone'])): ?><a class="btn btn--secondary btn--sm" href="tel:<?= e($salon['phone']) ?>"><?= icon('phone') ?> تماس</a><?php endif; ?>
+            </li>
+          <?php endforeach; ?>
+        </ul>
+      </section>
+    <?php endif; ?>
+  </div>
+  <?php include __DIR__ . '/_aside.php'; ?>
+</div>

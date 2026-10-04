@@ -22,7 +22,7 @@ final class AuthController extends Controller
             return $this->redirect('/panel');
         }
 
-        return $this->page('layouts.auth', 'auth.login', ['error' => Session::flash('error'), 'title' => 'ورود']);
+        return $this->page('layouts.auth', 'auth.login', ['title' => 'ورود کارکنان']);
     }
 
     public function sendOtp(Request $request): Response
@@ -31,7 +31,7 @@ final class AuthController extends Controller
         $phone = IranMobile::tryParse($raw);
 
         if ($phone === null) {
-            return $this->withError('شمارهٔ موبایل نامعتبر است.', '/login');
+            return $this->invalid($request, ['phone' => 'شمارهٔ موبایل را کامل وارد کنید؛ مثل ۰۹۱۲۳۴۵۶۷۸۹.'], '/login', 'شمارهٔ موبایل نامعتبر است.');
         }
 
         $otp = new OtpService();
@@ -55,7 +55,6 @@ final class AuthController extends Controller
 
         return $this->page('layouts.auth', 'auth.verify', [
             'phone' => $phone,
-            'error' => Session::flash('error'),
             'debugLine' => OtpService::devHint($phone),
             'title' => 'تأیید کد',
         ]);

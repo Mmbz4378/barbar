@@ -39,12 +39,13 @@ final class DurationLearner
             $this->updateCustomerFactor($salonId, $customer, (int) $appointment['staff_id'], array_column($items, 'service_id'), $actualMinutes, $estimator);
         }
 
-        DB::update(
-            'customers',
-            ['visit_count' => (int) ($customer['visit_count'] ?? 0) + 1, 'last_visit_at' => date('Y-m-d H:i:s')],
-            'id = :id AND salon_id = :salon_id',
-            ['id' => $customer['id'], 'salon_id' => $salonId]
-        );
+        if ($customer !== null) {
+            // افزایش اتمی شمار مراجعه
+            DB::statement(
+                'UPDATE customers SET visit_count = visit_count + 1, last_visit_at = ? WHERE id = ? AND salon_id = ?',
+                [date('Y-m-d H:i:s'), $customer['id'], $salonId]
+            );
+        }
     }
 
     private function addSample(int $salonId, int $staffId, int $serviceId, int $appointmentId, float $minutes): void

@@ -57,23 +57,49 @@ final class CustomerRepository
         return $this->find($salonId, (int) $id);
     }
 
+    /**
+     * فهرست مشتری‌ها با جست‌وجو و صفحه‌بندی.
+     *
+     * جست‌وجوی شماره با ارقام فارسی یا «۰۹۱۲…» هم کار می‌کند؛ شماره‌ها
+     * به شکل +98… ذخیره شده‌اند.
+     *
+     * @return array{rows:array<int,array>,hasNext:bool}
+     */
+    public function page(int $salonId, string $term, int $page, int $perPage = 30): array
+    {
+        $params = [$salonId];
+        $where = 'salon_id = ? AND deleted_at IS NULL';
+        $term = trim(\App\Support\Jalali::fromPersianDigits($term));
+        if ($term !== '') {
+            $digits = preg_replace('/\D/', '', $term) ?? '';
+            if (str_starts_with($digits, '0')) {
+                $digits = substr($digits, 1);
+            }
+            $where .= ' AND (name LIKE ?' . ($digits !== '' ? ' OR phone LIKE ?' : '') . ')';
+            $params[] = '%' . addcslashes($term, '%_\\') . '%';
+            if ($digits !== '') {
+                $params[] = '%' . $digits . '%';
+            }
+        }
+        $offset = max(0, ($page - 1) * $perPage);
+        $rows = DB::select(
+            "SELECT * FROM customers WHERE {$where}
+              ORDER BY last_visit_at IS NULL, last_visit_at DESC, id DESC
+              LIMIT " . ($perPage + 1) . " OFFSET {$offset}",
+            $params
+        );
+
+        return ['rows' => array_slice($rows, 0, $perPage), 'hasNext' => count($rows) > $perPage];
+    }
+
     public function search(int $salonId, string $term, int $limit = 15): array
     {
-        $like = '%' . $term . '%';
-
-        return DB::select(
-            'SELECT * FROM customers WHERE salon_id = ? AND deleted_at IS NULL
-             AND (name LIKE ? OR phone LIKE ?) ORDER BY last_visit_at IS NULL, last_visit_at DESC LIMIT ?',
-            [$salonId, $like, $like, $limit]
-        );
+        return array_slice($this->page($salonId, $term, 1, $limit)['rows'], 0, $limit);
     }
 
     public function recent(int $salonId, int $limit = 20): array
     {
-        return DB::select(
-            'SELECT * FROM customers WHERE salon_id = ? AND deleted_at IS NULL ORDER BY last_visit_at IS NULL, last_visit_at DESC LIMIT ?',
-            [$salonId, $limit]
-        );
+        return array_slice($this->page($salonId, '', 1, $limit)['rows'], 0, $limit);
     }
 
     public function history(int $salonId, int $customerId): array
@@ -84,8 +110,8 @@ final class CustomerRepository
              LEFT JOIN appointment_items ai ON ai.appointment_id = a.id
              LEFT JOIN services sv ON sv.id = ai.service_id
              LEFT JOIN staff st ON st.id = a.staff_id
-             WHERE a.salon_id = ? AND a.customer_id = ? AND a.status IN ('completed','no_show','cancelled')
-             GROUP BY a.id ORDER BY a.created_at DESC LIMIT 30",
+             WHERE a.salon_id = ? AND a.customer_id = ?
+             GROUP BY a.id ORDER BY COALESCE(a.scheduled_at, a.queued_at, a.created_at) DESC LIMIT 40",
             [$salonId, $customerId]
         );
     }

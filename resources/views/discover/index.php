@@ -1,32 +1,97 @@
-<?php $isFavorites=!empty($filters['favorites']); ?>
-<section class="discovery-hero discovery-hero--editorial">
- <div class="discovery-hero__copy"><span class="discovery-eyebrow"><?= $isFavorites?'انتخاب‌های خودت':'خوب دیده شو. خوب احساس کن.' ?></span><h1><?= $isFavorites?'سالن‌های دلخواه تو':'وقت یک تغییر خوبه.' ?></h1><p><?= $isFavorites?'سالن‌های ذخیره‌شده را مقایسه کن و وقت بعدی‌ات را بگیر.':'خدمات را ببین، سالن مناسب را پیدا کن و وقتت را رزرو کن.' ?></p><a class="text-action" href="#salon-results">دیدن سالن‌ها <?= icon('chevron-end') ?></a></div>
- <div class="discovery-hero__photos" aria-label="تصاویر نمونهٔ خدمات"><img src="<?= e(asset('images/services/haircut-640.webp')) ?>" alt="نمونهٔ خدمت کوتاهی مو" width="640" height="640" fetchpriority="high"><img src="<?= e(asset('images/services/beard-240.webp')) ?>" alt="نمونهٔ اصلاح ریش" width="240" height="240"><span class="photo-caption">تصاویر نمونه</span></div>
+<?php
+/**
+ * کشف سالن.
+ *
+ * @var array $salons
+ * @var bool $hasNext
+ * @var array $filters
+ * @var string[] $cities
+ */
+use App\Support\ServiceVisual;
+
+$isFavorites = !empty($filters['favorites']);
+$query = static function (array $override) use ($filters): string {
+    $q = array_merge($filters, $override);
+    unset($q['favorites']);
+    $q = array_filter($q, static fn ($v) => $v !== '' && $v !== null);
+
+    return $q === [] ? '' : '?' . http_build_query($q);
+};
+$categories = ['haircut', 'beard', 'color', 'care', 'nails', 'lashes', 'facial', 'waxing', 'makeup', 'bridal'];
+$advanced = $filters['neighborhood'] !== '' || $filters['max_price'] !== '' || $filters['rating'] !== '';
+$page = max(1, (int) ($filters['page'] ?: 1));
+?>
+<?php if (!$isFavorites): ?>
+<section class="hero">
+  <h1 class="hero__title">نوبت آرایشگاه و سالن زیبایی، بدون تماس و انتظار</h1>
+  <p class="hero__sub">خدمات و قیمت‌ها را ببین، ساعت آزاد را انتخاب کن و در چند ثانیه نوبت بگیر.</p>
 </section>
-<form class="discovery-filters glass" method="get"><div class="search-essential">
-<label>سالن یا خدمت<input name="q" value="<?= e($filters['q']) ?>" placeholder="کوتاهی، ریش، نام سالن…" maxlength="100"></label>
-<label>شهر<input name="city" value="<?= e($filters['city']) ?>" placeholder="مثلاً تهران" maxlength="80"></label>
-<button class="btn-accent metal" type="submit"><?= icon('search') ?> جست‌وجوی سالن</button></div>
-<details class="search-advanced" <?= ($filters['neighborhood']!==''||$filters['max_price']!==''||$filters['rating']!=='')?'open':'' ?>><summary>فیلترهای بیشتر <span>محله، قیمت و امتیاز</span></summary><div class="search-advanced__fields"><label>محله<input name="neighborhood" value="<?= e($filters['neighborhood']) ?>" placeholder="همهٔ محله‌ها" maxlength="100"></label>
-<label>تا قیمت (تومان)<input type="number" min="0" max="1000000000" name="max_price" value="<?= e($filters['max_price']) ?>" placeholder="بدون محدودیت"></label>
-<label>حداقل امتیاز<select name="rating"><option value="">همه</option><option value="4" <?= $filters['rating']==='4'?'selected':'' ?>>۴ از ۵</option><option value="3" <?= $filters['rating']==='3'?'selected':'' ?>>۳ از ۵</option></select></label>
-<button class="btn-ink" type="submit">اعمال فیلترها</button></div></details>
+
+<form class="search-panel mb-6" method="get" action="<?= e(url('discover')) ?>" role="search">
+  <div class="field">
+    <label class="field__label" for="d-q">سالن یا خدمت</label>
+    <div class="input-search"><?= icon('search') ?><input class="input" id="d-q" name="q" value="<?= e($filters['q']) ?>" placeholder="مثلاً کوتاهی، کراتین، ناخن…" maxlength="100"></div>
+  </div>
+  <div class="field">
+    <label class="field__label" for="d-city">شهر</label>
+    <input class="input" id="d-city" name="city" value="<?= e($filters['city']) ?>" placeholder="همهٔ شهرها" maxlength="80" list="d-cities" autocomplete="address-level2">
+    <datalist id="d-cities"><?php foreach ($cities as $city): ?><option value="<?= e($city) ?>"><?php endforeach; ?></datalist>
+  </div>
+  <button class="btn btn--primary btn--lg" type="submit"><?= icon('search') ?> جست‌وجو</button>
+  <?php foreach (['audience', 'cat'] as $keep): if ($filters[$keep] !== ''): ?><input type="hidden" name="<?= $keep ?>" value="<?= e($filters[$keep]) ?>"><?php endif; endforeach; ?>
+  <details class="span-2" style="grid-column:1/-1" <?= $advanced ? 'open' : '' ?>>
+    <summary class="btn btn--link" style="list-style:none"><?= icon('sliders') ?> فیلترهای بیشتر</summary>
+    <div class="form-grid form-grid--3 mt-3">
+      <div class="field"><label class="field__label" for="d-n">محله</label><input class="input" id="d-n" name="neighborhood" value="<?= e($filters['neighborhood']) ?>" maxlength="100" placeholder="همهٔ محله‌ها"></div>
+      <div class="field"><label class="field__label" for="d-p">حداکثر قیمت پایه</label><div class="input-group"><input class="input num" id="d-p" name="max_price" value="<?= e($filters['max_price']) ?>" inputmode="numeric" data-numeric placeholder="بدون محدودیت"><span class="input-group__addon">تومان</span></div></div>
+      <div class="field"><label class="field__label" for="d-r">حداقل امتیاز</label>
+        <select class="select" id="d-r" name="rating"><option value="">همه</option><?php foreach ([4.5, 4, 3] as $r): ?><option value="<?= $r ?>" <?= $filters['rating'] === (string) $r ? 'selected' : '' ?>><?= e(fa_num($r)) ?> و بالاتر</option><?php endforeach; ?></select>
+      </div>
+    </div>
+  </details>
 </form>
-<section class="discovery-categories" aria-labelledby="category-heading"><div class="section-heading"><h2 class="card-title" id="category-heading">برای چه خدمتی وقت می‌خواهی؟</h2><span class="text-ink-500 text-sm">انتخاب سریع</span></div><div class="category-gallery">
-<?php foreach(['کوتاهی'=>'کوتاهی مو','ریش'=>'اصلاح ریش','حالت'=>'حالت‌دهی','پوست'=>'خدمات پوست','مراقبت'=>'مراقبت مو','رنگ'=>'رنگ مو'] as $query=>$label): $categoryQuery=$filters;unset($categoryQuery['favorites'],$categoryQuery['page']);$categoryQuery['q']=$query; ?>
-<a href="?<?= e(http_build_query($categoryQuery)) ?>" <?= $filters['q']===$query?'aria-current="true"':'' ?>><?= service_photo($label,'category-gallery__photo') ?><span><?= e($label) ?></span></a>
-<?php endforeach; ?></div></section>
-<div class="discovery-results-heading" id="salon-results"><div><span class="eyebrow">انتخاب بعدی تو</span><h2 class="card-title">سالن‌های قابل رزرو</h2></div><button class="btn-ink" type="button" data-locate><?= icon('map-pin') ?> فاصله از من</button></div><p role="status" data-location-status></p>
-<?php if(!$salons): ?><div class="glass p-8 text-center empty-state"><?= icon('search','empty-state__icon') ?><h2 class="card-title">سالنی با این مشخصات پیدا نشد</h2><p class="text-ink-500 mt-2">شهر یا فیلترها را تغییر بده.</p><a class="btn-ink mt-4" href="<?= e(url('discover')) ?>">پاک‌کردن فیلترها</a></div><?php endif; ?>
-<div class="salon-grid">
-<?php foreach($salons as $salon): ?>
-<article class="salon-card glass" data-salon-location data-lat="<?= e($salon['map_lat'] === null?'':(string)$salon['map_lat']) ?>" data-lng="<?= e($salon['map_lng'] === null?'':(string)$salon['map_lng']) ?>">
-<a class="salon-card__photo" aria-label="معرفی <?= e($salon['name']) ?>" href="<?= e(url('salons/view/'.$salon['slug'])) ?>"><img src="<?= e(salon_cover_url($salon)) ?>" alt="" width="640" height="480" loading="lazy"><?php if(empty($salon['cover_path'])): ?><span class="photo-caption">تصویر نمونه</span><?php endif; ?></a>
-<div class="salon-card__body"><h2 class="card-title"><a href="<?= e(url('salons/view/'.$salon['slug'])) ?>"><?= e($salon['name']) ?></a></h2>
-<p class="text-ink-500 text-sm"><?= e($salon['city'].' · '.($salon['neighborhood'] ?: $salon['address'])) ?></p>
-<div class="salon-card__meta"><span class="rating-label"><?= icon('star') ?> <?= $salon['review_count']?e(fa_num(number_format((float)$salon['rating'],1))).' از ۵ · '.e(fa_num($salon['review_count'])).' نظر':'هنوز نظری ثبت نشده' ?></span><span data-distance></span></div>
-<div class="salon-card__bottom"><div><span class="eyebrow">قیمت پایهٔ خدمات</span><strong class="salon-starting-price">از <?= e(toman((int)$salon['min_price'])) ?></strong></div><a class="btn-accent metal" href="<?= e(url('s/'.$salon['slug'])) ?>">رزرو نوبت</a></div>
-<?php if(App\Core\Config::get('reshen.discovery.maps_enabled',true)&&$salon['map_lat']!==null&&$salon['map_lng']!==null): ?><button type="button" class="map-trigger" data-map>نمایش روی نقشه</button><?php endif; ?>
-</div></article><?php endforeach; ?></div>
-<nav class="discovery-pagination" aria-label="صفحه‌های نتایج"><?php $page=max(1,(int)($filters['page']?:1)); foreach([-1=>'قبلی',1=>'بعدی'] as $delta=>$label): if(($delta<0&&$page===1)||($delta>0&&!$hasNext))continue; $query=$filters;unset($query['favorites']);$query['page']=$page+$delta; ?><a class="btn-ink" href="?<?= e(http_build_query($query)) ?>"><?= e($label) ?></a><?php endforeach; ?></nav>
-<section class="map-panel glass" data-map-panel hidden><h2 class="card-title">موقعیت سالن انتخاب‌شده</h2><p>نقشه توسط OpenStreetMap نمایش داده می‌شود. اگر بارگیری نشد، از آدرس سالن استفاده کن.</p><iframe title="نقشهٔ موقعیت سالن" loading="lazy" referrerpolicy="no-referrer"></iframe><a target="_blank" rel="noopener noreferrer" data-map-link>بازکردن نقشه</a></section>
+
+<nav class="stack stack-sm mb-6" aria-label="نوع سالن و دسته‌ها">
+  <div class="segmented" role="group" aria-label="نوع سالن">
+    <a href="<?= e(url('discover') . $query(['audience' => '', 'page' => ''])) ?>" <?= $filters['audience'] === '' ? 'aria-current="page"' : '' ?>>همه</a>
+    <a href="<?= e(url('discover') . $query(['audience' => 'men', 'page' => ''])) ?>" <?= $filters['audience'] === 'men' ? 'aria-current="page"' : '' ?>>آرایشگاه مردانه</a>
+    <a href="<?= e(url('discover') . $query(['audience' => 'women', 'page' => ''])) ?>" <?= $filters['audience'] === 'women' ? 'aria-current="page"' : '' ?>>سالن بانوان</a>
+  </div>
+  <div class="chips">
+    <a class="chip" href="<?= e(url('discover') . $query(['cat' => '', 'page' => ''])) ?>" <?= $filters['cat'] === '' ? 'aria-current="page"' : '' ?>>همهٔ خدمات</a>
+    <?php foreach ($categories as $key): ?>
+      <a class="chip" href="<?= e(url('discover') . $query(['cat' => $key, 'page' => ''])) ?>" <?= $filters['cat'] === $key ? 'aria-current="page"' : '' ?>><?= icon(ServiceVisual::icon($key)) ?><?= e(ServiceVisual::label($key)) ?></a>
+    <?php endforeach; ?>
+  </div>
+</nav>
+<?php else: ?>
+  <div class="page-head"><div class="page-head__text"><h1 class="page-head__title">سالن‌های ذخیره‌شده</h1><p class="page-head__sub">سالن‌هایی که با علامت قلب نگه داشته‌ای.</p></div></div>
+<?php endif; ?>
+
+<div class="section__head mb-3" id="results">
+  <h2 class="section__title"><?= $isFavorites ? 'فهرست تو' : 'سالن‌های قابل رزرو' ?></h2>
+  <?php if ($salons !== []): ?>
+    <button class="btn btn--secondary btn--sm" type="button" data-locate><?= icon('navigation') ?> فاصله از من</button>
+  <?php endif; ?>
+</div>
+<p class="text-sm muted mb-3" role="status" data-location-status></p>
+
+<?php if ($salons === []): ?>
+  <div class="card">
+    <?= partial('empty-state', $isFavorites
+        ? ['icon' => 'heart', 'title' => 'هنوز سالنی ذخیره نکرده‌ای', 'text' => 'در صفحهٔ هر سالن، «ذخیرهٔ سالن» را بزن تا اینجا بیاید.', 'actionHref' => url('discover'), 'actionLabel' => 'کشف سالن‌ها']
+        : ['icon' => 'search', 'title' => 'سالنی با این مشخصات پیدا نشد', 'text' => 'شهر، خدمت یا فیلترها را تغییر بده.', 'actionHref' => url('discover'), 'actionLabel' => 'پاک کردن فیلترها']) ?>
+  </div>
+<?php else: ?>
+  <div class="grid-auto" style="--min:280px">
+    <?php foreach ($salons as $salon) { include __DIR__ . '/_salon-card.php'; } ?>
+  </div>
+  <?php if ($page > 1 || $hasNext): ?>
+    <nav class="btn-row mt-6" style="justify-content:center" aria-label="صفحه‌های نتایج">
+      <?php if ($page > 1): ?><a class="btn btn--secondary" href="<?= e(url($isFavorites ? 'me/favorites' : 'discover') . $query(['page' => $page - 1])) ?>"><?= icon('chevron-start') ?> قبلی</a><?php endif; ?>
+      <span class="btn btn--ghost" aria-current="page">صفحهٔ <?= e(fa_num($page)) ?></span>
+      <?php if ($hasNext): ?><a class="btn btn--secondary" href="<?= e(url($isFavorites ? 'me/favorites' : 'discover') . $query(['page' => $page + 1])) ?>">بعدی <?= icon('chevron-end') ?></a><?php endif; ?>
+    </nav>
+  <?php endif; ?>
+<?php endif; ?>
+<script src="<?= e(asset('js/discovery.js')) ?>" defer></script>

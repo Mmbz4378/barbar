@@ -1,92 +1,149 @@
 <?php
-/** @var ?array $service
+/**
+ * @var ?array $service
+ * @var ?int $categoryId
+ * @var array $categories
  * @var array $staff
- * @var array $overrides
+ * @var array<int,array> $overrides
  */
-$staff ??= [];
-$overrides ??= [];
-$overrideMap = [];
-foreach ($overrides as $o) { $overrideMap[(int)$o['staff_id']] = $o; }
+use App\Support\SalonContext;
+
+$s = $service ?? [];
+$v = static fn (string $key, mixed $fallback = '') => old($key, $fallback);
+$isNew = $service === null;
+$priceType = (string) $v('price_type', $s['price_type'] ?? 'fixed');
 ?>
-<div class="max-w-lg">
-<div class="flex items-center gap-3 mb-5">
-  <a href="<?= url('panel/services') ?>" class="w-11 h-11 -ms-2 grid place-items-center rounded-xl text-ink-400 tap">←</a>
-  <h1 class="page-title"><?= $service ? 'ویرایش خدمت' : 'خدمت جدید' ?></h1>
+<a class="back-link" href="<?= e(url('panel/services')) ?>"><?= icon('chevron-start') ?> خدمات</a>
+<div class="page-head">
+  <div class="page-head__text">
+    <h1 class="page-head__title"><?= $isNew ? 'خدمت جدید' : e($s['name']) ?></h1>
+    <?php if (!$isNew): ?><p class="page-head__sub"><?= (bool) $s['is_active'] ? '<span class="badge badge--success">فعال</span>' : '<span class="badge badge--warning">غیرفعال</span>' ?></p><?php endif; ?>
+  </div>
 </div>
 
-<form method="post" action="<?= url($service ? 'panel/services/' . $service['id'] : 'panel/services') ?>" class="glass rounded-2xl p-5 space-y-4">
-  <?= csrf_field() ?>
-  <div>
-    <label class="block text-sm text-ink-600 mb-1.5" for="name">نام خدمت</label>
-    <input id="name" type="text" name="name" required value="<?= e($service['name'] ?? '') ?>" placeholder="اصلاح مو"
-      class="w-full rounded-xl border border-ink-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent">
-  </div>
-  <div>
-    <label for="svc-desc" class="block text-sm text-ink-600 mb-1.5">
-      توضیح <span class="text-ink-400 font-normal">(اختیاری)</span>
-    </label>
-    <textarea name="description" id="svc-desc" rows="2" maxlength="300"
-      placeholder="مثلاً: شست‌وشو، اصلاح با ماشین و قیچی، حالت‌دهی"
-      class="w-full rounded-xl border border-ink-200 bg-transparent px-4 py-3 text-sm leading-relaxed
-             focus:outline-none focus:ring-2 focus:ring-accent"><?= e($service['description'] ?? '') ?></textarea>
-    <p class="text-[12px] text-ink-400 mt-1.5">
-      در «منوی خدمات» که مشتری می‌بیند نمایش داده می‌شود.
-    </p>
-  </div>
+<div class="grid grid-main-aside" style="--gap:24px">
+  <form method="post" action="<?= e(url($isNew ? 'panel/services' : 'panel/services/' . $s['id'])) ?>" class="stack" novalidate>
+    <?= csrf_field() ?>
+    <section class="card"><div class="card__body stack">
+      <div class="field">
+        <label class="field__label" for="s-name">نام خدمت</label>
+        <input class="input" id="s-name" name="name" maxlength="120" required value="<?= e((string) $v('name', $s['name'] ?? '')) ?>" <?= field_error('name') ? 'aria-invalid="true" aria-describedby="name-error"' : '' ?>>
+        <?= partial('field-error', ['key' => 'name']) ?>
+      </div>
+      <div class="form-grid form-grid--2">
+        <div class="field">
+          <label class="field__label" for="s-cat">دسته</label>
+          <select class="select" id="s-cat" name="category_id">
+            <option value="">سایر خدمات</option>
+            <?php foreach ($categories as $c): ?><option value="<?= (int) $c['id'] ?>" <?= (string) $v('category_id', (string) $categoryId) === (string) $c['id'] ? 'selected' : '' ?>><?= e($c['name']) ?></option><?php endforeach; ?>
+          </select>
+        </div>
+        <?php if (SalonContext::audience() === 'unisex'): ?>
+          <div class="field">
+            <label class="field__label" for="s-aud">برای</label>
+            <select class="select" id="s-aud" name="audience">
+              <?php foreach (['all' => 'همه', 'women' => 'بانوان', 'men' => 'آقایان'] as $key => $label): ?><option value="<?= $key ?>" <?= (string) $v('audience', $s['audience'] ?? 'all') === $key ? 'selected' : '' ?>><?= $label ?></option><?php endforeach; ?>
+            </select>
+          </div>
+        <?php endif; ?>
+      </div>
+      <div class="field">
+        <label class="field__label" for="s-desc">توضیح برای مشتری <span class="field__optional">(اختیاری)</span></label>
+        <textarea class="textarea" id="s-desc" name="description" maxlength="300" rows="2" placeholder="مثلاً شامل شست‌وشو و سشوار"><?= e((string) $v('description', $s['description'] ?? '')) ?></textarea>
+        <p class="field__hint">مشتری‌ای که بداند چه چیزی شامل می‌شود، کمتر سر قیمت سؤال دارد.</p>
+      </div>
+    </div></section>
 
-  <div class="grid grid-cols-2 gap-3">
-    <div>
-      <label class="block text-sm text-ink-600 mb-1.5" for="duration_minutes">مدت (دقیقه)</label>
-      <input id="duration_minutes" inputmode="numeric" type="number" name="duration_minutes" value="<?= e((string)($service['duration_minutes'] ?? 30)) ?>"
-        class="w-full rounded-xl border border-ink-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent">
+    <section class="card" aria-labelledby="time-price"><div class="card__header"><h2 class="card__title" id="time-price">زمان و قیمت</h2></div><div class="card__body stack">
+      <div class="form-grid form-grid--2">
+        <div class="field">
+          <label class="field__label" for="s-dur">مدت انجام</label>
+          <div class="input-group"><input class="input num" id="s-dur" name="duration_minutes" inputmode="numeric" required value="<?= e((string) $v('duration_minutes', $s['duration_minutes'] ?? 30)) ?>" data-numeric <?= field_error('duration_minutes') ? 'aria-invalid="true" aria-describedby="duration_minutes-error"' : '' ?>><span class="input-group__addon">دقیقه</span></div>
+          <?= partial('field-error', ['key' => 'duration_minutes']) ?>
+        </div>
+        <div class="field">
+          <label class="field__label" for="s-buf">زمان آماده‌سازی پس از خدمت</label>
+          <div class="input-group"><input class="input num" id="s-buf" name="buffer_minutes" inputmode="numeric" value="<?= e((string) $v('buffer_minutes', $s['buffer_minutes'] ?? 0)) ?>" data-numeric><span class="input-group__addon">دقیقه</span></div>
+          <p class="field__hint">نظافت، ضدعفونی ابزار یا خشک شدن لاک؛ نوبت بعدی پس از آن شروع می‌شود.</p>
+        </div>
+        <div class="field">
+          <label class="field__label" for="s-price">قیمت پایه</label>
+          <div class="input-group"><input class="input num" id="s-price" name="price_toman" inputmode="numeric" required value="<?= e((string) $v('price_toman', isset($s['price']) ? intdiv((int) $s['price'], 10) : '')) ?>" data-numeric <?= field_error('price_toman') ? 'aria-invalid="true" aria-describedby="price_toman-error"' : '' ?>><span class="input-group__addon">تومان</span></div>
+          <?= partial('field-error', ['key' => 'price_toman']) ?>
+        </div>
+        <fieldset class="field">
+          <legend class="field__label mb-2">نوع قیمت</legend>
+          <div class="segmented">
+            <label class="<?= $priceType === 'fixed' ? 'is-active' : '' ?>"><input type="radio" name="price_type" value="fixed" <?= $priceType === 'fixed' ? 'checked' : '' ?>><span>قیمت ثابت</span></label>
+            <label class="<?= $priceType === 'from' ? 'is-active' : '' ?>"><input type="radio" name="price_type" value="from" <?= $priceType === 'from' ? 'checked' : '' ?>><span>«از …»</span></label>
+          </div>
+          <p class="field__hint">«از …» برای خدمتی که قیمتش به طول و حجم مو یا جزئیات کار بستگی دارد.</p>
+        </fieldset>
+      </div>
+    </div></section>
+
+    <section class="card" aria-labelledby="booking-rules"><div class="card__header"><h2 class="card__title" id="booking-rules">رزرو</h2></div><div class="card__body stack">
+      <label class="check">
+        <input type="checkbox" name="online_booking" value="1" <?= (string) $v('online_booking', (string) ($s['online_booking'] ?? 1)) === '1' ? 'checked' : '' ?>>
+        <span class="check__text"><span class="strong">رزرو آنلاین</span><span class="check__hint">اگر خاموش باشد، در منو با «رزرو تلفنی» نمایش داده می‌شود (مثلاً عروس یا اصلاح رنگ که مشاوره لازم دارد).</span></span>
+      </label>
+      <div class="field">
+        <label class="field__label" for="s-dep">بیعانهٔ رزرو آنلاین <span class="field__optional">(اختیاری)</span></label>
+        <div class="input-group" style="max-width:320px"><input class="input num" id="s-dep" name="deposit_toman" inputmode="numeric" value="<?= e((string) $v('deposit_toman', !empty($s['deposit_amount']) ? intdiv((int) $s['deposit_amount'], 10) : '')) ?>" data-numeric><span class="input-group__addon">تومان</span></div>
+        <p class="field__hint">نوبت تا تأیید واریز نگه داشته می‌شود. شمارهٔ کارت و مهلت پرداخت در <a class="link" href="<?= e(url('panel/settings#rules')) ?>">تنظیمات ← قوانین رزرو</a>.</p>
+      </div>
+    </div></section>
+
+    <?php if ($staff !== []): ?>
+    <section class="card" aria-labelledby="who"><div class="card__header"><h2 class="card__title" id="who">چه کسی انجام می‌دهد؟</h2></div><div class="card__body stack stack-sm">
+      <p class="text-sm muted">تیک را برای کسی که این خدمت را انجام نمی‌دهد بردارید. قیمت و مدت خالی یعنی همان مقدار پایه.</p>
+      <div class="table-wrap">
+        <table class="table table--stack">
+          <thead><tr><th>نام</th><th>انجام می‌دهد</th><th>مدت اختصاصی</th><th>قیمت اختصاصی (تومان)</th></tr></thead>
+          <tbody>
+          <?php foreach ($staff as $st): $o = $overrides[(int) $st['id']] ?? null; $offered = $o === null || (int) $o['is_offered'] === 1; ?>
+            <tr>
+              <td data-label="نام"><span class="row" style="--gap:8px"><span class="avatar avatar--sm" style="--avatar-bg:<?= e(staff_color($st['color'])) ?>" aria-hidden="true"><?= e(initial($st['name'])) ?></span><?= e($st['name']) ?></span></td>
+              <td data-label="انجام می‌دهد"><input type="hidden" name="staff[<?= (int) $st['id'] ?>][offered]" value="0"><label class="switch"><input type="checkbox" name="staff[<?= (int) $st['id'] ?>][offered]" value="1" <?= $offered ? 'checked' : '' ?> aria-label="<?= e($st['name']) ?> این خدمت را انجام می‌دهد"><span class="switch__track"></span></label></td>
+              <td data-label="مدت اختصاصی"><input class="input num" style="max-width:110px" name="staff[<?= (int) $st['id'] ?>][duration]" inputmode="numeric" placeholder="<?= e(fa_num($s['duration_minutes'] ?? '')) ?>" value="<?= e($o && $o['duration_minutes'] !== null ? (string) $o['duration_minutes'] : '') ?>" aria-label="مدت اختصاصی <?= e($st['name']) ?> به دقیقه" data-numeric></td>
+              <td data-label="قیمت اختصاصی"><input class="input num" style="max-width:150px" name="staff[<?= (int) $st['id'] ?>][price]" inputmode="numeric" placeholder="<?= isset($s['price']) ? e(fa_num(intdiv((int) $s['price'], 10))) : '' ?>" value="<?= e($o && $o['price'] !== null ? (string) intdiv((int) $o['price'], 10) : '') ?>" aria-label="قیمت اختصاصی <?= e($st['name']) ?> به تومان" data-numeric></td>
+            </tr>
+          <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    </div></section>
+    <?php endif; ?>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn--primary btn--lg"><?= $isNew ? 'افزودن خدمت' : 'ذخیرهٔ تغییرات' ?></button>
+      <a class="btn btn--ghost btn--lg" href="<?= e(url('panel/services')) ?>">انصراف</a>
     </div>
-    <div>
-      <label class="block text-sm text-ink-600 mb-1.5" for="price_toman">قیمت (تومان)</label>
-      <input id="price_toman" inputmode="numeric" type="number" name="price_toman" value="<?= e((string)($service ? App\Support\Money::fromRials((int)$service['price'])->toToman() : 0)) ?>"
-        class="w-full rounded-xl border border-ink-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent">
-    </div>
-  </div>
-  <button type="submit" class="btn-ink w-full">ذخیره</button>
-</form>
+  </form>
 
-<?php if ($service && !empty($staff)): ?>
-<div class="glass rounded-2xl p-5 mt-4">
-  <h2 class="card-title mb-1">مدت و قیمت اختصاصی هر آرایشگر</h2>
-  <p class="text-xs text-ink-400 mb-4">اگر خالی بگذارید، عدد عمومی بالا استفاده می‌شود.</p>
-  <div class="space-y-3">
-  <?php foreach ($staff as $st): $ov = $overrideMap[(int)$st['id']] ?? null; ?>
-    <form method="post" action="<?= url('panel/services/' . $service['id'] . '/override') ?>" class="service-override">
-      <?= csrf_field() ?>
-      <input type="hidden" name="staff_id" value="<?= (int)$st['id'] ?>">
-      <span class="service-override__name"><?= e($st['name']) ?></span>
-      <label class="service-override__field"><span>مدت (دقیقه)</span><input inputmode="numeric" type="number" name="duration_minutes" placeholder="دقیقه"
-        aria-label="مدت این خدمت برای <?= e($st['name']) ?> (دقیقه)"
-        value="<?= e($ov ? (string)$ov['duration_minutes'] : '') ?>"
-        class="rounded-lg border border-ink-200 px-2 py-1.5 text-sm"></label>
-      <label class="service-override__field"><span>قیمت (تومان)</span><input inputmode="numeric" type="number" name="price_toman" placeholder="تومان"
-        aria-label="قیمت این خدمت برای <?= e($st['name']) ?> (تومان)"
-        value="<?= e($ov && $ov['price'] !== null ? (string) App\Support\Money::fromRials((int)$ov['price'])->toToman() : '') ?>"
-        class="rounded-lg border border-ink-200 px-2 py-1.5 text-sm"></label>
-      <button type="submit" class="btn-ink service-override__save">ذخیره</button>
-    </form>
-  <?php endforeach; ?>
-  </div>
+  <aside class="stack">
+    <?php if (!$isNew): ?>
+      <section class="card" aria-labelledby="photo-title"><div class="card__header"><h2 class="card__title" id="photo-title">عکس خدمت</h2></div><div class="card__body stack stack-sm">
+        <?= service_media($s, 'service-thumb service-thumb--lg') ?>
+        <p class="text-sm muted"><?= !empty($s['image_file']) ? 'عکس واقعی سالن.' : 'هنوز عکسی بارگذاری نشده؛ نماد دسته نمایش داده می‌شود.' ?></p>
+        <form method="post" action="<?= e(url('panel/services/' . $s['id'] . '/image')) ?>" enctype="multipart/form-data" class="stack stack-sm">
+          <?= csrf_field() ?>
+          <label class="field__label" for="s-img">انتخاب عکس (JPG، PNG یا WebP)</label>
+          <input class="input" id="s-img" type="file" name="image" accept="image/jpeg,image/png,image/webp" style="padding-block:8px">
+          <button type="submit" class="btn btn--secondary btn--sm"><?= icon('download') ?> بارگذاری</button>
+        </form>
+        <?php if (!empty($s['image_file'])): ?>
+          <form method="post" action="<?= e(url('panel/services/' . $s['id'] . '/image')) ?>" data-confirm="عکس این خدمت حذف شود؟"><?= csrf_field() ?><input type="hidden" name="remove" value="1"><button class="btn btn--danger-ghost btn--sm" type="submit"><?= icon('trash') ?> حذف عکس</button></form>
+        <?php endif; ?>
+      </div></section>
+      <form method="post" action="<?= e(url('panel/services/' . $s['id'] . '/toggle')) ?>" class="card"><div class="card__body stack stack-sm">
+        <?= csrf_field() ?>
+        <strong><?= (bool) $s['is_active'] ? 'خدمت فعال است' : 'خدمت غیرفعال است' ?></strong>
+        <p class="text-sm muted"><?= (bool) $s['is_active'] ? 'غیرفعال کردن، خدمت را از منو و رزرو برمی‌دارد ولی سوابق می‌ماند.' : 'پس از فعال شدن در منو و صفحهٔ رزرو دیده می‌شود.' ?></p>
+        <button type="submit" class="btn <?= (bool) $s['is_active'] ? 'btn--secondary' : 'btn--primary' ?> btn--sm"><?= (bool) $s['is_active'] ? 'غیرفعال کن' : 'فعال کن' ?></button>
+      </div></form>
+    <?php else: ?>
+      <div class="alert alert--info"><?= icon('info') ?><div class="alert__body">پس از ذخیره می‌توانید عکس واقعی خدمت را هم بارگذاری کنید.</div></div>
+    <?php endif; ?>
+  </aside>
 </div>
-<?php endif; ?>
-
-<?php if ($service): ?>
-<form method="post" action="<?= url('panel/services/' . $service['id'] . '/toggle') ?>" class="mt-3">
-  <?= csrf_field() ?>
-  <button type="submit" class="w-full text-sm text-ink-400 hover:text-ink-600 py-2">
-    <?= $service['is_active'] ? 'غیرفعال کردن' : 'فعال کردن' ?>
-  </button>
-</form>
-<?php endif; ?>
-</div>
-
-<?php if ($service): ?>
-<form method="post" enctype="multipart/form-data" action="<?= e(url('panel/services/'.$service['id'].'/image')) ?>" class="glass p-5 mt-4 max-w-lg space-y-3">
-<?= csrf_field() ?><h2 class="card-title">تصویر واقعی خدمت</h2>
-<?= service_photo($service['name'],'service-photo service-admin-row__photo',false,$service['image_file']??null) ?>
-<label class="block">تصویر (حداکثر ۳ مگابایت)<input type="file" name="image" accept="image/jpeg,image/png,image/webp" required class="w-full"></label><button class="btn-ink">ذخیرهٔ تصویر</button></form>
-<?php endif; ?>
