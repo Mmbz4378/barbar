@@ -116,7 +116,7 @@ $failedBefore = $available !== null && in_array($available['version'], (array) (
               <?php if (!empty($h['log_text'])): ?>
                 <details><summary class="text-sm link" style="cursor:pointer">جزئیات فنی</summary><pre class="text-xs ltr" style="white-space:pre-wrap;margin-top:8px;padding:12px;border-radius:var(--radius-md);background:var(--surface-sunken);direction:rtl;text-align:right"><?= e((string) $h['log_text']) ?></pre></details>
               <?php endif; ?>
-              <?php if (!empty($h['db_backup_file']) && is_file(BASE_PATH . '/' . $h['db_backup_file']) && in_array($h['status'], ['failed', 'rolled_back', 'succeeded'], true)): ?>
+              <?php if (!empty($h['db_backup_file']) && is_file(BASE_PATH . '/' . $h['db_backup_file']) && in_array($h['status'], ['failed', 'rolled_back'], true)): ?>
                 <form method="post" action="<?= e(url('system/updates/' . $h['id'] . '/restore-db')) ?>" data-confirm="دیتابیس به لحظهٔ پیش از این به‌روزرسانی برمی‌گردد و هرچه بعد از آن ثبت شده (نوبت، پرداخت) از بین می‌رود. فقط اگر سامانه خراب است این کار را بکنید. ادامه؟" data-confirm-ok="بازگردانی دیتابیس">
                   <?= csrf_field() ?><button class="btn btn--danger-ghost btn--sm" type="submit"><?= icon('refresh') ?> بازگردانی دیتابیس به پیش از این به‌روزرسانی</button>
                 </form>

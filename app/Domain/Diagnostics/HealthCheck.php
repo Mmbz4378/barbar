@@ -226,6 +226,13 @@ final class HealthCheck
     {
         $rows = [];
 
+        $rows[] = [
+            'label' => 'نسخهٔ برنامه',
+            'status' => self::OK,
+            'value' => \App\Support\Version::current(),
+            'hint' => '',
+        ];
+
         $key = (string) Config::get('app.key', '');
         $rows[] = [
             'label' => 'کلید برنامه (APP_KEY)',

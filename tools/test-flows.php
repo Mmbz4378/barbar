@@ -111,6 +111,25 @@ check('واژهٔ کارکنان مردانه', Audience::term('staff', 'men') =
 check('واژهٔ کارکنان بانوان', Audience::term('staff', 'women') === 'متخصص');
 check('روند پیش‌فرض بانوان اول خدمت', Audience::defaultBookingFlow('women') === 'service_first');
 
+section('به‌روزرسان');
+check('مقایسهٔ نسخه‌ها', App\Support\Version::compare('14.10.0', '14.9.3') > 0 && App\Support\Version::compare('v14.2.0', '14.2.0') === 0);
+check('پیش‌انتشار از نسخهٔ نهایی قدیمی‌تر است', App\Support\Version::compare('15.0.0-beta.1', '15.0.0') < 0);
+check('نسخهٔ نامعتبر رد می‌شود', !App\Support\Version::isValid('latest') && !App\Support\Version::isNewer('../../x'));
+$unsafe = ['../etc/passwd', '/abs/path', 'a/../../b', 'C:/win', "a\0b", 'a\\b', './x', 'a//b'];
+check('مسیرهای ناامن ZIP رد می‌شوند', array_filter($unsafe, [App\Domain\System\Updater::class, 'safeRelativePath']) === [], json_encode(array_values(array_filter($unsafe, [App\Domain\System\Updater::class, 'safeRelativePath']))));
+check('مسیر عادی پذیرفته می‌شود', App\Domain\System\Updater::safeRelativePath('app/Core/DB.php') && App\Domain\System\Updater::safeRelativePath('نصب.md'));
+if (function_exists('sodium_crypto_sign_keypair')) {
+    $pair = sodium_crypto_sign_keypair();
+    $sha = hash('sha256', 'package');
+    $release = ['version' => '14.9.0', 'sha256' => $sha, 'signature' => base64_encode(sodium_crypto_sign_detached(App\Domain\System\ReleaseSource::signatureMessage('14.9.0', $sha), sodium_crypto_sign_secretkey($pair)))];
+    $pub = base64_encode(sodium_crypto_sign_publickey($pair));
+    check('امضای درست پذیرفته می‌شود', App\Domain\System\ReleaseSource::verifySignature($release, $pub));
+    check('امضا برای نسخهٔ دیگر معتبر نیست', !App\Domain\System\ReleaseSource::verifySignature(['version' => '14.9.1'] + $release, $pub));
+    check('امضا برای بستهٔ دیگر معتبر نیست', !App\Domain\System\ReleaseSource::verifySignature(['sha256' => hash('sha256', 'other')] + $release, $pub));
+}
+check('نشانی HTTP بیرونی رد می‌شود', throws(fn () => App\Domain\System\HttpFetcher::assertAllowedUrl('http://example.com/x.zip')) !== null);
+check('نشانی HTTPS پذیرفته می‌شود', throws(fn () => App\Domain\System\HttpFetcher::assertAllowedUrl('https://github.com/x/y')) === null);
+
 // ─── آماده‌سازی ───────────────────────────────────────────────────────
 $pdo = DB::connection();
 $pdo->beginTransaction();
@@ -290,6 +309,15 @@ try {
     check('گزارش جریان نوبت حضوری را می‌شمارد', $flow['walkins'] >= 1 && $flow['completed'] >= 1, json_encode($flow));
     $err = throws(fn () => (new PaymentRepository())->record($menId, $walkId, 'bitcoin', 1, 0, null));
     check('روش پرداخت نامعتبر رد می‌شود', $err !== null);
+
+    section('بازهٔ نصب خودکار');
+    $updater = new App\Domain\System\Updater();
+    $updater->setWindow(23, 2);
+    check('بازهٔ شبانه که از نیمه‌شب می‌گذرد', $updater->inWindow(23) && $updater->inWindow(1) && !$updater->inWindow(2) && !$updater->inWindow(12));
+    $updater->setWindow(3, 5);
+    check('بازهٔ عادی', $updater->inWindow(3) && $updater->inWindow(4) && !$updater->inWindow(5));
+    check('بازهٔ نامعتبر رد می‌شود', throws(fn () => $updater->setWindow(4, 4)) !== null);
+    App\Domain\System\SystemSettings::flush();
 
     // ─── جداسازی سالن‌ها ──────────────────────────────────────────────
     section('جداسازی سالن‌ها');

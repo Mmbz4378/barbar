@@ -139,9 +139,64 @@ final class Updater
         }
     }
 
+    /**
+     * به‌روزرسانی‌ای که پردازه‌اش وسط کار کشته شده (محدودیت زمان هاست،
+     * ری‌استارت) — فایل‌ها را از دفترچه برمی‌گرداند.
+     */
+    public function recoverInterrupted(): ?string
+    {
+        try {
+            $stale = DB::select(
+                "SELECT * FROM system_updates WHERE status = 'running' AND started_at < ? ORDER BY id",
+                [date('Y-m-d H:i:s', time() - 30 * 60)]
+            );
+        } catch (Throwable) {
+            return null;
+        }
+        if ($stale === []) {
+            return null;
+        }
+        $lock = $this->acquireLock();
+        if ($lock === null) {
+            return null; // هنوز واقعاً در حال اجراست
+        }
+        $messages = [];
+        try {
+            foreach ($stale as $row) {
+                $this->log = [];
+                $backupDir = $row['backup_path'] ? BASE_PATH . '/' . $row['backup_path'] : null;
+                $journal = $backupDir ? json_decode((string) @file_get_contents($backupDir . '/journal.json'), true) : null;
+                $status = 'failed';
+                $message = 'به‌روزرسانی نیمه‌کاره متوقف شده بود.';
+                if (is_array($journal) && $journal !== []) {
+                    try {
+                        $this->rollback($journal, $backupDir);
+                        $this->resetOpcache(array_column($journal, 0));
+                        $status = 'rolled_back';
+                        $message .= ' فایل‌ها به نسخهٔ ' . $row['from_version'] . ' برگشتند.';
+                    } catch (Throwable $e) {
+                        $message .= ' برگشت خودکار کامل نشد: ' . $e->getMessage();
+                    }
+                }
+                $this->rememberFailure((string) $row['to_version']);
+                $this->finishRecord((int) $row['id'], $status, $message);
+                $messages[] = $message;
+            }
+        } finally {
+            Maintenance::disable();
+            flock($lock, LOCK_UN);
+            fclose($lock);
+        }
+
+        return implode(' ', $messages);
+    }
+
     /** کار کرون: بررسی دوره‌ای و در حالت خودکار، نصب در بازهٔ شبانه. */
     public function cronTick(): string
     {
+        if (($recovered = $this->recoverInterrupted()) !== null) {
+            return $recovered;
+        }
         $mode = $this->mode();
         if ($mode === 'off') {
             return 'خاموش';
@@ -378,12 +433,16 @@ final class Updater
         if ($row === null || empty($row['db_backup_file']) || !is_file($file)) {
             throw new RuntimeException('پشتیبان دیتابیس این به‌روزرسانی موجود نیست.');
         }
+        if (!in_array($row['status'], ['failed', 'rolled_back'], true)) {
+            // پس از نصب موفق، فایل‌ها نسخهٔ تازه‌اند؛ دیتابیس قدیمی با آن‌ها نمی‌خواند
+            throw new RuntimeException('بازگردانی دیتابیس فقط برای به‌روزرسانی ناموفق یا برگشت‌خورده ممکن است.');
+        }
         if (!str_starts_with(realpath($file) ?: '', realpath(BASE_PATH . '/storage/backups') ?: '//')) {
             throw new RuntimeException('مسیر پشتیبان نامعتبر است.');
         }
         Maintenance::enable('بازگردانی دیتابیس', 15);
         try {
-            (new DatabaseBackup())->restore($file);
+            (new DatabaseBackup())->restore($file, ['system_updates', 'system_settings']);
         } finally {
             Maintenance::disable();
         }

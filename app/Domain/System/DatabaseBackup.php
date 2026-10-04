@@ -74,16 +74,24 @@ final class DatabaseBackup
      * بازگردانی کامل: جدول‌هایی که در پشتیبان نیستند (مثلاً ساختهٔ یک
      * مهاجرت نیمه‌کاره) هم حذف می‌شوند تا وضعیت دقیقاً همان لحظه شود.
      */
-    public function restore(string $file): void
+    /**
+     * @param string[] $keepTables جدول‌هایی که دست نمی‌خورند — مثلاً تاریخچهٔ
+     *                             به‌روزرسانی، که نباید با بازگردانی عقب برود
+     */
+    public function restore(string $file, array $keepTables = []): void
     {
         if (!$this->looksComplete($file)) {
             throw new RuntimeException('فایل پشتیبان کامل نیست؛ بازگردانی انجام نشد.');
         }
         $pdo = DB::connection();
         $pdo->exec('SET FOREIGN_KEY_CHECKS=0');
+        $keepPattern = $keepTables === [] ? null
+            : '/^\s*(?:DROP TABLE IF EXISTS|CREATE TABLE|INSERT INTO)\s+`(?:' . implode('|', array_map(static fn ($t) => preg_quote($t, '/'), $keepTables)) . ')`/i';
         try {
             foreach ($this->tables() as $table) {
-                $pdo->exec('DROP TABLE IF EXISTS `' . $table . '`');
+                if (!in_array($table, $keepTables, true)) {
+                    $pdo->exec('DROP TABLE IF EXISTS `' . $table . '`');
+                }
             }
             $gz = gzopen($file, 'rb');
             $buffer = '';
@@ -95,7 +103,9 @@ final class DatabaseBackup
                 }
                 $buffer .= $line;
                 if (str_ends_with($trim, ';')) {
-                    $pdo->exec($buffer);
+                    if ($keepPattern === null || !preg_match($keepPattern, $buffer)) {
+                        $pdo->exec($buffer);
+                    }
                     $buffer = '';
                 }
             }
