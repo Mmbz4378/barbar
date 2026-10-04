@@ -117,6 +117,29 @@ check('واژهٔ کارکنان مردانه', Audience::term('staff', 'men') =
 check('واژهٔ کارکنان بانوان', Audience::term('staff', 'women') === 'متخصص');
 check('روند پیش‌فرض بانوان اول خدمت', Audience::defaultBookingFlow('women') === 'service_first');
 
+section('کش HTTP');
+// در CLI نشستی لمس نمی‌شود، پس رفتارِ «مهمانِ بی‌نشست» قطعی است.
+$send = static fn (App\Core\Response $r): App\Core\Response => $r->prepare();
+$_SERVER['REQUEST_METHOD'] = 'GET';
+$pub = $send((new App\Core\Response('<p>x</p>', 200, []))->publicCache(30, 60));
+check('صفحهٔ عمومیِ مهمان کش عمومی و ETag می‌گیرد', str_starts_with($pub->headers['Cache-Control'] ?? '', 'public,') && ($pub->headers['Vary'] ?? '') === 'Cookie' && isset($pub->headers['ETag']));
+$_SERVER['HTTP_IF_NONE_MATCH'] = (string) $pub->headers['ETag'];
+$hit = $send((new App\Core\Response('<p>x</p>', 200, []))->publicCache(30, 60));
+check('ETag برابر ← ۳۰۴ بدون بدنه', $hit->status === 304 && $hit->body === '');
+$_SERVER['HTTP_IF_NONE_MATCH'] = substr((string) $pub->headers['ETag'], 0, -1) . '-gzip"';
+check('ETagِ gzipشدهٔ آپاچی هم می‌خورد', $send((new App\Core\Response('<p>x</p>', 200, []))->publicCache())->status === 304);
+unset($_SERVER['HTTP_IF_NONE_MATCH']);
+$nonce = App\Core\Security::nonce();
+$withNonce = $send((new App\Core\Response('<script nonce="' . $nonce . '"></script>', 200, []))->publicCache());
+$noNonce = $send((new App\Core\Response('<script nonce=""></script>', 200, []))->publicCache());
+check('nonce در ETag اثری ندارد', $withNonce->headers['ETag'] === $noNonce->headers['ETag']);
+check('سربرگ صریح مسیر مقدم است', $send((new App\Core\Response('x', 200, ['Cache-Control' => 'no-store']))->publicCache())->headers['Cache-Control'] === 'no-store');
+check('صفحهٔ بدون اعلام ← no-cache', ($send(new App\Core\Response('x', 200, []))->headers['Cache-Control'] ?? '') === 'no-cache');
+check('خطا هرگز عمومی کش نمی‌شود', ($send((new App\Core\Response('x', 404, []))->publicCache())->headers['Cache-Control'] ?? '') === 'no-cache');
+$_SERVER['REQUEST_METHOD'] = 'POST';
+check('POST هرگز عمومی کش نمی‌شود', ($send((new App\Core\Response('x', 200, []))->publicCache())->headers['Cache-Control'] ?? '') === 'no-cache');
+$_SERVER['REQUEST_METHOD'] = 'GET';
+
 section('به‌روزرسان');
 check('مقایسهٔ نسخه‌ها', App\Support\Version::compare('14.10.0', '14.9.3') > 0 && App\Support\Version::compare('v14.2.0', '14.2.0') === 0);
 check('پیش‌انتشار از نسخهٔ نهایی قدیمی‌تر است', App\Support\Version::compare('15.0.0-beta.1', '15.0.0') < 0);

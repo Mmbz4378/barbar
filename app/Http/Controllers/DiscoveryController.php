@@ -38,7 +38,7 @@ final class DiscoveryController extends Controller
             'hasNext' => $result['hasNext'],
             'filters' => $filters,
             'cities' => $repo->cities(),
-        ]);
+        ])->publicCache(30, 60);
     }
 
     public function show(Request $request): Response
@@ -73,7 +73,7 @@ final class DiscoveryController extends Controller
             // نمی‌شود و صفحهٔ عمومی سالن برای مهمان سبک و قابل کش می‌ماند.
             'customer' => $customer,
             'favorite' => $customer && DB::selectOne('SELECT salon_id FROM salon_favorites WHERE phone = ? AND salon_id = ?', [CustomerAuth::phone(), $id]) !== null,
-        ]);
+        ])->publicCache(30, 60);
     }
 
     public function favorite(Request $request): Response

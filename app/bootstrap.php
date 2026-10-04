@@ -54,6 +54,7 @@ if (Config::get('app.debug')) {
 set_exception_handler(static function (Throwable $e): void {
     if (!headers_sent()) {
         http_response_code(500);
+        header('Cache-Control: no-store');
     }
     error_log($e->getMessage() . "\n" . $e->getTraceAsString());
     // ستون یا جدولِ ناموجود تقریباً همیشه یعنی فایل‌های نسخهٔ تازه بالا رفته

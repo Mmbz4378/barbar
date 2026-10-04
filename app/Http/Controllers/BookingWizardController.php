@@ -126,11 +126,12 @@ final class BookingWizardController extends Controller
             return $this->notFound('این سالن پیدا نشد یا فعلاً نوبت نمی‌دهد.');
         }
 
+        // منو برای همه یکی است و فرمی ندارد؛ کمی بلندتر کش می‌شود.
         return $this->page('layouts.booking', 'booking.menu', [
             'title' => 'خدمات ' . $salon['name'],
             'salon' => $salon,
             'groups' => (new ServiceRepository())->grouped((int) $salon['id'], true),
-        ]);
+        ])->publicCache(60, 120);
     }
 
     public function servicesStep(Request $request): Response
