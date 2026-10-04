@@ -1,0 +1,31 @@
+# کنترلر جلویی — هر مسیری که فایل واقعی نیست، به index.php می‌رود.
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # اگر پروژه در زیرپوشه نصب شده، RewriteBase را خود آپاچی حدس می‌زند؛
+    # در مواردی که حدس نزند، خط زیر را دستی باز کنید:
+    # RewriteBase /reshen/
+
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+Options -Indexes
+
+# کش بلندمدت برای دارایی‌های نسخه‌دار (CSS و فونت).
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css              "access plus 1 year"
+    ExpiresByType font/woff2            "access plus 1 year"
+    ExpiresByType image/svg+xml         "access plus 1 month"
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set Referrer-Policy "same-origin"
+</IfModule>

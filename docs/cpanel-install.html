@@ -1,0 +1,169 @@
+<!doctype html><html lang="fa" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>راهنمای نصب رشن روی cPanel</title><style>body{font:16px/2 Tahoma,Arial,sans-serif;background:#f5f6f8;color:#25282d;margin:0;padding:24px}main{max-width:920px;margin:auto;background:white;padding:40px;border-radius:18px}h1{font-size:27px}h2{margin-top:40px;font-size:22px;color:#176b52}h3{font-size:18px}a{color:#12624b}code,pre{direction:ltr;unicode-bidi:isolate;text-align:left;font:14px/1.8 Consolas,monospace;background:#f0f2f4;border-radius:5px}code{display:inline-block;padding:1px 5px;max-width:100%;overflow-wrap:anywhere}pre{padding:16px;overflow:auto}pre code{display:block;padding:0;overflow-wrap:normal}table{border-collapse:collapse;width:100%;font-size:14px}td,th{border:1px solid #d8dde0;padding:10px;text-align:right}li{margin:8px 0}@media(max-width:600px){body{padding:10px}main{padding:18px}h1{font-size:23px}td,th{padding:6px}}@media print{body,main{padding:0;background:white}h2,h3{break-after:avoid}pre,tr{break-inside:avoid}}</style><main><h1>راهنمای نصب رشن روی cPanel</h1>
+<p>نسخهٔ تحویل: ۴ اکتبر ۲۰۲۶ — رابط ساده و بازطراحی کشف سالن، فونت ایران‌یکان X و پوستهٔ نصب‌شوندهٔ v13.</p>
+<h2>پیش از شروع</h2>
+<p>این ZIP شامل کد کامل برنامه، وابستگی‌های PHP، فایل‌های آمادهٔ رابط، تصاویر نمونه، فونت‌ها و مهاجرت‌های دیتابیس است. برای نصب این بسته نیازی به اجرای Composer یا npm روی هاست ندارید. دیتابیس آزمایشی، اطلاعات مشتریان، رمزها و فایل <code>.env</code> داخل بسته نیستند؛ نصاب تنظیمات نصب تازه را می‌سازد. تصاویر نمونه را بعداً از پنل با تصاویر واقعی سالن جایگزین کنید.</p>
+<p>اگر رشن از قبل روی همین دامنه نصب است، مستقیم به بخش «ارتقای نسخهٔ موجود» بروید. نصاب برای نصب تازه است.</p>
+<h2>۱. آماده‌کردن دامنه و PHP</h2>
+<p>دامنه یا زیردامنه‌ای مانند <code>nobat.example.com</code> را به هاست متصل و HTTPS را فعال کنید. در همهٔ مثال‌ها، <code>example.com</code> را با دامنهٔ خودتان و <code>USER</code> را با نام حساب cPanel جایگزین کنید.</p>
+<p>در <strong>MultiPHP Manager</strong> یا <strong>Select PHP Version</strong>، نسخهٔ PHP دامنه را انتخاب کنید. حداقل کد ۸.۱ است؛ این خروجی روی PHP ۸.۲ آزمایش شده است. فعال‌بودن <code>pdo_mysql</code>، <code>mbstring</code>، <code>curl</code>، <code>openssl</code> و <code>gd</code> با پشتیبانی WebP را بررسی کنید. JSON باید در دسترس باشد. MySQL یا MariaDB، اجرای <code>.htaccess</code> و بازنویسی مسیرها نیز لازم‌اند. اگر گزینه‌ای موجود نبود، پشتیبانی هاست باید آن را فعال کند. <a href="https://docs.cpanel.net/cpanel/software/multiphp-manager-for-cpanel/">راهنمای رسمی انتخاب PHP</a></p>
+<h2>۲. بارگذاری فایل‌ها</h2>
+<p>در <strong>File Manager → Settings</strong> گزینهٔ <strong>Show Hidden Files</strong> را روشن کنید تا فایل‌های <code>.htaccess</code> و <code>.env.example</code> دیده شوند. پوشهٔ دامنه را از بخش <strong>Domains</strong> مشخص کنید. <a href="https://docs.cpanel.net/cpanel/files/file-manager/110/">راهنمای رسمی File Manager</a></p>
+<h3>روش معمول برای دامنهٔ اصلی</h3>
+<p>۱. در پوشهٔ دامنه، معمولاً <code>public_html</code>، ZIP را Upload کنید.
+۲. ZIP را انتخاب کنید و <strong>Extract</strong> بزنید. بسته پوشهٔ اضافهٔ بیرونی ندارد؛ محتوایش باید مستقیماً در محل استخراج قرار بگیرد.
+۳. این ساختار را ببینید:</p>
+<pre><code class="language-text">public_html/
+  .htaccess
+  .env.example
+  app/
+  config/
+  database/
+  public/
+  storage/
+  tools/
+  vendor/
+</code></pre>
+<p>فایل <code>.htaccess</code> ریشه، درخواست‌ها را به <code>public/</code> هدایت می‌کند. آدرس سایت و نصاب نباید <code>/public</code> داشته باشند. پوشهٔ <code>public</code> را جدا از بقیهٔ پروژه جابه‌جا نکنید. روی سایتی که فایل‌های دیگری دارد، ابتدا نسخهٔ پشتیبان بگیرید یا زیردامنهٔ مجزا بسازید.</p>
+<h3>روش مناسب برای دامنه‌ای با ریشهٔ قابل تنظیم</h3>
+<p>می‌توانید کل بسته را در پوشهٔ مجزایی مانند <code>/home/USER/reshen</code> استخراج کنید و <strong>Document Root</strong> دامنه را دقیقاً روی <code>/home/USER/reshen/public</code> بگذارید. فقط اگر پنل و سیاست هاست اجازه می‌دهد از این روش استفاده کنید؛ تغییر ریشهٔ دامنهٔ اصلی معمولاً در اختیار کاربر نیست. در این حالت هم <code>APP_URL</code> همان دامنه و بدون <code>/public</code> است. <a href="https://docs.cpanel.net/cpanel/domains/domains/manage-the-domain/">تنظیمات دامنه در cPanel</a></p>
+<p>پس از استخراج موفق، ZIP را از پوشهٔ عمومی هاست حذف کنید و نسخهٔ دانلودشده را نزد خود نگه دارید.</p>
+<h2>۳. ساخت دیتابیس خالی</h2>
+<p>در <strong>Database Wizard</strong> که در نسخه‌های قدیمی‌تر <strong>MySQL Database Wizard</strong> نام دارد:</p>
+<p>۱. یک دیتابیس بسازید؛ مثلاً <code>USER_reshen</code>.
+۲. یک کاربر دیتابیس با رمز قوی بسازید.
+۳. دسترسی <strong>ALL PRIVILEGES</strong> را برای همان دیتابیس بدهید.
+۴. نام کامل دیتابیس، نام کامل کاربر و رمز را یادداشت کنید. پیشوند حساب، جزئی از نام است. <a href="https://docs.cpanel.net/cpanel/databases/mysql-database-wizard/">راهنمای رسمی ساخت دیتابیس</a></p>
+<p>نیازی به واردکردن دستی <code>schema.sql</code> نیست؛ نصاب، مهاجرت‌ها را اجرا می‌کند.</p>
+<h2>۴. اجرای نصاب</h2>
+<p>در مرورگر باز کنید:</p>
+<pre><code class="language-text">https://example.com/install.php
+</code></pre>
+<p>ابتدا خطاهای بررسی محیط را برطرف کنید. سپس فرم را پر کنید:</p>
+<table>
+<thead>
+<tr>
+<th>فیلد</th>
+<th>مقدار</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>میزبان دیتابیس</td>
+<td>معمولاً <code>localhost</code>؛ در صورت اعلام هاست، مقدار همان هاست</td>
+</tr>
+<tr>
+<td>پورت</td>
+<td>معمولاً <code>3306</code></td>
+</tr>
+<tr>
+<td>دیتابیس و کاربر</td>
+<td>نام‌های کامل مرحلهٔ قبل</td>
+</tr>
+<tr>
+<td>رمز</td>
+<td>رمز کاربر دیتابیس</td>
+</tr>
+<tr>
+<td>آدرس سایت</td>
+<td><code>https://example.com</code>، بدون اسلش پایانی و بدون <code>/public</code></td>
+</tr>
+</tbody></table>
+<p>دکمهٔ ساخت جدول‌ها را بزنید. در پایان، فایل <code>.env</code> و قفل <code>storage/installed.lock</code> ساخته می‌شوند. کلید <code>APP_KEY</code> خودکار تولید می‌شود؛ بعد از نصب آن را تغییر ندهید.</p>
+<p>پوشهٔ پروژه برای ساخت <code>.env</code>، پوشهٔ <code>storage</code> و زیرپوشه‌های آن و <code>public/uploads/media</code> باید برای PHP قابل‌نوشتن باشند. معمولاً پوشه‌ها ۷۵۵ و فایل‌ها ۶۴۴ هستند؛ فایل <code>.env</code> را نصاب روی ۶۰۰ می‌گذارد. اگر نوشتن شکست خورد، مالکیت و مجوزها را با پشتیبانی هاست اصلاح کنید؛ همهٔ پوشه‌ها را ۷۷۷ نکنید.</p>
+<p>پس از نصب موفق، قفل نصب را نگه دارید. می‌توانید <code>public/install.php</code> را از هاست حذف کنید؛ برای ارتقا نیازی به بازکردن نصاب نیست.</p>
+<h2>۵. اولین ورود و ساخت سالن — بدون نیاز به Terminal</h2>
+<p>در نصب تازه، <code>SMS_DRIVER=log</code> است: پیامک واقعی فرستاده نمی‌شود.</p>
+<p>۱. صفحهٔ <code>https://example.com/login</code> را باز کنید و شمارهٔ موبایل خودتان را وارد کنید.
+۲. در <strong>File Manager</strong> فایل <code>storage/logs/sms.log</code> را باز کنید. آخرین کد مربوط به همان شماره را بخوانید؛ فایل را فقط از پنل هاست باز کنید، نه با آدرس اینترنتی.
+۳. کد را در صفحهٔ ورود وارد کنید. کد فعلی ۲ دقیقه اعتبار دارد؛ اگر منقضی شد، درخواست تازه بدهید و آخرین خط فایل را بخوانید.
+۴. فرم ساخت سالن را تکمیل کنید. شما مالک همان سالن می‌شوید.
+۵. در راه‌اندازی پنل، خدمت فعال، قیمت و مدت، آرایشگر فعال و ساعت کاری را مشخص کنید. سپس لینک رزرو سالن را از پنل/کد QR بردارید و یک رزرو آزمایشی انجام دهید.</p>
+<p>این روش برای راه‌اندازی و آزمون است. پیش از استفادهٔ مشتریان و کارکنان، پیامک واقعی را مطابق مرحلهٔ بعد فعال کنید.</p>
+<p><strong>دسترسی مدیریت پلتفرم:</strong> ساخت سالن، دسترسی مدیریت کل پلتفرم نمی‌دهد. اگر خودتان مدیر کل سامانه هستید، پس از اولین ورود، در Terminal دستور زیر را با شمارهٔ حساب خودتان اجرا کنید؛ اگر Terminal ندارید، از پشتیبانی هاست بخواهید آن را اجرا کند:</p>
+<pre><code class="language-text">php /home/USER/public_html/tools/make_platform_admin.php 09XXXXXXXXX
+</code></pre>
+<p>مسیر بالا باید به محل واقعی پروژه اشاره کند. برای انتشار سالن در بخش کشف، اطلاعات عمومی سالن را کامل کنید و درخواست انتشار را از مدیریت پلتفرم تأیید کنید.</p>
+<h2>۶. پیامک و پرداخت</h2>
+<p>در File Manager فایل <code>.env</code> را ویرایش کنید. برای ملی‌پیامک، نام متغیرهای این نسخه چنین است:</p>
+<pre><code class="language-ini">SMS_DRIVER=melipayamak
+SMS_MELIPAYAMAK_USERNAME=YOUR_USERNAME
+SMS_MELIPAYAMAK_PASSWORD=YOUR_PASSWORD_OR_APIKEY
+SMS_MELIPAYAMAK_SENDER=YOUR_SENDER
+SMS_PATTERN_MELIPAYAMAK_OTP=YOUR_APPROVED_PATTERN_ID
+</code></pre>
+<p>مقادیر نمونه را با مقادیر واقعی حساب خودتان جایگزین کنید. متن و ترتیب متغیرهای الگوهای ورود، تأیید نوبت و یادآوری را از بخش <strong>الگوی پیامک</strong> پنل بردارید و شناسهٔ الگوهای تأییدشده را در متغیرهای متناظر <code>.env</code> بگذارید. تمام نام‌های پشتیبانی‌شده در <code>.env.example</code> هستند. دریافت واقعی کد ورود و پیام نوبت را با شمارهٔ خودتان امتحان کنید.</p>
+<p>پرداخت آنلاین به‌صورت پیش‌فرض خاموش است؛ تسویهٔ حضوری از پنل انجام می‌شود. اگر درگاه زرین‌پال لازم دارید، <code>PAYMENT_DRIVER</code>، <code>ZARINPAL_MERCHANT_ID</code> و <code>ZARINPAL_SANDBOX</code> را مطابق حساب خود تنظیم کنید؛ پیش از فعال‌سازی واقعی، رفت‌وبرگشت درگاه را در محیط آزمایشی بررسی کنید. اتصال واقعی پیامک و درگاه در این تحویل آزموده نشده است.</p>
+<p>تنظیمات عمومی باید چنین باشند:</p>
+<pre><code class="language-ini">APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://example.com
+UI_FONT=iranyekan
+</code></pre>
+<h2>۷. اجرای خودکار یادآوری‌ها</h2>
+<p>در <strong>cPanel → Cron Jobs</strong>، زمان را روی <strong>Every Five Minutes</strong> تنظیم کنید و دستور زیر را وارد کنید:</p>
+<pre><code class="language-text">php /home/USER/public_html/tools/cron.php &gt;&gt; /home/USER/reshen-cron.log 2&gt;&amp;1
+</code></pre>
+<p><code>USER</code> و مسیر پروژه را جایگزین کنید. اگر دستور <code>php</code> در هاست نسخهٔ دیگری اجرا می‌کند، مسیر PHP ۸.۲ مناسب را از پشتیبانی بگیرید؛ نسخهٔ PHP وب و خط فرمان ممکن است متفاوت باشد. فایل گزارش در مثال، خارج از پوشهٔ عمومی است. پس از اولین اجرا، محتوایش را در File Manager بررسی کنید.</p>
+<p>اگر هاست فقط اجرای وب را می‌پذیرد، با اجرای <code>php tools/cron.php --token</code> در ریشهٔ پروژه یا کمک پشتیبانی، توکن کرون را بگیرید و از این دستور استفاده کنید:</p>
+<pre><code class="language-text">curl -fsS &quot;https://example.com/cron.php?token=YOUR_TOKEN&quot; &gt;&gt; /home/USER/reshen-cron.log 2&gt;&amp;1
+</code></pre>
+<p>توکن را عمومی نکنید. فقط یکی از دو روش را فعال کنید.</p>
+<h2>۸. کنترل نهایی</h2>
+<ul>
+<li>صفحهٔ ورود و لینک رزرو سالن با HTTPS باز شوند؛ فونت و تصاویر درست باشند.</li>
+<li>رزرو آزمایشی در پنل دیده شود؛ شروع خدمت، پایان و ثبت پرداخت را بررسی کنید.</li>
+<li>تصویر یک خدمت را بارگذاری کنید؛ برای این کار GD با WebP لازم است.</li>
+<li>درخواست آدرس‌های <code>/.env</code>، <code>/storage/logs/sms.log</code> و <code>/database/schema.sql</code> نباید محتوای فایل بدهد؛ پاسخ ۴۰۳ یا ۴۰۴ انتظار می‌رود. در صورت مشاهدهٔ محتوا، دسترسی سایت را موقتاً محدود و تنظیمات ریشه و <code>.htaccess</code> را اصلاح کنید.</li>
+<li>کد پیامک واقعی و اجرای کرون را کنترل کنید. وجود رابط پیامک به‌تنهایی اثبات تحویل پیام نیست.</li>
+<li>در موبایل، نصب PWA و بازشدن مجدد آن را بررسی کنید. ثبت رزرو نیازمند اتصال اینترنت است.</li>
+</ul>
+<p>برای بررسی فنی، در Terminal از ریشهٔ پروژه <code>php tools/preflight.php</code> را اجرا کنید. فایل <code>doctor.php</code> هم برای عیب‌یابی موجود است. نتیجهٔ آزمون‌های محلی در <code>docs/ux-review.md</code> آمده؛ نصب روی هاست شما هنوز انجام نشده است.</p>
+<h2>ارتقای نسخهٔ موجود</h2>
+<p>۱. از کل فایل‌ها و دیتابیس پشتیبان بگیرید؛ <code>.env</code>، <code>storage</code>، عکس‌های آپلودشده و <code>storage/installed.lock</code> را حفظ کنید.
+۲. ابتدا ارتقا را روی کپی آزمایشی انجام دهید. هنگام انتقال نهایی، ثبت و تغییر نوبت را موقتاً متوقف کنید.
+۳. بسته را در پوشه‌ای موقت استخراج کنید و فایل‌های برنامه را جایگزین کنید. پوشه‌های داده را پاک نکنید. این ZIP <code>.env</code> و داده‌های مشتری ندارد.
+۴. در Terminal یا با کمک پشتیبانی، این دستورها را اجرا کنید:</p>
+<pre><code class="language-text">php /home/USER/public_html/tools/migrate.php
+php /home/USER/public_html/tools/preflight.php
+</code></pre>
+<p>از <code>--fresh</code> استفاده نکنید. قفل نصب را حذف نکنید و نصاب را دوباره اجرا نکنید؛ نصاب می‌تواند <code>.env</code> و کلید برنامه را بازنویسی کند. ابزار migrate فقط مهاجرت‌های ثبت‌نشده را اجرا می‌کند. مرحلهٔ اخیر رابط کاربری مهاجرت جدیدی ندارد، ولی نصب قدیمی‌تر ممکن است به مهاجرت‌های قبلی بسته نیاز داشته باشد.</p>
+<p>۵. پوشهٔ <code>public/assets</code> و فایل <code>public/service-worker.js</code> را منتقل کنید؛ نسخهٔ v13 برای تازه‌شدن پوسته در بسته قرار دارد. اگر مرورگر ظاهر قبلی را نشان داد، صفحه را ببندید و دوباره باز کنید؛ در صورت تداوم، کش مرورگر یا CDN میزبان را پاک کنید.
+۶. یک رزرو، ورود، صف و پرداخت را دوباره بررسی کنید. راهنمای بازگشت کامل در <code>docs/upgrade.md</code> است.</p>
+<h2>رفع مشکل سریع</h2>
+<table>
+<thead>
+<tr>
+<th>نشانه</th>
+<th>بررسی</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>خطای ۵۰۰</td>
+<td>بخش Errors در cPanel، نسخهٔ PHP، فایل‌های <code>.htaccess</code> و افزونه‌ها را بررسی کنید؛ روی سایت عمومی نمایش خطا را روشن نگذارید.</td>
+</tr>
+<tr>
+<td>همهٔ مسیرها ۴۰۴</td>
+<td>Document Root، استخراج مستقیم و وجود هر دو فایل <code>.htaccess</code> را بررسی کنید.</td>
+</tr>
+<tr>
+<td>خطای اتصال دیتابیس</td>
+<td>نام کامل با پیشوند حساب، رمز، میزبان و دسترسی کاربر به دیتابیس را بررسی کنید.</td>
+</tr>
+<tr>
+<td>فونت یا استایل نمی‌آید</td>
+<td>مسیر <code>public/assets</code>، مقدار APP_URL و کش مرورگر/CDN را بررسی کنید.</td>
+</tr>
+<tr>
+<td>کد ورود نمی‌رسد</td>
+<td>در حالت log کد در فایل است؛ در حالت واقعی، تنظیمات و شناسهٔ الگوی تأییدشده را بررسی کنید.</td>
+</tr>
+<tr>
+<td>آپلود عکس شکست می‌خورد</td>
+<td>GD/WebP، محدودیت اندازهٔ آپلود PHP و مجوز نوشتن <code>public/uploads/media</code> را بررسی کنید.</td>
+</tr>
+<tr>
+<td>زمان خالی ندارم</td>
+<td>خدمت و آرایشگر فعال، برنامهٔ کاری، تعطیلی و ظرفیت را در پنل بررسی کنید.</td>
+</tr>
+</tbody></table>
+<p>سند طراحی قابل ارسال به Claude نیز همراه بسته در <code>docs/CLAUDE-DESIGN-BRIEF.md</code> قرار دارد.</p>
+</main></html>

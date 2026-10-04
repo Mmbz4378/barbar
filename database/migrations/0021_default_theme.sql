@@ -1,0 +1,1 @@
+ALTER TABLE salons ALTER COLUMN theme SET DEFAULT 'forest';

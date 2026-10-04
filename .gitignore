@@ -1,0 +1,9 @@
+/.env
+/storage/installed.lock
+/storage/cron-last-run
+/storage/logs/*.log
+/storage/cache/
+/public/uploads/media/*.webp
+/public/uploads/logos/
+/node_modules/
+/.phpunit.cache

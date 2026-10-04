@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="رشن، آرایشگاه مردانه">
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#2C4034"/>
+      <stop offset="1" stop-color="#14221C"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#F5DCAB"/>
+      <stop offset="1" stop-color="#C49A5B"/>
+    </linearGradient>
+  </defs>
+  <rect width="192" height="192" fill="url(#background)"/>
+  <g transform="translate(96 96) scale(.76) translate(-96 -96)" fill="none" stroke="url(#gold)" stroke-linecap="round" stroke-linejoin="round" stroke-width="8">
+    <path d="M43 82c0-34 21-53 53-53s53 19 53 53"/>
+    <path d="M43 82c25-1 41-11 53-27 13 18 28 26 53 27"/>
+    <path d="M50 95v16c0 8 6 15 15 15h5c5 20 14 35 26 35s21-15 26-35h5c9 0 15-7 15-15V95"/>
+    <path d="M70 111c9 9 17 13 26 13s17-4 26-13M83 142c8 5 18 5 26 0"/>
+  </g>
+</svg>

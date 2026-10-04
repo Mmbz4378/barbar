@@ -1,0 +1,31 @@
+# ─────────────────────────────────────────────────────────────────────
+# رشن — .htaccess ریشه
+#
+# چرا این فایل هست: روی هاست اشتراکی cPanel معمولاً نمی‌شود document root
+# را عوض کرد. پس کل پروژه داخل public_html (یا زیرپوشه‌اش) آپلود می‌شود و
+# این فایل، هر درخواست را به public/ می‌فرستد — بدون اینکه «/public» در
+# آدرس دیده شود.
+#
+# اگر هاستتان اجازهٔ تغییر document root می‌دهد، بهتر است آن را روی
+# پوشهٔ public/ بگذارید و این فایل بی‌اثر می‌ماند.
+# ─────────────────────────────────────────────────────────────────────
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # ۱) پوشه‌هایی که هرگز نباید از وب خوانده شوند.
+    #    اگر روزی rewrite خاموش شود، بخش <FilesMatch> پایین هم هست.
+    RewriteRule ^(app|config|routes|resources|database|storage|tools|tests|docs|vendor|node_modules)(/|$) - [F,L]
+
+    # ۲) بقیهٔ درخواست‌ها به public/ می‌روند.
+    RewriteCond %{REQUEST_URI} !^/?public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# ۳) فایل‌های حساس — حتی اگر mod_rewrite نباشد.
+<FilesMatch "^(\.env.*|composer\.(json|lock)|phpunit\.xml|.*\.md|.*\.sql|.*\.sh)$">
+    Require all denied
+</FilesMatch>
+
+# ۴) نمایش فهرست پوشه خاموش.
+Options -Indexes

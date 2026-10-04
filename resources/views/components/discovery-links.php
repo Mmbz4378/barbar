@@ -1,0 +1,1 @@
+<nav class="customer-links" aria-label="حساب مشتری"><a href="<?= e(url('discover')) ?>">کشف سالن</a><a href="<?= e(url('me')) ?>">نوبت‌های من</a><a href="<?= e(url('me/favorites')) ?>">علاقه‌مندی‌ها</a></nav>

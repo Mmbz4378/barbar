@@ -1,0 +1,14 @@
+/* Reshen tokens: primitives, semantic roles, component dimensions. */
+:root {
+  --mint-50:#f5f5f7; --mint-100:#e9f4ee; --forest-700:#176b52;
+  --coal-950:#161618; --coal-900:#222225; --lime-400:#80d5b5;
+  --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px;
+  --space-6:24px; --space-8:32px;
+  --control-height:48px; --icon-size:22px; --card-padding:var(--space-6);
+}
+/* Comfort revision: authoritative semantic and component values. */
+:root{--bg:#f5f5f7;--surface:#fff;--line:#dedee3;--text:#202124;--text-dim:#60616a;--hero:#23282b;--glass-solid:var(--surface);--glass-line:var(--line);--glass-bar-bg:#fffffff5;--card-shadow:0 2px 8px #16191e04;--nav-shadow:0 8px 30px #14151b12;--radius-group:20px;--radius-button:12px;--radius-control:12px;--ui-font:IRANYekanX,Vazirmatn,-apple-system,BlinkMacSystemFont,sans-serif}
+html.dark{--bg:#161618;--surface:#222225;--line:#414147;--text:#f5f5f7;--text-dim:#b9bac3;--hero:#222225;--glass-bar-bg:#222225f5;--card-shadow:none;--nav-shadow:0 8px 24px #0003}
+html[data-theme=forest]{--accent:#176b52;--accent-hi:#11553f;--on-accent:#fff;--accent-soft:#e9f4ee;--accent-glass:#176b5215}
+html.dark[data-theme=forest]{--accent:#80d5b5;--accent-hi:#a2e5ca;--on-accent:#112b20;--accent-soft:#253c33;--accent-glass:#80d5b51a}
+

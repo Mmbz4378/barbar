@@ -1,0 +1,1 @@
+<section class="glass p-5"><h2 class="card-title mb-3">بررسی پرداخت</h2><p><?= e($message) ?></p><p class="text-sm text-ink-500 mt-3">اگر پرداخت کرده‌اید، پیش از پرداخت دوباره نتیجه را بررسی کنید.</p><button type="button" class="btn-ink mt-4" onclick="location.reload()">بررسی دوباره</button><a class="btn-ink mt-4" href="<?= e(url('me')) ?>">نوبت‌های من</a></section>

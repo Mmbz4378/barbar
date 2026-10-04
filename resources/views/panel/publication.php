@@ -1,0 +1,8 @@
+<div class="max-w-lg"><h1 class="page-title mb-4">معرفی عمومی سالن</h1><p class="text-ink-500 mb-4">اطلاعات تماس، شهر و آدرس را از تنظیمات سالن تکمیل کنید. تغییر اطلاعات عمومی، نیازمند بررسی دوباره است.</p>
+<p class="glass p-4 mb-4">وضعیت: <?= e(['draft'=>'پیش‌نویس','pending'=>'در انتظار بررسی','published'=>'منتشرشده','rejected'=>'نیازمند اصلاح'][$salon['publication_status']]) ?></p>
+<form method="post" enctype="multipart/form-data" class="glass p-5 space-y-4" action="<?= e(url('panel/publication')) ?>"><?= csrf_field() ?>
+<label class="block">محله<input class="w-full border rounded-xl p-3" name="neighborhood" maxlength="100" value="<?= e($salon['neighborhood']) ?>"></label>
+<label class="block">معرفی سالن<textarea class="w-full border rounded-xl p-3" name="introduction" maxlength="1000" rows="4"><?= e($salon['introduction']) ?></textarea></label>
+<label class="block">تصویر سالن (حداکثر ۳ مگابایت)<input class="w-full" type="file" name="cover" accept="image/jpeg,image/png,image/webp"></label>
+<div class="grid sm:grid-cols-2 gap-3"><label>عرض جغرافیایی<input class="w-full border rounded-xl p-3" type="number" step="any" min="-90" max="90" name="map_lat" value="<?= e((string)$salon['map_lat']) ?>"></label><label>طول جغرافیایی<input class="w-full border rounded-xl p-3" type="number" step="any" min="-180" max="180" name="map_lng" value="<?= e((string)$salon['map_lng']) ?>"></label></div>
+<label class="flex gap-2 items-center"><input type="checkbox" name="request_publication" value="1"> درخواست انتشار در فهرست سالن‌ها</label><button class="btn-accent metal w-full">ذخیره</button></form></div>
