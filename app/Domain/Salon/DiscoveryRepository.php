@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Salon;
 
+use App\Core\Cache;
 use App\Core\DB;
 use App\Support\Audience;
 use App\Support\ServiceVisual;
@@ -72,30 +73,42 @@ final class DiscoveryRepository
         $page = max(1, min(500, (int) ($filters['page'] ?? 1)));
         $offset = ($page - 1) * self::PAGE_SIZE;
 
-        $rows = DB::select(
-            'SELECT s.id, s.slug, s.name, s.audience, s.theme, s.city, s.neighborhood, s.address, s.cover_path, s.logo_file,
+        $sql = 'SELECT s.id, s.slug, s.name, s.audience, s.theme, s.city, s.neighborhood, s.address, s.cover_path, s.logo_file,
                     s.map_lat, s.map_lng, s.min_price, s.rating_avg, s.rating_count
                FROM salons s
               WHERE ' . implode(' AND ', $where) . '
               ORDER BY (s.rating_count >= 3) DESC, s.rating_avg DESC, s.id DESC
-              LIMIT ' . (self::PAGE_SIZE + 1) . ' OFFSET ' . $offset,
-            $params
-        );
+              LIMIT ' . (self::PAGE_SIZE + 1) . ' OFFSET ' . $offset;
+        $run = static fn () => DB::select($sql, $params);
+
+        // نتیجهٔ جست‌وجو برای همه یکی است (جز «علاقه‌مندی‌ها» که به شمارهٔ هر
+        // کاربر بسته است). صفحهٔ کشف داغ‌ترین صفحهٔ هجوم است؛ با کش ۶۰ ثانیه‌ای،
+        // جست‌وجوهای تکراری به دیتابیس نمی‌رسند. تغییر هر سالن نسخهٔ discovery
+        // را بالا می‌برد، پس انتشار/امتیاز/فعال‌بودن بی‌درنگ دیده می‌شود.
+        $rows = empty($filters['favorites'])
+            ? Cache::remember(self::key('search:' . md5($sql . "\0" . serialize($params))), 60, $run)
+            : $run();
 
         return ['rows' => array_slice($rows, 0, self::PAGE_SIZE), 'hasNext' => count($rows) > self::PAGE_SIZE];
     }
 
     public function find(string $slug): ?array
     {
-        return DB::selectOne('SELECT s.* FROM salons s WHERE s.slug = ? AND ' . self::VISIBLE, [$slug]);
+        return Cache::remember(self::key('find:' . $slug), 300, static fn () => DB::selectOne('SELECT s.* FROM salons s WHERE s.slug = ? AND ' . self::VISIBLE, [$slug]));
     }
 
     /** شهرهای دارای سالن منتشرشده — برای پیشنهاد در فیلد شهر. */
     public function cities(): array
     {
-        return array_column(DB::select(
+        return Cache::remember(self::key('cities'), 300, static fn () => array_column(DB::select(
             "SELECT DISTINCT s.city FROM salons s WHERE s.is_active = 1 AND s.publication_status = 'published' AND COALESCE(s.city,'') <> '' ORDER BY s.city LIMIT 50"
-        ), 'city');
+        ), 'city'));
+    }
+
+    /** کلید کش در فضای «discovery»؛ هر تغییر سالن نسخه را بالا می‌برد و همه را بی‌اعتبار می‌کند. */
+    private static function key(string $suffix): string
+    {
+        return 'discovery:v' . Cache::version('discovery') . ':' . $suffix;
     }
 
     private static function escapeLike(string $value): string

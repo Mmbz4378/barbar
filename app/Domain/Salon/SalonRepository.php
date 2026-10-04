@@ -4,40 +4,60 @@ declare(strict_types=1);
 
 namespace App\Domain\Salon;
 
+use App\Core\Cache;
 use App\Core\DB;
 
 final class SalonRepository
 {
-    /** @var array<int,array> */
-    private static array $byId = [];
+    /** مهلت امنِ کش سالن (ثانیه). باطل‌کردن دقیق با forget انجام می‌شود؛ این فقط تورِ ایمنی است. */
+    private const TTL = 300;
 
     public function find(int $id): ?array
     {
-        if (!array_key_exists($id, self::$byId)) {
-            self::$byId[$id] = DB::selectOne('SELECT * FROM salons WHERE id = ?', [$id]);
-        }
+        $ver = Cache::version("salon:$id");
 
-        return self::$byId[$id];
+        return Cache::remember("salon:$id:v$ver", self::TTL, static fn () => DB::selectOne('SELECT * FROM salons WHERE id = ?', [$id]));
     }
 
-    /** سالنِ فعال با نشانی عمومی — برای صفحه‌های رزرو. */
+    /** سالنِ فعال با نشانی عمومی — برای صفحه‌های رزرو و عمومی. */
     public function findActiveBySlug(string $slug): ?array
     {
         if ($slug === '' || mb_strlen($slug) > 60) {
             return null;
         }
 
-        $salon = DB::selectOne('SELECT * FROM salons WHERE slug = ? AND is_active = 1', [$slug]);
-        if ($salon !== null) {
-            self::$byId[(int) $salon['id']] = $salon;
+        // اسلاگ تقریباً هرگز عوض نمی‌شود؛ نگاشت اسلاگ→شناسه با مهلت بلندتر.
+        // خودِ ردیف از find() می‌آید که دقیق باطل می‌شود، پس is_active و بقیهٔ
+        // فیلدها بی‌درنگ تازه‌اند.
+        // فقط «پیدا شد» کش می‌شود، نه «نبود»: سالنی که تازه ساخته می‌شود باید
+        // بی‌درنگ با اسلاگش در دسترس باشد.
+        $key = "salonslug:$slug";
+        $id = Cache::get($key);
+        if ($id === null) {
+            $row = DB::selectOne('SELECT id FROM salons WHERE slug = ?', [$slug]);
+            if ($row === null) {
+                return null;
+            }
+            $id = (int) $row['id'];
+            Cache::set($key, $id, 600);
         }
 
-        return $salon;
+        $salon = $this->find((int) $id);
+
+        return $salon !== null && (int) $salon['is_active'] === 1 ? $salon : null;
     }
 
+    /**
+     * کش این سالن را باطل می‌کند و فهرست کشف را هم تازه می‌کند.
+     *
+     * هر جا ردیف salons نوشته می‌شود این صدا زده می‌شود. بالا بردن نسخهٔ
+     * «discovery» هم تضمین می‌کند صفحهٔ کشف، وضعیت انتشار/فعال/امتیاز/شهر
+     * را بی‌درنگ درست نشان دهد.
+     */
     public static function forget(int $id): void
     {
-        unset(self::$byId[$id]);
+        Cache::bump("salon:$id");
+        Cache::bump('discovery');
     }
 
     /** آیا الان ساعت کاری سالن است؟ */

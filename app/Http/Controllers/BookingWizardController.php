@@ -8,6 +8,7 @@ use App\Core\Config;
 use App\Core\Request;
 use App\Core\Response;
 use App\Core\Session;
+use App\Domain\Booking\AvailabilityCache;
 use App\Domain\Booking\BookingGuard;
 use App\Domain\Booking\BookingPlanner;
 use App\Domain\Booking\BookingService;
@@ -390,10 +391,21 @@ final class BookingWizardController extends Controller
         $serviceIds = $serviceFirst ? ($wizard['service_ids'] ?? []) : [];
         $staffId = $serviceFirst ? ($wizard['staff_id'] ?? null) : null;
 
-        $finder = static function (DateTimeImmutable $date, bool $firstOnly) use ($planner, $salonId, $serviceFirst, $serviceIds, $staffId): array {
-            return $serviceFirst
-                ? $planner->availableTimes($salonId, $serviceIds, $date, $staffId, true, $firstOnly)
-                : $planner->openTimes($salonId, $date, true, $firstOnly);
+        /*
+         * دسترسی‌پذیری برای نوار روزها، روز انتخاب‌شده و همهٔ روزهای تقویم
+         * حساب می‌شود. از AvailabilityCache می‌گذرد تا هم تکرار نوار و تقویم در
+         * همین درخواست حذف شود و هم بازدیدکننده‌های هم‌زمان یک محاسبه را تقسیم
+         * کنند. فقط نمایش است؛ ثبت نوبت همیشه زیر قفل از نو حساب می‌شود.
+         */
+        $flowKey = md5((string) json_encode([$serviceFirst, array_values($serviceIds), $staffId]));
+        $finder = static function (DateTimeImmutable $date, bool $firstOnly) use ($planner, $salonId, $serviceFirst, $serviceIds, $staffId, $flowKey): array {
+            return AvailabilityCache::remember(
+                $salonId,
+                $date->format('Y-m-d') . ':' . ($firstOnly ? 1 : 0) . ':' . $flowKey,
+                static fn (): array => $serviceFirst
+                    ? $planner->availableTimes($salonId, $serviceIds, $date, $staffId, true, $firstOnly)
+                    : $planner->openTimes($salonId, $date, true, $firstOnly)
+            );
         };
 
         $today = Now::today();
@@ -490,7 +502,19 @@ final class BookingWizardController extends Controller
      *
      * @return array{open:bool,waiting:int,freeNow:int,chairs:int,waitLabel:string}
      */
+    /**
+     * «الان باز است و N صندلی خالی دارد» — نمایشی و تقریبی.
+     *
+     * از همان کش نمایشِ وقت‌های آزاد می‌گذرد: هر تغییر صف (نسخهٔ sched)
+     * باطلش می‌کند و حداکثر یک دقیقه کهنه می‌ماند؛ در هجوم، بازدیدکننده‌های
+     * هم‌زمان یک عکس از صف را تقسیم می‌کنند به‌جای اینکه هرکدام صف را بسازند.
+     */
     private function liveStatus(int $salonId): array
+    {
+        return AvailabilityCache::remember($salonId, 'live', fn (): array => $this->computeLiveStatus($salonId));
+    }
+
+    private function computeLiveStatus(int $salonId): array
     {
         $snapshot = (new QueueService())->salonSnapshot($salonId);
 

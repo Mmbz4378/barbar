@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Staff;
 
 use App\Core\DB;
+use App\Domain\Booking\AvailabilityCache;
 use DateTimeImmutable;
 
 /**
@@ -73,6 +74,7 @@ final class TimeOffRepository
             'ends_at' => $end->format('Y-m-d H:i:s'),
             'reason' => $reason !== '' ? $reason : null,
         ]);
+        AvailabilityCache::bump($salonId);
 
         return null;
     }
@@ -80,6 +82,7 @@ final class TimeOffRepository
     public function remove(int $salonId, int $id): void
     {
         DB::delete('time_offs', 'id = ? AND salon_id = ?', [$id, $salonId]);
+        AvailabilityCache::bump($salonId);
     }
 
     /**

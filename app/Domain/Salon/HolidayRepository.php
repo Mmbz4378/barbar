@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Salon;
 
+use App\Core\Cache;
 use App\Core\DB;
 use App\Support\Jalali;
 
@@ -42,6 +43,7 @@ final class HolidayRepository
                 DB::insert('holidays', ['gregorian_date' => $date, 'jalali_label' => $label, 'is_official' => 1]);
             }
         }
+        Cache::bump('holidays');
     }
 
     public function between(string $fromDate, string $toDate): array
@@ -60,11 +62,13 @@ final class HolidayRepository
     public function add(string $gregorianDate, string $label): void
     {
         DB::insert('holidays', ['gregorian_date' => $gregorianDate, 'jalali_label' => $label, 'is_official' => 0]);
+        Cache::bump('holidays');
     }
 
     public function remove(int $id): void
     {
         DB::delete('holidays', 'id = ?', [$id]);
+        Cache::bump('holidays');
     }
 
     public function upcoming(int $limit = 10): array

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Staff;
 
 use App\Core\DB;
+use App\Domain\Salon\SalonRepository;
 use App\Domain\Catalog\ServiceRepository;
 use App\Support\Now;
 
@@ -51,6 +52,7 @@ final class StaffRepository
         $next = (int) (DB::selectOne('SELECT COALESCE(MAX(sort_order), 0) + 1 AS n FROM staff WHERE salon_id = ?', [$salonId])['n'] ?? 1);
         $id = (int) DB::insert('staff', array_merge(['sort_order' => $next], $data, ['salon_id' => $salonId]));
         ServiceRepository::flushCache();
+        SalonRepository::forget($salonId);
 
         return $id;
     }
@@ -59,6 +61,7 @@ final class StaffRepository
     {
         DB::update('staff', $data, 'salon_id = :salon_id AND id = :id', ['salon_id' => $salonId, 'id' => $id]);
         ServiceRepository::flushCache();
+        SalonRepository::forget($salonId);
     }
 
     public function setActive(int $salonId, int $id, bool $active): void
@@ -117,5 +120,6 @@ final class StaffRepository
                 ]);
             }
         });
+        SalonRepository::forget($salonId);
     }
 }

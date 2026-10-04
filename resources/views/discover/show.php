@@ -8,6 +8,7 @@
  * @var array $hours
  * @var array $reviews
  * @var bool $favorite
+ * @var bool $customer
  */
 use App\Support\JalaliCalendar;
 use App\Support\ServiceVisual;
@@ -37,10 +38,14 @@ $serviceCount = array_sum(array_map(static fn ($g) => count($g['services']), $gr
       <div class="btn-row mt-2">
         <a class="btn btn--primary btn--lg" href="<?= e(url('s/' . $salon['slug'])) ?>"><?= icon('calendar') ?> رزرو نوبت</a>
         <a class="btn btn--secondary btn--lg" href="tel:<?= e($salon['phone']) ?>"><?= icon('phone') ?> تماس</a>
-        <form method="post" action="<?= e(url('salons/view/' . $salon['slug'] . '/favorite')) ?>">
-          <?= csrf_field() ?><input type="hidden" name="saved" value="<?= $favorite ? '0' : '1' ?>">
-          <button class="btn btn--ghost btn--lg" type="submit" aria-pressed="<?= $favorite ? 'true' : 'false' ?>"><?= icon('heart') ?> <?= $favorite ? 'ذخیره شده' : 'ذخیرهٔ سالن' ?></button>
-        </form>
+        <?php if ($customer): ?>
+          <form method="post" action="<?= e(url('salons/view/' . $salon['slug'] . '/favorite')) ?>">
+            <?= csrf_field() ?><input type="hidden" name="saved" value="<?= $favorite ? '0' : '1' ?>">
+            <button class="btn btn--ghost btn--lg" type="submit" aria-pressed="<?= $favorite ? 'true' : 'false' ?>"><?= icon('heart') ?> <?= $favorite ? 'ذخیره شده' : 'ذخیرهٔ سالن' ?></button>
+          </form>
+        <?php else: ?>
+          <a class="btn btn--ghost btn--lg" href="<?= e(url('me/login')) ?>"><?= icon('heart') ?> ذخیرهٔ سالن</a>
+        <?php endif; ?>
         <?php if ($hasMap): ?>
           <a class="btn btn--ghost btn--lg" target="_blank" rel="noopener noreferrer" href="https://www.openstreetmap.org/?mlat=<?= e((string) $salon['map_lat']) ?>&amp;mlon=<?= e((string) $salon['map_lng']) ?>#map=17/<?= e((string) $salon['map_lat']) ?>/<?= e((string) $salon['map_lng']) ?>"><?= icon('navigation') ?> مسیریابی</a>
         <?php endif; ?>
@@ -104,14 +109,18 @@ $serviceCount = array_sum(array_map(static fn ($g) => count($g['services']), $gr
                 <span class="text-xs muted"><?= e(trim(explode(' ', (string) ($review['customer_name'] ?? ''))[0]) ?: 'مراجع') ?> · <?= e(jdate($review['created_at'], 'j M Y')) ?></span>
               </div>
               <?php if (!empty($review['comment'])): ?><p><?= e($review['comment']) ?></p><?php endif; ?>
-              <details>
-                <summary class="btn btn--link btn--sm">گزارش این نظر</summary>
-                <form method="post" action="<?= e(url('reviews/' . $review['id'] . '/report')) ?>" class="stack stack-sm mt-2">
-                  <?= csrf_field() ?>
-                  <div class="field"><label class="field__label" for="rr-<?= (int) $review['id'] ?>">دلیل گزارش</label><input class="input" id="rr-<?= (int) $review['id'] ?>" name="reason" maxlength="300" required></div>
-                  <button class="btn btn--secondary btn--sm" type="submit">ثبت گزارش</button>
-                </form>
-              </details>
+              <?php if ($customer): ?>
+                <details>
+                  <summary class="btn btn--link btn--sm">گزارش این نظر</summary>
+                  <form method="post" action="<?= e(url('reviews/' . $review['id'] . '/report')) ?>" class="stack stack-sm mt-2">
+                    <?= csrf_field() ?>
+                    <div class="field"><label class="field__label" for="rr-<?= (int) $review['id'] ?>">دلیل گزارش</label><input class="input" id="rr-<?= (int) $review['id'] ?>" name="reason" maxlength="300" required></div>
+                    <button class="btn btn--secondary btn--sm" type="submit">ثبت گزارش</button>
+                  </form>
+                </details>
+              <?php else: ?>
+                <a class="btn btn--link btn--sm" href="<?= e(url('me/login')) ?>">گزارش این نظر</a>
+              <?php endif; ?>
             </div></article>
           <?php endforeach; ?>
         </div>

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Appointment;
 
 use App\Core\DB;
+use App\Domain\Booking\AvailabilityCache;
 use App\Support\Now;
 use App\Support\Str;
 
@@ -217,7 +218,10 @@ final class AppointmentRepository
         $data['salon_id'] = $salonId;
         $data['public_token'] = $data['public_token'] ?? Str::token(12);
 
-        return (int) DB::insert('appointments', $data);
+        $id = (int) DB::insert('appointments', $data);
+        AvailabilityCache::bump($salonId);
+
+        return $id;
     }
 
     public function addItem(int $salonId, int $appointmentId, int $serviceId, int $price, ?int $durationMinutes, int $bufferMinutes = 0): void
@@ -230,11 +234,13 @@ final class AppointmentRepository
             'duration_minutes' => $durationMinutes,
             'buffer_minutes' => max(0, $bufferMinutes),
         ]);
+        AvailabilityCache::bump($salonId);
     }
 
     public function update(int $salonId, int $id, array $data): void
     {
         DB::update('appointments', $data, 'salon_id = :salon_id AND id = :id', ['salon_id' => $salonId, 'id' => $id]);
+        AvailabilityCache::bump($salonId);
     }
 
     public function todayCompletedCount(int $salonId, ?int $staffId = null): int

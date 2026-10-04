@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Core\Cache;
 use App\Core\DB;
 use App\Core\Request;
 use App\Core\Response;
@@ -48,21 +49,30 @@ final class DiscoveryController extends Controller
         }
         SalonContext::set($salon);
         $id = (int) $salon['id'];
+        $customer = CustomerAuth::check();
+
+        // کارکنان و نظرهای منتشرشده با نسخهٔ سالن کش می‌شوند: تغییر کارکنان و
+        // انتشار نظر (refreshRating) هر دو نسخه را بالا می‌برند. نظر تازه با
+        // وضعیت «در انتظار» ثبت می‌شود و تا بررسی، عمومی نیست.
+        $ver = Cache::version("salon:$id");
 
         return $this->page('layouts.discover', 'discover.show', [
             'title' => $salon['name'],
             'description' => $salon['introduction'] ?? null,
             'salon' => $salon,
             'groups' => (new ServiceRepository())->grouped($id, true),
-            'staff' => DB::select('SELECT id, name, title, color FROM staff WHERE salon_id = ? AND is_active = 1 ORDER BY sort_order, id', [$id]),
+            'staff' => Cache::remember("salon:$id:v$ver:public-staff", 300, static fn () => DB::select('SELECT id, name, title, color FROM staff WHERE salon_id = ? AND is_active = 1 ORDER BY sort_order, id', [$id])),
             'hours' => (new WorkingHoursRepository())->salonDefaults($id),
-            'reviews' => DB::select(
+            'reviews' => Cache::remember("salon:$id:v$ver:reviews", 300, static fn () => DB::select(
                 "SELECT r.id, r.rating, r.comment, r.created_at, c.name AS customer_name
                    FROM reviews r LEFT JOIN customers c ON c.id = r.customer_id
                   WHERE r.salon_id = ? AND r.moderation_status = 'published' ORDER BY r.id DESC LIMIT 30",
                 [$id]
-            ),
-            'favorite' => CustomerAuth::check() && DB::selectOne('SELECT salon_id FROM salon_favorites WHERE phone = ? AND salon_id = ?', [CustomerAuth::phone(), $id]) !== null,
+            )),
+            // مهمان فرم نمی‌گیرد (پیوند ورود می‌گیرد): بدون توکن CSRF نشستی ساخته
+            // نمی‌شود و صفحهٔ عمومی سالن برای مهمان سبک و قابل کش می‌ماند.
+            'customer' => $customer,
+            'favorite' => $customer && DB::selectOne('SELECT salon_id FROM salon_favorites WHERE phone = ? AND salon_id = ?', [CustomerAuth::phone(), $id]) !== null,
         ]);
     }
 

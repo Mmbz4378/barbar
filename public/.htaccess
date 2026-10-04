@@ -24,6 +24,13 @@ Options -Indexes
     ExpiresByType image/svg+xml         "access plus 1 month"
 </IfModule>
 
+# فشرده‌سازی متن. صفحهٔ رزرو حدود ۶۴ کیلوبایت HTML است و با gzip حدود
+# یک‌ششم می‌شود — زیر هجوم، پهنای باند محدود هاست و اینترنت موبایل گلوگاه
+# واقعی‌اند، نه فقط پردازنده. نبودِ mod_deflate هم چیزی را نمی‌شکند.
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/css text/javascript application/javascript application/json image/svg+xml application/manifest+json
+</IfModule>
+
 <IfModule mod_headers.c>
     Header always set X-Content-Type-Options "nosniff"
     Header always set X-Frame-Options "DENY"

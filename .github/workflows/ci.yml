@@ -42,7 +42,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.1'
-          extensions: pdo_mysql, mbstring, curl, zip, sodium, gd
+          extensions: pdo_mysql, mbstring, curl, zip, sodium, gd, apcu
           coverage: none
 
       - uses: actions/setup-node@v4
@@ -75,6 +75,11 @@ jobs:
           php tools/migrate.php
           php tools/test-flows.php
 
+      # همان آزمون‌ها با کش مشترک (APCu): باطل‌نشدنِ کش پس از نوشتن فقط اینجا
+      # دیده می‌شود، چون بدون APCu کش فقط در همان درخواست زنده است.
+      - name: Flow tests with shared cache (APCu)
+        run: php -d apc.enable_cli=1 tools/test-flows.php
+
   ui:
     runs-on: ubuntu-latest
     services:
@@ -95,7 +100,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.1'
-          extensions: pdo_mysql, mbstring, curl, zip, sodium, gd
+          extensions: pdo_mysql, mbstring, curl, zip, sodium, gd, apcu
           coverage: none
 
       - uses: actions/setup-node@v4
@@ -123,7 +128,7 @@ jobs:
 
       - name: Start PHP server
         run: |
-          PHP_CLI_SERVER_WORKERS=4 nohup php -S 127.0.0.1:8080 -t public public/index.php > /tmp/php-server.log 2>&1 &
+          PHP_CLI_SERVER_WORKERS=4 nohup php -d apc.enable_cli=1 -S 127.0.0.1:8080 -t public public/index.php > /tmp/php-server.log 2>&1 &
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:8080/health > /dev/null && break; sleep 1; done
           curl -sf http://127.0.0.1:8080/health
 

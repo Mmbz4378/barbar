@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domain\Catalog;
 
+use App\Core\Cache;
 use App\Core\DB;
+use App\Domain\Salon\SalonRepository;
 use App\Domain\Salon\SalonStats;
 use RuntimeException;
 
@@ -24,7 +26,11 @@ final class ServiceRepository
         }
         $sql .= ' ORDER BY c.sort_order IS NULL, c.sort_order, c.id, sv.sort_order, sv.id';
 
-        return DB::select($sql, [$salonId]);
+        // منوی سالن پرخواندنی‌ترین دادهٔ صفحه‌های عمومی است؛ با هر تغییر خدمت،
+        // دسته، کارکنان یا قیمت، نسخهٔ سالن بالا می‌رود و این تازه می‌شود.
+        $ver = Cache::version("salon:$salonId");
+
+        return Cache::remember("salon:$salonId:v$ver:svc:" . ($activeOnly ? 1 : 0), 300, static fn () => DB::select($sql, [$salonId]));
     }
 
     /**
@@ -122,6 +128,7 @@ final class ServiceRepository
                 DB::delete('staff_service', 'id = ?', [$existing['id']]);
             }
             self::flushCache();
+            SalonRepository::forget($salonId);
 
             return;
         }
@@ -137,6 +144,7 @@ final class ServiceRepository
             ]));
         }
         self::flushCache();
+        SalonRepository::forget($salonId);
     }
 
     /**
@@ -196,22 +204,26 @@ final class ServiceRepository
             return self::$matrixCache[$salonId];
         }
 
-        $services = [];
-        foreach ($this->all($salonId) as $row) {
-            $services[(int) $row['id']] = $row;
-        }
+        $ver = Cache::version("salon:$salonId");
 
-        $staff = [];
-        foreach (DB::select('SELECT * FROM staff WHERE salon_id = ? ORDER BY sort_order, id', [$salonId]) as $row) {
-            $staff[(int) $row['id']] = $row;
-        }
+        return self::$matrixCache[$salonId] = Cache::remember("salon:$salonId:v$ver:matrix", 300, function () use ($salonId): array {
+            $services = [];
+            foreach ($this->all($salonId) as $row) {
+                $services[(int) $row['id']] = $row;
+            }
 
-        $overrides = [];
-        foreach (DB::select('SELECT staff_id, service_id, duration_minutes, price, is_offered FROM staff_service WHERE salon_id = ?', [$salonId]) as $row) {
-            $overrides[(int) $row['staff_id']][(int) $row['service_id']] = $row;
-        }
+            $staff = [];
+            foreach (DB::select('SELECT * FROM staff WHERE salon_id = ? ORDER BY sort_order, id', [$salonId]) as $row) {
+                $staff[(int) $row['id']] = $row;
+            }
 
-        return self::$matrixCache[$salonId] = ['services' => $services, 'staff' => $staff, 'overrides' => $overrides];
+            $overrides = [];
+            foreach (DB::select('SELECT staff_id, service_id, duration_minutes, price, is_offered FROM staff_service WHERE salon_id = ?', [$salonId]) as $row) {
+                $overrides[(int) $row['staff_id']][(int) $row['service_id']] = $row;
+            }
+
+            return ['services' => $services, 'staff' => $staff, 'overrides' => $overrides];
+        });
     }
 
     /**
@@ -244,6 +256,7 @@ final class ServiceRepository
     public static function flushCache(): void
     {
         self::$matrixCache = [];
+        Cache::flushLocal();
     }
 
     private function changed(int $salonId): void

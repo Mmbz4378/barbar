@@ -114,6 +114,9 @@ final class Cron
                         AND COALESCE(scheduled_at, queued_at) < ?",
                     [date('Y-m-d H:i:s', time() - 86400)]
                 )->rowCount();
+                if ($affected > 0) {
+                    \App\Domain\Booking\AvailabilityCache::bumpAll();
+                }
 
                 return "{$affected} نوبت";
             },

@@ -19,6 +19,7 @@ use App\Core\Config;
 use App\Core\DB;
 use App\Core\Migrator;
 use App\Domain\Appointment\AppointmentRepository;
+use App\Domain\Booking\AvailabilityCache;
 use App\Domain\Booking\BookingPlanner;
 use App\Domain\Booking\BookingService;
 use App\Domain\Booking\SlotFinder;
@@ -27,6 +28,9 @@ use App\Domain\Catalog\ServiceRepository;
 use App\Domain\Payment\PaymentRepository;
 use App\Domain\Payment\ReportRepository;
 use App\Domain\Queue\QueueService;
+use App\Domain\Salon\DiscoveryRepository;
+use App\Domain\Salon\HolidayRepository;
+use App\Domain\Salon\SalonRepository;
 use App\Domain\Salon\SalonSetupService;
 use App\Domain\Staff\TimeOffRepository;
 use App\Domain\Identity\UserRepository;
@@ -79,6 +83,8 @@ function fresh(): void
     ServiceRepository::flushCache();
     SlotFinder::flushCache();
     App\Domain\Salon\SalonRepository::forget(0);
+    // آزمون دیتابیس را مستقیم دست‌کاری می‌کند؛ «درخواست بعدی» کش مشترک را هم تازه می‌بیند.
+    App\Core\Cache::flushAll();
 }
 
 /** @return array<string,int> نام خدمت ← شناسه */
@@ -328,6 +334,85 @@ try {
     check('مرخصی برای آرایشگر سالن دیگر رد می‌شود', (new TimeOffRepository())->add($menId, $colorist, $day->setTime(9, 0), $day->setTime(10, 0), '') !== null);
     $err = throws(fn () => $booking->confirmDeposit($menId, (int) $h['id'], 'cash', null));
     check('تأیید بیعانهٔ سالن دیگر رد می‌شود', $err !== null);
+
+    // ─── کش و باطل‌شدن ────────────────────────────────────────────────
+    // «درخواست بعدی» = پردازش تازه: کش‌های ایستا و لایهٔ محلی خالی، ولی APCu
+    // مشترک می‌ماند. پس این آزمون‌ها با APCu (php -d apc.enable_cli=1) نشان
+    // می‌دهند که نوشتن از مسیر واقعی، کش مشترک را هم باطل می‌کند.
+    section('کش و باطل‌شدن');
+    $nextRequest = static function (): void {
+        BookingService::flushCache();
+        ServiceRepository::flushCache();
+        SlotFinder::flushCache();
+    };
+    $salons = new SalonRepository();
+    $disc = new DiscoveryRepository();
+
+    $sid = $mS['کوتاهی مو'];
+    $catalog->all($menId, true);
+    $nextRequest();
+    $catalog->update($menId, $sid, ['name' => 'کوتاهی تازه']);
+    $nextRequest();
+    $names = array_column($catalog->all($menId, true), 'name', 'id');
+    check('تغییر خدمت بی‌درنگ در منوی عمومی دیده می‌شود', ($names[$sid] ?? '') === 'کوتاهی تازه', (string) ($names[$sid] ?? '-'));
+
+    $salons->find($menId);
+    DB::update('salons', ['name' => 'نام تازهٔ آزمون'], 'id = :id', ['id' => $menId]);
+    SalonRepository::forget($menId);
+    $nextRequest();
+    check('تنظیمات سالن پس از ذخیره بی‌درنگ تازه است', ($salons->find($menId)['name'] ?? '') === 'نام تازهٔ آزمون');
+
+    $h2 = $day->modify('+3 days');
+    DB::update('salons', ['observe_official_holidays' => 1], 'id = :id', ['id' => $menId]);
+    SalonRepository::forget($menId);
+    $nextRequest();
+    $openBefore = $planner->openTimes($menId, $h2, true) !== [];
+    (new HolidayRepository())->add($h2->format('Y-m-d'), 'آزمون کش');
+    $nextRequest();
+    check('تعطیل تازه بی‌درنگ سانس‌ها را می‌بندد', $openBefore && $planner->openTimes($menId, $h2, true) === []);
+
+    $slugMen = (string) $salons->find($menId)['slug'];
+    DB::update('salons', ['publication_status' => 'published', 'is_active' => 1, 'city' => 'تهران', 'address' => 'نشانی آزمون', 'phone' => '02100000000'], 'id = :id', ['id' => $menId]);
+    SalonRepository::forget($menId);
+    $nextRequest();
+    $visible = $disc->find($slugMen) !== null;
+    DB::update('salons', ['publication_status' => 'draft'], 'id = :id', ['id' => $menId]);
+    SalonRepository::forget($menId);
+    $nextRequest();
+    $hidden = $disc->find($slugMen) === null;
+    check('انتشار و لغو انتشار بی‌درنگ در کشف دیده می‌شود', $visible && $hidden, json_encode([$visible, $hidden]));
+
+    $probe = 'rsh-cache-probe';
+    $missBefore = $salons->findActiveBySlug($probe) === null;
+    DB::update('salons', ['slug' => $probe, 'is_active' => 1], 'id = :id', ['id' => $menId]);
+    SalonRepository::forget($menId);
+    $nextRequest();
+    check('«نبودِ» اسلاگ کش نمی‌شود؛ سالن تازه بی‌درنگ پیدا می‌شود', $missBefore && (int) ($salons->findActiveBySlug($probe)['id'] ?? 0) === $menId);
+
+    // کش نمایشِ وقت‌های آزاد: یک محاسبه در هر دقیقه، باطل با هر نوشتن روی نوبت‌ها
+    $calls = 0;
+    $compute = static function () use (&$calls): array {
+        $calls++;
+
+        return [$calls];
+    };
+    $first = AvailabilityCache::remember($menId, 'probe', $compute);
+    $again = AvailabilityCache::remember($menId, 'probe', $compute);
+    check('وقت‌های آزاد در همان دقیقه دوباره حساب نمی‌شوند', $first === $again && $calls === 1, (string) $calls);
+    (new AppointmentRepository())->update($menId, (int) $a1['id'], ['customer_note' => 'آزمون کش']);
+    AvailabilityCache::remember($menId, 'probe', $compute);
+    check('هر نوشتن روی نوبت‌ها کش نمایش را باطل می‌کند', $calls === 2, (string) $calls);
+    (new TimeOffRepository())->add($menId, null, $day->modify('+5 days')->setTime(10, 0), $day->modify('+5 days')->setTime(11, 0), 'آزمون کش');
+    AvailabilityCache::remember($menId, 'probe', $compute);
+    check('مرخصی تازه کش نمایش را باطل می‌کند', $calls === 3, (string) $calls);
+    AvailabilityCache::remember($womenId, 'probe', $compute);
+    AvailabilityCache::remember($menId, 'probe', $compute);
+    check('کش هر سالن جداست', $calls === 4, (string) $calls);
+    $was = Now::get();
+    Now::freeze($was->modify('+61 seconds'));
+    AvailabilityCache::remember($menId, 'probe', $compute);
+    Now::freeze($was);
+    check('پس از یک دقیقه دوباره حساب می‌شود (سقف کهنگی)', $calls === 5, (string) $calls);
 } catch (Throwable $e) {
     $failed[] = 'خطای پیش‌بینی‌نشده: ' . $e->getMessage() . ' @ ' . basename($e->getFile()) . ':' . $e->getLine();
     echo "\n  ✗ " . end($failed) . "\n" . $e->getTraceAsString() . "\n";

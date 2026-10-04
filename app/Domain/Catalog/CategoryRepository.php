@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Catalog;
 
 use App\Core\DB;
+use App\Domain\Salon\SalonRepository;
 use App\Support\ServiceVisual;
 use RuntimeException;
 
@@ -33,12 +34,15 @@ final class CategoryRepository
 
         $next = (int) (DB::selectOne('SELECT COALESCE(MAX(sort_order), 0) + 1 AS n FROM service_categories WHERE salon_id = ?', [$salonId])['n'] ?? 1);
 
-        return (int) DB::insert('service_categories', [
+        $id = (int) DB::insert('service_categories', [
             'salon_id' => $salonId,
             'name' => $name,
             'visual' => ServiceVisual::exists($visual) ? $visual : 'haircut',
             'sort_order' => $next,
         ]);
+        SalonRepository::forget($salonId);
+
+        return $id;
     }
 
     public function update(int $salonId, int $id, string $name, string $visual): void
@@ -53,6 +57,7 @@ final class CategoryRepository
             'visual' => ServiceVisual::exists($visual) ? $visual : 'haircut',
         ], 'salon_id = :salon_id AND id = :id', ['salon_id' => $salonId, 'id' => $id]);
         ServiceRepository::flushCache();
+        SalonRepository::forget($salonId);
     }
 
     /** جابه‌جایی یک خانه به بالا یا پایین. */
@@ -76,6 +81,7 @@ final class CategoryRepository
             }
         });
         ServiceRepository::flushCache();
+        SalonRepository::forget($salonId);
     }
 
     /** حذف دسته؛ خدمت‌هایش پاک نمی‌شوند و به «سایر خدمات» می‌روند. */
@@ -86,6 +92,7 @@ final class CategoryRepository
             DB::delete('service_categories', 'salon_id = ? AND id = ?', [$salonId, $id]);
         });
         ServiceRepository::flushCache();
+        SalonRepository::forget($salonId);
     }
 
     /** آیا این دسته مال همین سالن است؟ برای اعتبارسنجی فرم خدمت. */

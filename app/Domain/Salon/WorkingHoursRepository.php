@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Salon;
 
+use App\Core\Cache;
 use App\Core\DB;
 
 final class WorkingHoursRepository
@@ -11,16 +12,16 @@ final class WorkingHoursRepository
     /** @return array<int,array> به تفکیک روز هفته (۰ تا ۶)، ساعت پیش‌فرض کل سالن (staff_id خالی) */
     public function salonDefaults(int $salonId): array
     {
-        $rows = DB::select(
-            'SELECT * FROM working_hours WHERE salon_id = ? AND staff_id IS NULL ORDER BY weekday',
-            [$salonId]
-        );
-        $byDay = [];
-        foreach ($rows as $r) {
-            $byDay[(int) $r['weekday']] = $r;
-        }
+        $ver = Cache::version("salon:$salonId");
 
-        return $byDay;
+        return Cache::remember("salon:$salonId:v$ver:defaults", 300, static function () use ($salonId): array {
+            $byDay = [];
+            foreach (DB::select('SELECT * FROM working_hours WHERE salon_id = ? AND staff_id IS NULL ORDER BY weekday', [$salonId]) as $r) {
+                $byDay[(int) $r['weekday']] = $r;
+            }
+
+            return $byDay;
+        });
     }
 
     /**
@@ -56,11 +57,13 @@ final class WorkingHoursRepository
 
         if ($existing) {
             DB::update('working_hours', $data, 'id = :id', ['id' => $existing['id']]);
+            SalonRepository::forget($salonId);
 
             return;
         }
 
         DB::insert('working_hours', array_merge($data, ['salon_id' => $salonId, 'staff_id' => null, 'weekday' => $weekday]));
+        SalonRepository::forget($salonId);
     }
 
     /**

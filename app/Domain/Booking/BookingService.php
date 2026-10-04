@@ -207,6 +207,9 @@ final class BookingService
                 'hold_expires_at' => null,
             ], "id = :id AND salon_id = :sid AND status IN ('pending','confirmed','queued')", ['id' => $part['id'], 'sid' => $part['salon_id']]);
         }
+        if ($changed > 0) {
+            AvailabilityCache::bump((int) $appt['salon_id']);
+        }
 
         // پیامک لغو فقط وقتی سالن لغو می‌کند می‌رود (QueueService)؛ مشتری
         // که خودش لغو کرده، همان لحظه نتیجه را روی صفحه می‌بیند.
@@ -270,13 +273,18 @@ final class BookingService
      */
     public function expireHolds(): int
     {
-        return DB::statement(
+        $expired = DB::statement(
             "UPDATE appointments
                 SET status = 'cancelled', cancelled_by = 'system',
                     cancel_reason = 'بیعانه در مهلت تعیین‌شده تأیید نشد', hold_expires_at = NULL
               WHERE status = 'pending' AND hold_expires_at IS NOT NULL AND hold_expires_at < ?",
             [Now::get()->format('Y-m-d H:i:s')]
         )->rowCount();
+        if ($expired > 0) {
+            AvailabilityCache::bumpAll();
+        }
+
+        return $expired;
     }
 
     /** طول سانس سالن — مبنای ساعت‌های مسیرِ اول-زمان. */

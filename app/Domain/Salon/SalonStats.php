@@ -24,6 +24,7 @@ final class SalonStats
              ) WHERE id = ?',
             [$salonId, $salonId]
         );
+        SalonRepository::forget($salonId);
     }
 
     public function refreshRating(int $salonId): void
@@ -38,5 +39,6 @@ final class SalonStats
             'rating_avg' => $row && (int) $row['total'] > 0 ? round((float) $row['avg_rating'], 2) : null,
             'rating_count' => (int) ($row['total'] ?? 0),
         ], 'id = :id', ['id' => $salonId]);
+        SalonRepository::forget($salonId);
     }
 }

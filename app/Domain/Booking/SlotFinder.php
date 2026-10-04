@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domain\Booking;
 
+use App\Core\Cache;
 use App\Core\DB;
+use App\Domain\Salon\SalonRepository;
 use App\Support\Jalali;
 use App\Support\Now;
 use DateTimeImmutable;
@@ -52,12 +54,9 @@ final class SlotFinder
     public function settings(int $salonId): array
     {
         if (!isset(self::$settingsCache[$salonId])) {
-            $row = DB::selectOne(
-                'SELECT slot_step_minutes, min_notice_minutes, booking_horizon_days, cancel_notice_minutes,
-                        observe_official_holidays, booking_flow
-                   FROM salons WHERE id = ?',
-                [$salonId]
-            ) ?? [];
+            // همان ردیف کش‌شدهٔ سالن — بدون کوئری جدا. با هر ذخیرهٔ تنظیمات،
+            // SalonRepository::forget نسخه را بالا می‌برد و این تازه می‌شود.
+            $row = (new SalonRepository())->find($salonId) ?? [];
 
             $step = (int) ($row['slot_step_minutes'] ?? self::DEFAULT_STEP_MINUTES);
 
@@ -404,10 +403,12 @@ final class SlotFinder
     private function isHoliday(string $dateStr): bool
     {
         if (self::$holidays === null) {
-            self::$holidays = array_flip(array_column(
-                DB::select('SELECT gregorian_date FROM holidays WHERE gregorian_date >= ?', [Now::today()->modify('-1 day')->format('Y-m-d')]),
+            $from = Now::today()->modify('-1 day')->format('Y-m-d');
+            // جدول تعطیلات برای همهٔ سالن‌ها یکی است و کم عوض می‌شود.
+            self::$holidays = Cache::remember('holidays:v' . Cache::version('holidays') . ':' . $from, 3600, static fn () => array_flip(array_column(
+                DB::select('SELECT gregorian_date FROM holidays WHERE gregorian_date >= ?', [$from]),
                 'gregorian_date'
-            ));
+            )));
         }
 
         return isset(self::$holidays[$dateStr]);
@@ -420,17 +421,21 @@ final class SlotFinder
             return self::$hoursCache[$salonId];
         }
 
-        $table = ['salon' => [], 'staff' => []];
-        foreach (DB::select('SELECT * FROM working_hours WHERE salon_id = ? ORDER BY id', [$salonId]) as $row) {
-            $weekday = (int) $row['weekday'];
-            if ($row['staff_id'] === null) {
-                $table['salon'][$weekday] = $row;
-            } else {
-                $table['staff'][(int) $row['staff_id']][$weekday] = $row;
-            }
-        }
+        $ver = Cache::version("salon:$salonId");
 
-        return self::$hoursCache[$salonId] = $table;
+        return self::$hoursCache[$salonId] = Cache::remember("salon:$salonId:v$ver:hours", 300, static function () use ($salonId): array {
+            $table = ['salon' => [], 'staff' => []];
+            foreach (DB::select('SELECT * FROM working_hours WHERE salon_id = ? ORDER BY id', [$salonId]) as $row) {
+                $weekday = (int) $row['weekday'];
+                if ($row['staff_id'] === null) {
+                    $table['salon'][$weekday] = $row;
+                } else {
+                    $table['staff'][(int) $row['staff_id']][$weekday] = $row;
+                }
+            }
+
+            return $table;
+        });
     }
 
     /**
@@ -443,5 +448,6 @@ final class SlotFinder
         self::$hoursCache = [];
         self::$holidays = null;
         self::$busyCache = [];
+        Cache::flushLocal();
     }
 }

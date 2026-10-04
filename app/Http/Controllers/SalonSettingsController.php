@@ -125,6 +125,7 @@ final class SalonSettingsController extends Controller
 
         $step = int_input($request->input('slot_step_minutes')) ?? 15;
         DB::update('salons', ['slot_step_minutes' => max(5, min(120, $step))], 'id = :id', ['id' => $salonId]);
+        SalonRepository::forget($salonId);
 
         if ($problems !== []) {
             return $this->withError('ساعت پایان ' . implode('، ', $problems) . ' پیش از شروع بود؛ آن روز تعطیل ذخیره شد. دوباره بررسی کنید.', '/panel/settings#hours');
@@ -151,6 +152,7 @@ final class SalonSettingsController extends Controller
             'deposit_card_holder' => mb_substr(trim((string) $request->input('deposit_card_holder', '')), 0, 120) ?: null,
             'deposit_hold_minutes' => max(15, min(4320, int_input($request->input('deposit_hold_minutes')) ?? 120)),
         ], 'id = :id', ['id' => $salonId]);
+        SalonRepository::forget($salonId);
 
         return $this->withSuccess('قوانین رزرو ذخیره شد.', '/panel/settings#rules');
     }
@@ -239,6 +241,7 @@ final class SalonSettingsController extends Controller
         if ($request->input('remove_logo') !== null) {
             ImageUpload::delete($dir, $current);
             DB::update('salons', ['logo_file' => null], 'id = :id', ['id' => $salonId]);
+            SalonRepository::forget($salonId);
 
             return null;
         }
@@ -252,6 +255,7 @@ final class SalonSettingsController extends Controller
         }
         ImageUpload::delete($dir, $current);
         DB::update('salons', ['logo_file' => $result['path']], 'id = :id', ['id' => $salonId]);
+        SalonRepository::forget($salonId);
 
         return null;
     }
