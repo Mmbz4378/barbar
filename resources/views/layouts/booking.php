@@ -15,7 +15,7 @@ $wide = $wide ?? false;
 $place = trim(implode('، ', array_filter([$salon['neighborhood'] ?? null, $salon['city'] ?? null])));
 ?>
 <!doctype html>
-<html lang="fa" dir="rtl" data-font="<?= e((string) App\Core\Config::get('reshen.ui.font', 'iranyekan')) ?>" <?= theme_attr($salon['theme'] ?? null) ?> data-sw="<?= e(url('service-worker.js')) ?>">
+<html lang="fa" dir="rtl" data-font="<?= e((string) App\Core\Config::get('reshen.ui.font', 'iranyekan')) ?>" <?= theme_attr($salon['theme'] ?? null) ?> data-sw="<?= e(sw_url()) ?>">
 <head>
 <?php $pwaSlug = $salon['slug']; $pwaTitle = $salon['name']; $description = $salon['introduction'] ?? ('رزرو آنلاین نوبت در ' . $salon['name']); include BASE_PATH . '/resources/views/components/head.php'; ?>
 </head>

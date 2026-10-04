@@ -188,5 +188,28 @@ return [
     ],
 
     'discovery' => ['maps_enabled' => Env::get('MAPS_ENABLED', 'true') === 'true'],
+
+    /*
+     * به‌روزرسانی خودکار (docs/updates.md).
+     *
+     * منبع پیش‌فرض، انتشارهای (Releases) مخزن گیت‌هاب است که GitHub Action
+     * می‌سازد. حالت کار (خاموش/اعلام/خودکار) و بازهٔ شبانه از پنل تنظیم
+     * می‌شود؛ این‌جا فقط مقدار اولیه است.
+     */
+    'updates' => [
+        'source' => Env::get('UPDATE_SOURCE', 'github'),          // github | url
+        'github_repo' => Env::get('UPDATE_GITHUB_REPO', 'Mmbz4378/barbar'),
+        'github_token' => Env::get('UPDATE_GITHUB_TOKEN', ''),     // فقط برای مخزن خصوصی
+        'manifest_url' => Env::get('UPDATE_MANIFEST_URL', ''),     // برای source=url
+        'channel' => Env::get('UPDATE_CHANNEL', 'stable'),         // stable | beta
+        // کلید عمومی Ed25519 (base64). اگر تنظیم شود، بستهٔ بدون امضای معتبر نصب نمی‌شود.
+        'public_key' => Env::get('UPDATE_PUBLIC_KEY', ''),
+        'default_mode' => Env::get('UPDATE_MODE', 'auto'),         // off | notify | auto
+        'window_start' => (int) Env::get('UPDATE_WINDOW_START', '3'),  // ساعت شروع نصب خودکار (به وقت سالن)
+        'window_end' => (int) Env::get('UPDATE_WINDOW_END', '5'),
+        'check_interval_hours' => 6,
+        'max_package_mb' => 60,
+        'keep_backups' => 3,
+    ],
 ];
 

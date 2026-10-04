@@ -47,6 +47,11 @@ final class PanelNavigation
             ];
         }
         $tools = [['href' => '/panel/qr', 'label' => 'لینک و کد QR', 'icon' => 'qr']];
+        // نصب تک‌سالنی بدون مدیر پلتفرم: صاحب سالن به‌روزرسانی سامانه را هم می‌گرداند
+        if (!Auth::isPlatformAdmin() && \App\Domain\System\SystemAccess::allowed()) {
+            $update = (new \App\Domain\System\Updater())->available();
+            $tools[] = ['href' => '/system/updates', 'label' => 'به‌روزرسانی سامانه', 'icon' => 'refresh', 'badge' => $update !== null ? 1 : 0];
+        }
 
         $groups = ['کارهای روزانه' => $daily];
         if ($management !== []) {

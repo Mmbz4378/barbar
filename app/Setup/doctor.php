@@ -52,8 +52,7 @@ $migrationReport = null;
 $canMigrate = false;
 try {
     $pendingMigrations = $migrator->pendingFiles();
-    $hasPlatformAdmin = App\Core\DB::selectOne('SELECT id FROM users WHERE is_platform_admin = 1 LIMIT 1') !== null;
-    $canMigrate = Auth::isPlatformAdmin() || (!$hasPlatformAdmin && in_array(Auth::role(), ['owner', 'manager'], true));
+    $canMigrate = App\Domain\System\SystemAccess::allowed();
 } catch (Throwable $e) {
     // بدون دیتابیس، فهرست سلامت خودش خطا را توضیح می‌دهد
 }

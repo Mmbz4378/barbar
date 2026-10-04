@@ -62,6 +62,10 @@ final class Cron
      */
     public static function run(): array
     {
+        if (Maintenance::active()) {
+            return ['نگه‌داری' => 'سامانه در حال به‌روزرسانی است؛ کارها این دور اجرا نشدند'];
+        }
+
         $report = [];
 
         foreach (self::tasks() as $name => $task) {
@@ -121,6 +125,11 @@ final class Cron
                 )->rowCount();
 
                 return "{$deleted} کد";
+            },
+
+            // آخرین کار: اگر نصب خودکار انجام شود، بقیهٔ کارها قبلش تمام شده‌اند
+            'به‌روزرسانی سامانه' => static function (): string {
+                return (new \App\Domain\System\Updater())->cronTick();
             },
         ];
     }

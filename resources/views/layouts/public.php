@@ -15,7 +15,7 @@ $customerNav = [
 ];
 ?>
 <!doctype html>
-<html lang="fa" dir="rtl" data-font="<?= e((string) App\Core\Config::get('reshen.ui.font', 'iranyekan')) ?>" <?= theme_attr(null) ?> data-sw="<?= e(url('service-worker.js')) ?>">
+<html lang="fa" dir="rtl" data-font="<?= e((string) App\Core\Config::get('reshen.ui.font', 'iranyekan')) ?>" <?= theme_attr(null) ?> data-sw="<?= e(sw_url()) ?>">
 <head>
 <?php include BASE_PATH . '/resources/views/components/head.php'; ?>
 </head>

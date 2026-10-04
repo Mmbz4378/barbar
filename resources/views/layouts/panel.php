@@ -19,7 +19,7 @@ $isActive = static fn (array $item): bool => is_path($item['href'], !empty($item
 $moreActive = array_filter($nav['more'], $isActive) !== [];
 ?>
 <!doctype html>
-<html lang="fa" dir="rtl" data-font="<?= e((string) App\Core\Config::get('reshen.ui.font', 'iranyekan')) ?>" <?= theme_attr(SalonContext::theme()) ?> data-sw="<?= e(url('service-worker.js')) ?>">
+<html lang="fa" dir="rtl" data-font="<?= e((string) App\Core\Config::get('reshen.ui.font', 'iranyekan')) ?>" <?= theme_attr(SalonContext::theme()) ?> data-sw="<?= e(sw_url()) ?>">
 <head>
 <?php $pwaTitle = $salonName; include BASE_PATH . '/resources/views/components/head.php'; ?>
 </head>

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 use App\Http\Controllers\PlatformController;
 use App\Http\Controllers\SalonPublicationController;
+use App\Http\Controllers\SystemUpdateController;
 use App\Http\Middleware\PlatformAdminRequired;
+use App\Http\Middleware\SystemAdminRequired;
 use App\Http\Middleware\VerifyCsrf;
 
 /** @var \App\Core\Router $router */
@@ -23,5 +25,17 @@ $router->group(['middleware' => [PlatformAdminRequired::class]], function ($rout
         $router->post('/platform/holidays/{id}/remove', [PlatformController::class, 'removeHoliday']);
         $router->post('/platform/{id}/impersonate', [PlatformController::class, 'impersonate']);
         $router->post('/platform/{id}/active', [PlatformController::class, 'setActive']);
+    });
+});
+
+// به‌روزرسانی سامانه — مدیر پلتفرم، یا صاحب سالن در نصب تک‌سالنی
+$router->group(['middleware' => [SystemAdminRequired::class]], function ($router) {
+    $router->get('/system/updates', [SystemUpdateController::class, 'index']);
+
+    $router->group(['middleware' => [VerifyCsrf::class]], function ($router) {
+        $router->post('/system/updates/check', [SystemUpdateController::class, 'check']);
+        $router->post('/system/updates/apply', [SystemUpdateController::class, 'apply']);
+        $router->post('/system/updates/settings', [SystemUpdateController::class, 'settings']);
+        $router->post('/system/updates/{id}/restore-db', [SystemUpdateController::class, 'restoreDatabase']);
     });
 });

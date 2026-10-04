@@ -24,6 +24,13 @@ if (PHP_SAPI === 'cli-server') {
 
 require dirname(__DIR__) . '/app/bootstrap.php';
 
+// در لحظهٔ جایگزینی فایل‌ها (به‌روزرسانی خودکار) سایت ۵۰۳ می‌دهد؛
+// /health باز می‌ماند چون به‌روزرسان با همان سلامت کد تازه را می‌سنجد.
+if (App\Core\Maintenance::active() && parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) !== rtrim(url('health'), '/')) {
+    App\Core\Maintenance::respond();
+    exit;
+}
+
 $router = new Router();
 require dirname(__DIR__) . '/routes/web.php';
 

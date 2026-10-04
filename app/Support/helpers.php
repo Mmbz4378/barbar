@@ -14,11 +14,20 @@ use App\Support\StaffColor;
 /*
  * توابع کمکی ویو.
  *
- * نسخهٔ دارایی‌ها با VERSION در public/service-worker.js هم‌زمان تغییر
- * می‌کند؛ وگرنه نصب PWA پوستهٔ قدیمی را نگه می‌دارد.
+ * نسخهٔ دارایی‌ها از فایل VERSION می‌آید: هر انتشار (و هر به‌روزرسانی
+ * خودکار) نشانی CSS/JS و سرویس‌ورکر را عوض می‌کند و مرورگرها پوستهٔ
+ * تازه را می‌گیرند — بدون اینکه کسی یادش باشد عددی را دستی بالا ببرد.
  */
 if (!defined('RESHEN_ASSET_VERSION')) {
-    define('RESHEN_ASSET_VERSION', 'v14.1');
+    define('RESHEN_ASSET_VERSION', 'v' . (defined('BASE_PATH') ? App\Support\Version::current() : '0'));
+}
+
+if (!function_exists('sw_url')) {
+    /** نشانی سرویس‌ورکر با نسخه؛ تغییر نشانی، سرویس‌ورکر را تازه می‌کند. */
+    function sw_url(): string
+    {
+        return url('service-worker.js') . '?v=' . rawurlencode(RESHEN_ASSET_VERSION);
+    }
 }
 
 if (!function_exists('e')) {

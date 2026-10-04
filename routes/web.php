@@ -18,6 +18,9 @@ $router->get('/', function () {
 // شروعِ خودش را بدهد (ت-۳۲).
 $router->get('/manifest.webmanifest', [ManifestController::class, 'show']);
 
+// سلامت — برای بررسی پس از به‌روزرسانی خودکار و پایش بیرونی
+$router->get('/health', [App\Http\Controllers\HealthController::class, 'show']);
+
 // ─── ورود و خروج ─────────────────────────────────────────────────────
 $router->get('/login', [AuthController::class, 'showLogin']);
 $router->get('/login/verify', [AuthController::class, 'showVerify']);

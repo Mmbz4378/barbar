@@ -11,13 +11,14 @@
  * نسخه را با هر تغییرِ دارایی‌ها بالا ببر، وگرنه مرورگر CSS قدیمی را
  * نگه می‌دارد و طراحی تازه دیده نمی‌شود.
  */
-const VERSION = 'v14.1';
+// نسخه از نشانی ثبت می‌آید (service-worker.js?v=v14.2.0) — همان نسخهٔ
+// asset() در PHP؛ با هر انتشار هر دو با هم عوض می‌شوند.
+const VERSION = new URL(self.location.href).searchParams.get('v') || 'v0';
 const SHELL_CACHE = `reshen-shell-${VERSION}`;
 
 /*
  * مسیرها نسبی‌اند چون پروژه ممکن است در زیرپوشه نصب شود
  * (example.com/reshen/). مسیر مطلق آنجا به جای اشتباه می‌خورد.
- * نسخهٔ دارایی‌ها باید با RESHEN_ASSET_VERSION در helpers.php یکی باشد.
  */
 const SHELL = [
   './offline.html',
