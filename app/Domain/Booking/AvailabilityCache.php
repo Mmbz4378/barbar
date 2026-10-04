@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Booking;
 
 use App\Core\Cache;
+use App\Core\DB;
 use App\Support\Now;
 
 /**
@@ -37,13 +38,14 @@ final class AvailabilityCache
     /** پس از هر نوشتن روی نوبت‌ها یا مرخصی‌های این سالن. */
     public static function bump(int $salonId): void
     {
-        Cache::bump("sched:$salonId");
+        // پس از commit: وگرنه خواننده‌ای هم‌زمان، دادهٔ قدیمی را زیر نسخهٔ تازه کش می‌کرد
+        DB::afterCommit(static fn () => Cache::bump("sched:$salonId"));
     }
 
     /** پس از جاروی سراسری (مثل انقضای بیعانه‌ها) که سالن مشخصی ندارد. */
     public static function bumpAll(): void
     {
-        Cache::bump('sched:all');
+        DB::afterCommit(static fn () => Cache::bump('sched:all'));
     }
 
     /** نسخهٔ برنامهٔ نوبت‌های سالن — برای ETag صفحهٔ صف هم به کار می‌رود. */

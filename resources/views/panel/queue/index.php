@@ -83,7 +83,7 @@ $rowTime = static function (array $row): string {
   </div>
 </div>
 
-<div id="live" data-auto-refresh="30" data-refresh-ids="today-stats,today-attention,queue-board" data-refresh-status="sync-status">
+<div id="live" data-auto-refresh="30" data-refresh-ids="today-stats,today-attention,queue-board" data-refresh-status="sync-status"<?php if (!empty($refreshVersion)): ?> data-refresh-version="<?= e($refreshVersion) ?>"<?php endif; ?>>
 
 <div class="stats mb-6" id="today-stats" style="--cols:<?= $salonEarnings !== null || $myEarnings !== null ? 4 : 3 ?>">
   <div class="stat"><span class="stat__label"><?= icon('hourglass') ?> در انتظار</span><span class="stat__value"><?= e(fa_num($summary['waiting'])) ?></span></div>

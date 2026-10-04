@@ -6,6 +6,7 @@ namespace App\Domain\Payment;
 
 use App\Core\DB;
 use App\Domain\Appointment\AppointmentRepository;
+use App\Domain\Booking\AvailabilityCache;
 use RuntimeException;
 
 /**
@@ -37,7 +38,7 @@ final class PaymentRepository
                 throw new RuntimeException('یک پرداخت آنلاین در انتظار نتیجه است؛ ابتدا نتیجهٔ آن را بررسی کنید.');
             }
 
-            return (int) DB::insert('payments', [
+            $id = (int) DB::insert('payments', [
                 'salon_id' => $salonId,
                 'appointment_id' => $appointmentId,
                 'kind' => 'settlement',
@@ -48,6 +49,10 @@ final class PaymentRepository
                 'created_by_user_id' => $userId,
                 'paid_at' => date('Y-m-d H:i:s'),
             ]);
+            // صفحهٔ «امروز» (درآمد، در انتظار تسویه) به پرداخت‌ها هم بسته است
+            AvailabilityCache::bump($salonId);
+
+            return $id;
         });
     }
 
@@ -71,6 +76,7 @@ final class PaymentRepository
             'created_by_user_id' => $userId,
             'paid_at' => date('Y-m-d H:i:s'),
         ]);
+        AvailabilityCache::bump($salonId);
     }
 
     /** تسویهٔ این نوبت، اگر ثبت شده باشد. */

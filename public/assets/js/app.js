@@ -318,6 +318,8 @@
     var seconds = Math.max(15, +el.getAttribute('data-auto-refresh') || 30);
     var ids = (el.getAttribute('data-refresh-ids') || '').split(',').filter(Boolean);
     var status = doc.getElementById(el.getAttribute('data-refresh-status') || '');
+    // نسخه‌ای که سرور فرستاده؛ اگر چیزی عوض نشده باشد، سرور ۲۰۴ بی‌بدنه می‌دهد
+    var version = el.getAttribute('data-refresh-version') || '';
     var busy = false;
     function refresh() {
       if (busy || doc.hidden || navigator.onLine === false) return;
@@ -326,11 +328,20 @@
       for (var i = 0; i < ids.length; i++) { var n = doc.getElementById(ids[i]); if (n && n.contains(doc.activeElement) && doc.activeElement !== doc.body) return; }
       if (doc.querySelector('details.more-menu[open]')) return;
       busy = true;
-      fetch(location.href, { cache: 'no-store', credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch' } })
-        .then(function (r) { if (!r.ok || r.redirected) throw new Error('x'); return r.text(); })
+      var headers = { 'X-Requested-With': 'fetch' };
+      if (version) headers['X-Refresh-Version'] = version;
+      fetch(location.href, { cache: 'no-store', credentials: 'same-origin', headers: headers })
+        .then(function (r) {
+          if (r.status === 204) return null;
+          if (!r.ok || r.redirected) throw new Error('x');
+          version = r.headers.get('X-Refresh-Version') || '';
+          return r.text();
+        })
         .then(function (html) {
-          var next = new DOMParser().parseFromString(html, 'text/html');
-          ids.forEach(function (id) { var a = doc.getElementById(id), b = next.getElementById(id); if (a && b) a.replaceWith(b); });
+          if (html !== null) {
+            var next = new DOMParser().parseFromString(html, 'text/html');
+            ids.forEach(function (id) { var a = doc.getElementById(id), b = next.getElementById(id); if (a && b) a.replaceWith(b); });
+          }
           if (status) status.textContent = 'به‌روز شد: ' + new Intl.DateTimeFormat('fa', { hour: '2-digit', minute: '2-digit' }).format(new Date());
         })
         .catch(function () { if (status) status.textContent = 'به‌روزرسانی ممکن نشد؛ اطلاعات ممکن است قدیمی باشد.'; })

@@ -62,8 +62,11 @@ final class SalonRepository
      */
     public static function forget(int $id): void
     {
-        Cache::bump("salon:$id");
-        Cache::bump('discovery');
+        // پس از commit: وگرنه خواننده‌ای هم‌زمان، ردیف قدیمی را زیر نسخهٔ تازه کش می‌کرد
+        DB::afterCommit(static function () use ($id): void {
+            Cache::bump("salon:$id");
+            Cache::bump('discovery');
+        });
     }
 
     /** آیا الان ساعت کاری سالن است؟ */

@@ -454,6 +454,28 @@ try {
     }
     check('بی‌نسخه: همان صفحهٔ «شلوغ است»', $noCopy === 'busy');
 
+    // باطل‌شدن کش پس از commit، نه پیش از آن
+    $versionBefore = AvailabilityCache::version($menId);
+    $insideTx = null;
+    DB::transaction(static function () use ($menId, &$insideTx): void {
+        AvailabilityCache::bump($menId);
+        $insideTx = AvailabilityCache::version($menId);
+    });
+    check('نسخهٔ کش تا commit عوض نمی‌شود (خوانندهٔ هم‌زمان دادهٔ قدیمی را زیر نسخهٔ تازه کش نمی‌کند)', $insideTx === $versionBefore && AvailabilityCache::version($menId) !== $versionBefore);
+    $versionBefore = AvailabilityCache::version($menId);
+    try {
+        DB::transaction(static function () use ($menId): void {
+            AvailabilityCache::bump($menId);
+            throw new RuntimeException('برگشت');
+        });
+    } catch (RuntimeException) {
+    }
+    check('تراکنشِ برگشته کش را باطل نمی‌کند', AvailabilityCache::version($menId) === $versionBefore);
+    $versionBefore = AvailabilityCache::version($menId);
+    DB::delete('payments', 'appointment_id = ? AND kind = ?', [(int) $a1['id'], 'deposit']);
+    (new PaymentRepository())->recordDeposit($menId, (int) $a1['id'], 'cash', 1000, null);
+    check('پرداخت هم صفحهٔ «امروز» را تازه می‌کند (درآمد، در انتظار تسویه)', AvailabilityCache::version($menId) !== $versionBefore);
+
     // کش نمایشِ وقت‌های آزاد: یک محاسبه در هر دقیقه، باطل با هر نوشتن روی نوبت‌ها
     $calls = 0;
     $compute = static function () use (&$calls): array {

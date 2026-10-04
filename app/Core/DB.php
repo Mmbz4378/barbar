@@ -18,6 +18,12 @@ final class DB
 {
     private static int $savepoints = 0;
 
+    /** عمق تراکنش‌هایی که از transaction() باز شده‌اند. */
+    private static int $depth = 0;
+
+    /** @var array<int,callable> کارهایی که باید پس از commitِ بیرونی‌ترین تراکنش اجرا شوند */
+    private static array $afterCommit = [];
+
     private static ?PDO $pdo = null;
 
     private static bool $profiling = false;
@@ -215,7 +221,48 @@ final class DB
         }
     }
 
+    /**
+     * کاری که باید پس از commit انجام شود — مثل باطل‌کردن کش.
+     *
+     * اگر نسخهٔ کش پیش از commit بالا برود، درخواستی که در همان چند میلی‌ثانیه
+     * می‌خواند، دادهٔ هنوز-commit‌نشده (یعنی قدیمی) را زیر نسخهٔ تازه کش می‌کند؛
+     * مثلاً وقتی که همین الان رزرو شد تا یک دقیقه آزاد نشان داده می‌شد. پس اینجا
+     * صبر می‌کنیم تا تراکنش بیرونی commit شود؛ اگر برگشت، کار هم دور ریخته می‌شود.
+     * بیرون از transaction() همان لحظه اجرا می‌شود.
+     */
+    public static function afterCommit(callable $work): void
+    {
+        if (self::$depth > 0) {
+            self::$afterCommit[] = $work;
+
+            return;
+        }
+        $work();
+    }
+
     public static function transaction(callable $callback): mixed
+    {
+        self::$depth++;
+        try {
+            $result = self::runTransaction($callback);
+        } catch (\Throwable $e) {
+            if (--self::$depth === 0) {
+                self::$afterCommit = [];
+            }
+            throw $e;
+        }
+        if (--self::$depth === 0) {
+            $pending = self::$afterCommit;
+            self::$afterCommit = [];
+            foreach ($pending as $work) {
+                $work();
+            }
+        }
+
+        return $result;
+    }
+
+    private static function runTransaction(callable $callback): mixed
     {
         $pdo = self::connection();
         if ($pdo->inTransaction()) {

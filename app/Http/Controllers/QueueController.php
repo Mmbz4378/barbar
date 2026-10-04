@@ -5,14 +5,17 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Core\Auth;
+use App\Core\Cache;
 use App\Core\Request;
 use App\Core\Response;
 use App\Domain\Access\Access;
 use App\Domain\Appointment\AppointmentRepository;
+use App\Domain\Booking\AvailabilityCache;
 use App\Domain\Catalog\ServiceRepository;
 use App\Domain\Payment\PaymentRepository;
 use App\Domain\Queue\QueueService;
 use App\Domain\Staff\StaffRepository;
+use App\Support\Version;
 use RuntimeException;
 
 /**
@@ -23,6 +26,25 @@ final class QueueController extends Controller
     public function index(Request $request): Response
     {
         $salonId = (int) Auth::salonId();
+
+        /*
+         * تازه‌سازی خودکار هر ۳۰ ثانیه کل صفحه را می‌خواست و همه‌چیز از نو ساخته
+         * می‌شد — روی هر دستگاهی که صفحه باز است. حالا صفحه نسخه‌ای ارزان (بدون
+         * کوئری) می‌فرستد و JS همان را برمی‌گرداند؛ اگر نه نوبتی، نه پرداختی، نه
+         * تنظیمی عوض شده و دقیقه هم نگذشته (ساعت‌های تخمینی)، پاسخ ۲۰۴ بی‌بدنه است.
+         * فقط با APCu: بدون کش مشترک، نسخه بین درخواست‌ها معنا ندارد.
+         */
+        $version = null;
+        if (Cache::shared()) {
+            $version = substr(sha1(implode('|', [
+                Version::current(), $salonId, (int) Auth::id(), (string) Auth::role(), Auth::isImpersonating() ? 1 : 0,
+                AvailabilityCache::version($salonId), Cache::version("salon:$salonId"), intdiv(time(), 60),
+            ])), 0, 16);
+            if ($request->header('X-Refresh-Version') === $version) {
+                return new Response('', 204, ['X-Refresh-Version' => $version, 'Cache-Control' => 'private, no-store']);
+            }
+        }
+
         $myStaffId = Auth::staffId();
         $appointments = new AppointmentRepository();
         $payments = new PaymentRepository();
@@ -37,7 +59,7 @@ final class QueueController extends Controller
 
         $services = new ServiceRepository();
 
-        return $this->page('layouts.panel', 'panel.queue.index', [
+        $response = $this->page('layouts.panel', 'panel.queue.index', [
             'title' => 'امروز',
             'snapshot' => $snapshot,
             'desk' => $desk,
@@ -50,7 +72,13 @@ final class QueueController extends Controller
             'awaiting' => Access::allows(Access::TAKE_PAYMENT) ? $appointments->awaitingSettlement($salonId) : [],
             'pendingDeposits' => $desk ? count($appointments->pendingDeposits($salonId)) : 0,
             'canPay' => Access::allows(Access::TAKE_PAYMENT),
+            'refreshVersion' => $version,
         ]);
+        if ($version !== null) {
+            $response->headers['X-Refresh-Version'] = $version;
+        }
+
+        return $response;
     }
 
     /**
