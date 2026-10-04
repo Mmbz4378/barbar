@@ -250,7 +250,11 @@ svg.icon{display:inline-block;vertical-align:-.22em;width:var(--icon-md);height:
 .grow-200{flex:1 1 200px;min-width:min(100%,200px)}
 .link-plain{color:inherit;text-decoration:none}
 .link-plain:hover{text-decoration:none}
-.is-inactive{opacity:.62}
+/* غیرفعال/لغوشده: تزئینات کم‌رنگ، متن خوانا. opacity روی کل ردیف متن ثانویه را زیر ۴٫۵:۱ می‌برد؛
+   حالت را نشان، خط‌خوردگی و رنگ ثانویهٔ عنوان می‌گویند. */
+.is-inactive .list-row__title{color:var(--text-muted)}
+.is-inactive :is(.color-bar,.service-thumb,.icon-tile){opacity:.5}
+.is-inactive .avatar{filter:grayscale(1)}
 .container-xs{max-width:440px;margin-inline:auto}
 .container-sm{max-width:560px;margin-inline:auto}
 .container-md{max-width:640px;margin-inline:auto}

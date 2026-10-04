@@ -65,6 +65,7 @@ cd tests/ui && npm ci && npx playwright test   # دسترس‌پذیری، چی�
 
 - [به‌روزرسانی خودکار و انتشار نسخه](docs/updates.md)
 - [سیستم طراحی](docs/design-system.md)
+- [کارایی زیر بار و هجوم ناگهانی](docs/performance.md) — APCu، PHP-FPM، Cloudflare و تنظیم‌پذیرها
 - [نقشهٔ پروژه و معماری](docs/project-map.md)
 - [نصب، ارتقا و بازگشت](docs/upgrade.md) — برای ارتقا به نسخهٔ ۱۴ بخش «نسخهٔ ۱۴» را بخوانید
 - [راهنمای نصب روی cPanel](نصب.md)

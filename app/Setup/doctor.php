@@ -63,6 +63,8 @@ if ($installed && $canMigrate && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST
     } else {
         @set_time_limit(300);
         $migrationReport = $migrator->run();
+        // ساختار عوض شد؛ ردیف‌های کش‌شدهٔ پیش از مهاجرت کنار گذاشته شوند
+        App\Core\Cache::flushAll();
         if (Auth::id() !== null) {
             try {
                 App\Core\DB::insert('audit_logs', [

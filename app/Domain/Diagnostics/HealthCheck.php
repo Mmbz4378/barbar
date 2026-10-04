@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Diagnostics;
 
+use App\Core\Cache;
 use App\Core\Config;
 use App\Core\Cron;
 use App\Core\DB;
@@ -40,6 +41,7 @@ final class HealthCheck
             'پوشه‌ها' => $this->directories(),
             'دیتابیس' => $this->database(),
             'پیکربندی' => $this->configuration(),
+            'کارایی زیر بار' => $this->performance(),
         ];
     }
 
@@ -285,6 +287,90 @@ final class HealthCheck
                 ? ''
                 : 'تا وقتی نصب تمام نشده، install.php در دسترس است. پس از نصب خودکار قفل می‌شود.',
         ];
+
+        return $rows;
+    }
+
+    /**
+     * چیزهایی که تعیین می‌کنند سایت زیر هجوم چقدر دوام می‌آورد.
+     *
+     * هیچ‌کدام نصب‌کردنی نیستند؛ روی cPanel همه یک تیک یا یک انتخاب‌اند و
+     * راهنمای هر ردیف می‌گوید کجا.
+     *
+     * @return array<int,array{label:string,status:string,value:string,hint:string}>
+     */
+    private function performance(): array
+    {
+        $rows = [];
+
+        $opcache = function_exists('opcache_get_status') && (bool) ((@opcache_get_status(false))['opcache_enabled'] ?? false);
+        $rows[] = [
+            'label' => 'opcache',
+            'status' => $opcache ? self::OK : self::WARN,
+            'value' => $opcache ? 'روشن، ' . (string) ini_get('opcache.memory_consumption') . 'M' : 'خاموش',
+            'hint' => $opcache ? '' : 'بدون opcache هر درخواست همهٔ فایل‌های PHP را از نو کامپایل می‌کند و چند برابر کندتر است. در cPanel: Select PHP Version ← Extensions ← opcache.',
+        ];
+
+        $apcu = Cache::shared();
+        $apcuValue = 'خاموش';
+        $apcuFull = false;
+        if ($apcu) {
+            $info = function_exists('apcu_sma_info') ? @apcu_sma_info(true) : false;
+            $size = is_array($info) ? (int) ($info['num_seg'] ?? 1) * (int) ($info['seg_size'] ?? 0) : 0;
+            $free = is_array($info) ? (int) ($info['avail_mem'] ?? 0) : 0;
+            $used = $size > 0 ? (int) round(100 * ($size - $free) / $size) : 0;
+            $apcuFull = $size > 0 && $used >= 90;
+            $apcuValue = 'روشن' . ($size > 0 ? '، ' . (int) round($size / 1048576) . 'M، ' . $used . '٪ پر' : '');
+        }
+        $rows[] = [
+            'label' => 'کش مشترک (APCu)',
+            'status' => $apcu && !$apcuFull ? self::OK : self::WARN,
+            'value' => $apcuValue,
+            'hint' => !$apcu
+                ? 'خاموش است: منو، ساعت کاری، فهرست کشف و وقت‌های آزاد برای هر بازدید از دیتابیس خوانده می‌شوند و در هجوم دیتابیس زود پر می‌شود. در cPanel: Select PHP Version ← Extensions ← apcu (فقط یک تیک، نصب نیست).'
+                : ($apcuFull ? 'حافظهٔ کش تقریباً پر است و ورودی‌ها زود بیرون رانده می‌شوند. apc.shm_size را بزرگ‌تر کنید (مثلاً 128M).' : ''),
+        ];
+
+        $background = function_exists('fastcgi_finish_request') || function_exists('litespeed_finish_request');
+        $rows[] = [
+            'label' => 'کار پس از پاسخ (پیامک)',
+            'status' => $background ? self::OK : self::WARN,
+            'value' => $background ? (function_exists('fastcgi_finish_request') ? 'PHP-FPM' : 'LiteSpeed') : 'پشتیبانی نمی‌شود',
+            'hint' => $background ? '' : 'پیامک پس از پاسخ فرستاده می‌شود، ولی با این گردانندهٔ PHP کاربر تا پایانِ آن منتظر می‌ماند. در cPanel ← MultiPHP Manager، PHP-FPM را روشن کنید.',
+        ];
+
+        try {
+            $vars = DB::selectOne('SELECT @@max_connections AS mc, @@max_user_connections AS muc, @@SESSION.innodb_lock_wait_timeout AS lw');
+            $muc = (int) ($vars['muc'] ?? 0);
+            $rows[] = [
+                'label' => 'سقف اتصال هم‌زمان به دیتابیس',
+                'status' => $muc > 0 && $muc < 25 ? self::WARN : self::OK,
+                'value' => 'max_connections=' . (int) ($vars['mc'] ?? 0) . '، max_user_connections=' . ($muc > 0 ? $muc : 'بی‌سقف'),
+                'hint' => $muc > 0 && $muc < 25
+                    ? 'هر درخواستِ هم‌زمان یک اتصال می‌خواهد؛ با این سقف، در هجوم زود پر می‌شود و بازدیدکننده صفحهٔ «شلوغ است» می‌بیند (صفحه‌های کش‌شده باز می‌مانند). از میزبان بالا بردنش را بخواهید.'
+                    : '',
+            ];
+            $rows[] = [
+                'label' => 'سقف انتظار برای قفل',
+                'status' => self::OK,
+                'value' => (int) ($vars['lw'] ?? 0) . ' ثانیه',
+                'hint' => '',
+            ];
+
+            $outbox = DB::selectOne(
+                "SELECT COUNT(*) AS c, MIN(created_at) AS oldest FROM sms_messages WHERE status IN ('queued','sending')"
+            );
+            $waiting = (int) ($outbox['c'] ?? 0);
+            $age = $waiting > 0 && !empty($outbox['oldest']) ? (int) floor((time() - strtotime((string) $outbox['oldest'])) / 60) : 0;
+            $rows[] = [
+                'label' => 'صندوق خروجی پیامک',
+                'status' => $age > 15 ? self::WARN : self::OK,
+                'value' => $waiting === 0 ? 'خالی' : $waiting . ' در صف، قدیمی‌ترین ' . $age . ' دقیقه',
+                'hint' => $age > 15 ? 'پیامک‌هایی که پس از پاسخ فرستاده نشدند را cron می‌فرستد. اگر مانده‌اند، cron اجرا نمی‌شود یا اپراتور در دسترس نیست.' : '',
+            ];
+        } catch (\Throwable) {
+            $rows[] = ['label' => 'دیتابیس', 'status' => self::WARN, 'value' => 'نامعلوم', 'hint' => 'برای سنجش سقف اتصال و صندوق پیامک باید به دیتابیس وصل شد.'];
+        }
 
         return $rows;
     }
