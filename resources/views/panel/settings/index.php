@@ -79,7 +79,7 @@ $durations = [0 => 'بدون محدودیت', 30 => 'نیم ساعت', 60 => '۱
       <span class="brand-mark" style="width:64px;height:64px;border-radius:16px"><?= $logoUrl ? '<img src="' . e($logoUrl) . '" alt="لوگوی فعلی">' : icon(($salon['audience'] ?? 'men') === 'women' ? 'sparkles' : 'scissors') ?></span>
       <div class="stack stack-sm grow">
         <label class="field__label" for="sp-logo">انتخاب تصویر (PNG، JPG یا WebP)</label>
-        <input class="input" id="sp-logo" type="file" name="logo" accept="image/png,image/jpeg,image/webp" style="padding-block:8px">
+        <input class="input" id="sp-logo" type="file" name="logo" accept="image/png,image/jpeg,image/webp">
         <?php if ($logoUrl): ?><label class="check"><input type="checkbox" name="remove_logo" value="1"><span>حذف لوگو</span></label><?php endif; ?>
       </div>
     </div></div>

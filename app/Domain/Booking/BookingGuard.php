@@ -60,8 +60,8 @@ final class BookingGuard
                 "SELECT COUNT(*) AS c FROM appointments
                  WHERE salon_id = ? AND customer_id IN ({$placeholders})
                    AND status IN ('pending','confirmed')
-                   AND scheduled_at >= NOW()",
-                array_merge([$salonId], $customerIds)
+                   AND scheduled_at >= ?",
+                array_merge([$salonId], $customerIds, [\App\Support\Now::get()->format('Y-m-d H:i:s')])
             )['c'];
 
             if ($open >= $openMax) {

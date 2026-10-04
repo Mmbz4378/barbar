@@ -79,9 +79,9 @@ final class PanelNavigation
             "SELECT
                 (SELECT COUNT(*) FROM appointments WHERE salon_id = ? AND status = 'pending' AND deposit_amount > 0) AS deposit,
                 (SELECT COUNT(*) FROM appointments a WHERE a.salon_id = ? AND a.status = 'completed'
-                    AND a.actual_end_at >= CURDATE()
+                    AND a.actual_end_at >= ?
                     AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.appointment_id = a.id AND p.kind = 'settlement')) AS settle",
-            [$salonId, $salonId]
+            [$salonId, $salonId, \App\Support\Now::today()->format('Y-m-d H:i:s')]
         );
 
         return ['settle' => (int) ($row['settle'] ?? 0), 'deposit' => (int) ($row['deposit'] ?? 0)];

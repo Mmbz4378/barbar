@@ -30,13 +30,14 @@ final class StaffRepository
         return DB::select(
             "SELECT st.*, su.role AS account_role, su.is_active AS account_active, u.phone AS account_phone,
                     (SELECT COUNT(*) FROM appointments a WHERE a.salon_id = st.salon_id AND a.staff_id = st.id
-                        AND a.status IN ('pending','confirmed','queued') AND COALESCE(a.scheduled_at, a.queued_at) >= CURDATE()) AS future_count
+                        AND a.status IN ('pending','confirmed','queued') AND COALESCE(a.scheduled_at, a.queued_at) >= ?) AS future_count
                FROM staff st
                LEFT JOIN salon_user su ON su.salon_id = st.salon_id AND su.user_id = st.user_id
                LEFT JOIN users u ON u.id = st.user_id
               WHERE st.salon_id = ?
               ORDER BY st.is_active DESC, st.sort_order, st.id",
-            [$salonId]
+            // زمان از PHP، نه CURDATE(): ساعت‌ها با منطقهٔ زمانی برنامه ذخیره می‌شوند
+            [\App\Support\Now::today()->format('Y-m-d H:i:s'), $salonId]
         );
     }
 

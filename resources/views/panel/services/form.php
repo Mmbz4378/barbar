@@ -129,7 +129,7 @@ $priceType = (string) $v('price_type', $s['price_type'] ?? 'fixed');
         <form method="post" action="<?= e(url('panel/services/' . $s['id'] . '/image')) ?>" enctype="multipart/form-data" class="stack stack-sm">
           <?= csrf_field() ?>
           <label class="field__label" for="s-img">انتخاب عکس (JPG، PNG یا WebP)</label>
-          <input class="input" id="s-img" type="file" name="image" accept="image/jpeg,image/png,image/webp" style="padding-block:8px">
+          <input class="input" id="s-img" type="file" name="image" accept="image/jpeg,image/png,image/webp">
           <button type="submit" class="btn btn--secondary btn--sm"><?= icon('download') ?> بارگذاری</button>
         </form>
         <?php if (!empty($s['image_file'])): ?>

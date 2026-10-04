@@ -16,7 +16,7 @@ return [
          * خانوادهٔ فونت. «vazirmatn» یا «iranyekan».
          *
          * فایل‌های ایران‌یکان از دارایی محلی کاربر در پروژه قرار گرفته‌اند.
-         * وزن‌ها در public/assets/fonts و تعریف فونت در comfort.css است.
+         * وزن‌ها در public/assets/fonts و تعریف فونت در reshen.css است.
          * راهنما: public/assets/fonts/README.md
          */
         'font' => Env::get('UI_FONT', 'iranyekan'),

@@ -55,7 +55,7 @@ $hasCover = preg_match('/^[a-zA-Z0-9-]+\.webp$/', (string) ($salon['cover_path']
       <?php if (!$hasCover): ?><p class="text-sm muted">هنوز عکسی بارگذاری نشده. عکس واقعی از فضای سالن، بیشترین اثر را روی انتخاب مشتری دارد.</p><?php endif; ?>
       <div class="field">
         <label class="field__label" for="pub-file"><?= $hasCover ? 'جایگزینی عکس' : 'انتخاب عکس' ?> <span class="field__optional">(JPG، PNG یا WebP؛ حداکثر ۳ مگابایت؛ افقی)</span></label>
-        <input class="input" id="pub-file" type="file" name="cover" accept="image/jpeg,image/png,image/webp" style="padding-block:8px" <?= field_error('cover') ? 'aria-invalid="true" aria-describedby="cover-error"' : '' ?>>
+        <input class="input" id="pub-file" type="file" name="cover" accept="image/jpeg,image/png,image/webp" <?= field_error('cover') ? 'aria-invalid="true" aria-describedby="cover-error"' : '' ?>>
         <?= partial('field-error', ['key' => 'cover']) ?>
       </div>
       <?php if ($hasCover): ?>

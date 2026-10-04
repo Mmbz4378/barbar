@@ -28,10 +28,10 @@ final class TimeOffRepository
             'SELECT t.*, s.name AS staff_name
                FROM time_offs t
                LEFT JOIN staff s ON s.id = t.staff_id
-              WHERE t.salon_id = ? AND t.ends_at >= NOW()
+              WHERE t.salon_id = ? AND t.ends_at >= ?
               ORDER BY t.starts_at
               LIMIT ' . max(1, $limit),
-            [$salonId]
+            [$salonId, \App\Support\Now::get()->format('Y-m-d H:i:s')]
         );
     }
 

@@ -87,9 +87,10 @@ final class LoginLinkService
 
         $row = DB::selectOne(
             'SELECT id, phone FROM otp_codes
-             WHERE code_hash = ? AND purpose = ? AND consumed_at IS NULL AND expires_at > NOW()
+             WHERE code_hash = ? AND purpose = ? AND consumed_at IS NULL AND expires_at > ?
              LIMIT 1',
-            [hash('sha256', $token), self::PURPOSE]
+            // expires_at با ساعت PHP نوشته شده؛ NOW() دیتابیس ممکن است ساعت‌ها جلو/عقب باشد
+            [hash('sha256', $token), self::PURPOSE, date('Y-m-d H:i:s')]
         );
 
         if ($row === null) {

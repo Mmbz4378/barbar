@@ -26,6 +26,7 @@ php tools/preflight.php
 | 0019_discovery.sql | محله/معرفی/وضعیت انتشار، عکس خدمت، بررسی نظر، علاقه‌مندی و گزارش نظر |
 | 0020_online_payment_attempts.sql | تلاش پرداخت و مرجع یکتای درگاه |
 | 0021_default_theme.sql | پیش‌فرض forest برای سالن جدید؛ رنگ سالن قبلی حفظ می‌شود |
+| 0022_audience_catalog_policies.sql | نوع سالن (مردانه/بانوان/هر دو)، دستهٔ خدمات، مهارت کارکنان، قوانین رزرو هر سالن، بیعانه، رزرو چندمتخصصی، ترجیحات مشتری، آمار کشف — جزئیات در بخش «نسخهٔ ۱۴» |
 
 برای میزبانی بدون SSH، مدیر هاست می‌تواند ابزار مهاجرت را اجرا کند. روش جایگزین در phpMyAdmin: مهاجرت‌های ثبت‌نشده را به ترتیب اجرا کنید و فقط پس از موفقیت کامل هر فایل، نام همان فایل را در schema_migrations ثبت کنید. در صورت خطای میانی، اجرای کورکورانهٔ مجدد ALTER را ادامه ندهید؛ از پشتیبان برگردید یا وضعیت اجرای آن فایل را بررسی کنید.
 
@@ -37,7 +38,7 @@ php tools/preflight.php
 - MAPS_ENABLED=false نقشه را پنهان می‌کند؛ فهرست و رزرو ادامه دارند.
 - معرفی، شهر، آدرس، تلفن، خدمت و آرایشگر فعال را تکمیل کنید؛ بعد درخواست انتشار و تأیید مدیر پلتفرم.
 
-صفحهٔ رزرو، نقش‌های دسترسی، یک مراجعهٔ کامل، لغو، تصویر، QR، پیامک و پرداخت را روی دامنهٔ میزبان بررسی کنید. به‌روزرسانی PWA به v13 کش ثابت قبلی رشن را پاک می‌کند؛ دادهٔ زندهٔ مشتری و صف کش نمی‌شود.
+صفحهٔ رزرو، نقش‌های دسترسی، یک مراجعهٔ کامل، لغو، تصویر، QR، پیامک و پرداخت را روی دامنهٔ میزبان بررسی کنید. به‌روزرسانی PWA به v14.1 کش ثابت قبلی رشن را پاک می‌کند؛ دادهٔ زندهٔ مشتری و صف کش نمی‌شود.
 
 ## بازگشت
 
@@ -57,3 +58,94 @@ php tools/preflight.php
 ## اصلاح نمایش فرم‌ها — ۴ اکتبر ۲۰۲۶
 
 این بسته مهاجرت دیتابیس جدید ندارد. فایل‌های PHP مؤلفه‌ها، فرم تنظیمات و خدمت، helper و فایل‌های comfort CSS/JS و service-worker با هم منتقل شوند. نسخهٔ هماهنگ دارایی‌ها v13 است. پیش از ارتقا فایل‌ها، دیتابیس، .env و تصاویر واقعی را پشتیبان بگیرید؛ .env و uploads نسخهٔ خودتان را نگه دارید.
+
+
+## نسخهٔ ۱۴ — بازطراحی کامل و پشتیبانی سالن‌های بانوان
+
+این نسخه هم رابط و هم بخشی از منطق رزرو را بازنویسی می‌کند و **یک
+مهاجرت دیتابیس** دارد: `0022_audience_catalog_policies.sql`.
+
+### پیش از ارتقا
+
+پشتیبان کامل (فایل، دیتابیس، `.env`، `public/uploads`). مهاجرت روی
+نسخهٔ آزمایشی دیتابیس اجرا و صفحات اصلی بررسی شوند.
+
+### اجرا
+
+```text
+php tools/migrate.php
+php tools/preflight.php
+php tools/test-flows.php      # اختیاری: ۶۱ آزمون جریان؛ همه‌چیز را برمی‌گرداند
+```
+
+`tools/test-flows.php` روی محیط production اجرا نمی‌شود؛ روی کپی آزمایشی
+دیتابیس استفاده کنید.
+
+### تغییرات دیتابیس (۰۰۲۲)
+
+| جدول | ستون/ایندکس تازه |
+|---|---|
+| salons | `audience`، `booking_flow`، `booking_horizon_days`، `min_notice_minutes`، `cancel_notice_minutes`، `observe_official_holidays`، `deposit_card_number`، `deposit_card_holder`، `deposit_hold_minutes`، `min_price`، `rating_avg`، `rating_count` |
+| service_categories | جدول تازه (نام، نماد، ترتیب) |
+| services | `category_id`، `audience`، `buffer_minutes`، `price_type` (ثابت/از)، `deposit_amount`، `online_booking` |
+| staff | `title`، `bio`، `accepts_online` |
+| staff_service | `is_offered` (مهارت؛ نبودِ ردیف = انجام می‌دهد) |
+| customer_preferences | `hair_type`، `color_formula`، `skin_type`، `allergies`، `nail_notes` |
+| appointments | `group_token` (رزرو چندمتخصصی)، `customer_note`، `created_by_user_id`، `deposit_amount`، `hold_expires_at` و ایندکس‌های بازه‌ای |
+| appointment_items | `buffer_minutes` |
+| payments | `kind` (تسویه/بیعانه)، `discount_amount` |
+
+سالن‌های موجود «مردانه» با روند «اول زمان» می‌مانند؛ رفتار رزروشان
+تغییر نمی‌کند تا صاحب سالن تنظیمات تازه را عوض کند. آمار کشف
+(`min_price`، امتیاز) در خود مهاجرت پر می‌شود.
+
+### کرون
+
+کار تازهٔ «لغو رزروهای بی‌بیعانه» به همان کرون قبلی اضافه شده است؛
+تنظیم جدیدی لازم نیست. اگر کرون تنظیم نشده باشد، رزروهای منتظر بیعانه
+پس از مهلت آزاد نمی‌شوند — صفحهٔ سلامت (`/doctor.php`) هشدار می‌دهد.
+
+### فایل‌های حذف‌شده
+
+این فایل‌ها در نسخهٔ ۱۴ با `reshen.css` و `app.js` جایگزین شده‌اند و
+باید از هاست هم پاک شوند تا اشتباهی بارگذاری نشوند:
+
+```text
+public/assets/css/app.css
+public/assets/css/design-tokens.css
+public/assets/css/refined.css
+public/assets/css/comfort.css
+public/assets/js/comfort.js
+public/assets/js/network-status.js
+public/assets/js/queue-refresh.js
+public/assets/js/service-discovery.js
+resources/views/components/customer-navigation.php
+resources/views/components/discovery-links.php
+resources/views/components/install-prompt.php
+resources/views/components/pwa-head.php
+resources/views/components/service-discovery.php
+resources/views/components/sticky-action.php
+resources/views/components/theme-boot.php
+resources/views/components/theme-toggle.php
+```
+
+### تنظیمات
+
+- تکرار کلید `payment` در `config/reshen.php` حذف شد. اکنون اگر
+  `ZARINPAL_SANDBOX` تنظیم نشده باشد، **حالت واقعی** است (قبلاً تعریف
+  دوم بی‌صدا sandbox را روشن می‌کرد). برای آزمون، صریحاً
+  `ZARINPAL_SANDBOX=true` بگذارید.
+- سقف یادگیری مدت خدمت از ۱۸۰ به ۴۸۰ دقیقه رسید تا خدمات طولانی
+  بانوان (لایت، عروس) از آمار حذف نشوند.
+
+### PWA
+
+نسخهٔ پوسته `v14.1`. مرورگرها با اولین بازدید پوستهٔ تازه را می‌گیرند؛
+اگر ظاهر قدیمی ماند، یک بار صفحه را ببندید و دوباره باز کنید.
+
+### دادهٔ نمونه (فقط توسعه)
+
+```text
+php tools/seed-demo.php           # یک آرایشگاه مردانه و یک سالن بانوان با نقش‌ها
+php tools/seed-demo-history.php   # ۴۵ روز سابقهٔ مراجعه برای گزارش‌ها
+```

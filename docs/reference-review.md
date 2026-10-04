@@ -40,4 +40,4 @@
 
 ## مسیر فایل‌ها
 
-قواعد مشترک: public/assets/css/comfort.css و design-tokens.css. رفتارهای سبک: public/assets/js/comfort.js. اجزای ناوبری و آیکون: resources/views/components. راهنمای نصب/ارتقا: نصب.md و docs/cpanel-install.html. سند قابل ارائه به طراح: docs/CLAUDE-DESIGN-BRIEF.md.
+قواعد مشترک: public/assets/css/reshen.css (سیستم طراحی نسخهٔ ۲). رفتارها: public/assets/js/app.js. اجزای ناوبری و آیکون: resources/views/components. راهنمای نصب/ارتقا: نصب.md و docs/cpanel-install.html. سند قابل ارائه به طراح: docs/CLAUDE-DESIGN-BRIEF.md.

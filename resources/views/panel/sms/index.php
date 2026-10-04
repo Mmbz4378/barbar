@@ -52,7 +52,7 @@ $total = count($rows);
             <div class="copy-field"><code><?= e($r['envKey']) ?>=<?= e($r['registered']['body_id']) ?></code><button type="button" class="btn btn--secondary btn--sm" data-copy="<?= e($r['envKey'] . '=' . $r['registered']['body_id']) ?>">کپی</button></div>
           </div></div>
         <?php else: ?>
-          <p class="text-sm muted">شناسهٔ الگو را اینجا بگذارید: <span class="ltr strong"><?= e($r['envKey']) ?>=…</span></p>
+          <p class="text-sm muted">شناسهٔ الگو را اینجا بگذارید: <span class="ltr strong" style="overflow-wrap:anywhere"><?= e($r['envKey']) ?>=…</span></p>
         <?php endif; ?>
         <?php if ($canRegister): ?>
           <form method="post" action="<?= e(url('panel/sms/register')) ?>">

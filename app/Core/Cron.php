@@ -107,7 +107,8 @@ final class Cron
                     "UPDATE appointments
                         SET status = 'no_show', updated_at = NOW()
                       WHERE status IN ('queued', 'confirmed')
-                        AND COALESCE(scheduled_at, queued_at) < (NOW() - INTERVAL 1 DAY)"
+                        AND COALESCE(scheduled_at, queued_at) < ?",
+                    [date('Y-m-d H:i:s', time() - 86400)]
                 )->rowCount();
 
                 return "{$affected} نوبت";
@@ -115,7 +116,8 @@ final class Cron
 
             'پاک‌سازی کدهای منقضی' => static function (): string {
                 $deleted = DB::statement(
-                    'DELETE FROM otp_codes WHERE expires_at < (NOW() - INTERVAL 1 DAY)'
+                    'DELETE FROM otp_codes WHERE expires_at < ?',
+                    [date('Y-m-d H:i:s', time() - 86400)]
                 )->rowCount();
 
                 return "{$deleted} کد";

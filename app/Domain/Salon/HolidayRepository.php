@@ -69,6 +69,6 @@ final class HolidayRepository
 
     public function upcoming(int $limit = 10): array
     {
-        return DB::select('SELECT * FROM holidays WHERE gregorian_date >= CURDATE() ORDER BY gregorian_date LIMIT ?', [$limit]);
+        return DB::select('SELECT * FROM holidays WHERE gregorian_date >= ? ORDER BY gregorian_date LIMIT ' . max(1, $limit), [\App\Support\Now::today()->format('Y-m-d')]);
     }
 }

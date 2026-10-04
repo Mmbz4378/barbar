@@ -62,8 +62,8 @@
 ## منابع و فایل‌های فعلی
 
 - اصول مرجع: [Apple HIG](https://developer.apple.com/design/human-interface-guidelines)، [Buttons](https://developer.apple.com/design/human-interface-guidelines/buttons)، [Accessibility](https://developer.apple.com/design/human-interface-guidelines/accessibility).
-- توکن‌ها: `public/assets/css/design-tokens.css`.
-- لایهٔ رابط ساده: `public/assets/css/comfort.css` و `public/assets/js/comfort.js`.
+- توکن‌ها و اجزا: `public/assets/css/reshen.css` (نسخهٔ ۲؛ راهنما در docs/design-system.md).
+- رفتارها: `public/assets/js/app.js`.
 - چیدمان‌های مشترک: `resources/views/layouts`.
 - رزرو: `resources/views/booking`.
 - پنل: `resources/views/panel`؛ کشف: `resources/views/discover`.

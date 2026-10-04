@@ -284,6 +284,9 @@ svg.icon{display:inline-block;vertical-align:-.22em;width:var(--icon-md);height:
 .field__error svg{width:16px;height:16px;margin-block-start:3px;flex:none}
 .input,.select,.textarea{display:block;width:100%;min-height:var(--control-md);padding:0 14px;border:1px solid var(--border-input);border-radius:var(--radius-md);background:var(--surface);color:var(--text);font-size:var(--text-md);line-height:1.5;transition:border-color var(--duration-fast),box-shadow var(--duration-fast);appearance:none;-webkit-appearance:none}
 .input::placeholder,.textarea::placeholder{color:var(--text-subtle);opacity:1}
+.input[type=file]{padding:6px;font-size:var(--text-sm);color:var(--text-muted);cursor:pointer}
+.input[type=file]::file-selector-button{min-height:36px;margin-inline-end:12px;padding:0 14px;border:0;border-radius:var(--radius-sm,8px);background:var(--accent-soft);color:var(--accent-text);font:inherit;font-weight:var(--weight-semibold);cursor:pointer}
+.input[type=file]:hover::file-selector-button{background:var(--accent-soft-hover)}
 .input:hover,.select:hover,.textarea:hover{border-color:var(--text-muted)}
 .input:focus,.select:focus,.textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft-hover);outline:none}
 .input[aria-invalid=true],.select[aria-invalid=true],.textarea[aria-invalid=true]{border-color:var(--danger-solid)}
@@ -397,6 +400,7 @@ button.list-row{width:100%;border:0;background:transparent;text-align:start}
 .list-row__body{display:flex;flex-direction:column;gap:2px;flex:1 1 auto;min-width:0}
 .list-row__title{font-weight:var(--weight-semibold);line-height:1.6}
 .list-row__meta{font-size:var(--text-sm);color:var(--text-muted);line-height:1.6}
+.list-row__meta a{display:inline-block;padding-block:2px}
 .list-row__end{flex:none;display:flex;align-items:center;gap:var(--space-2);text-align:end}
 .list-row__chevron{width:18px;height:18px;color:var(--text-subtle);flex:none}
 .kv{display:flex;flex-direction:column}
@@ -593,6 +597,8 @@ button.list-row{width:100%;border:0;background:transparent;text-align:start}
 .public__main--wide{max-width:var(--shell-content)}
 @media (min-width:1024px){.public__main--wizard{max-width:1040px}}
 .public__footer{padding:var(--space-6) var(--space-4) calc(var(--space-6) + env(safe-area-inset-bottom,0px));text-align:center;color:var(--text-subtle);font-size:var(--text-xs)}
+/* هدف لمسی حداقل ۲۴ پیکسل (WCAG 2.5.8) برای پیوندهای مستقل */
+.public__footer a{display:inline-flex;align-items:center;min-height:32px;padding-inline:4px}
 .public--with-tabbar .public__main{padding-block-end:calc(var(--tabbar-height) + var(--space-10) + env(safe-area-inset-bottom,0px))}
 @media (min-width:1024px){.public--with-tabbar .public__main{padding-block-end:var(--space-10)}}
 .topbar{position:sticky;inset-block-start:0;z-index:var(--z-sticky);background:var(--surface);border-block-end:1px solid var(--border);padding-block-start:env(safe-area-inset-top,0px)}
@@ -738,6 +744,7 @@ a.calendar__day:hover{background:var(--surface-hover);text-decoration:none}
 .salon-card__media img{width:100%;height:100%;object-fit:cover}
 .salon-card__body{display:flex;flex-direction:column;gap:6px;padding:var(--space-4)}
 .salon-card__name{font-size:var(--text-md);font-weight:var(--weight-bold);line-height:1.5}
+.salon-card__name a{display:inline-block;padding-block:3px}
 .salon-cover{position:relative;display:block;aspect-ratio:16/8;border-radius:var(--radius-xl);overflow:hidden;background:var(--surface-sunken)}
 .salon-cover img{width:100%;height:100%;object-fit:cover}
 @media (min-width:768px){.salon-cover{aspect-ratio:16/6}}
