@@ -571,6 +571,35 @@ button.list-row{width:100%;border:0;background:transparent;text-align:start}
 .meter{height:8px;border-radius:var(--radius-full);background:var(--surface-sunken);overflow:hidden}
 .meter__fill{height:100%;width:calc(var(--v,0) * 1%);background:var(--c,var(--accent));border-radius:inherit}
 
+/* ── Skeleton (در حال بارگذاری) ───────────────────────────────────── */
+.skeleton{display:block;position:relative;overflow:hidden;border-radius:var(--radius-sm);background:var(--surface-sunken)}
+.skeleton::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);transform:translateX(100%);animation:skeleton-shimmer 1.4s ease-in-out infinite}
+html.dark .skeleton::after{background:linear-gradient(90deg,transparent,rgba(255,255,255,.07),transparent)}
+.skeleton--text{height:.85em;margin-block:.4em;width:var(--w,100%);border-radius:var(--radius-xs)}
+.skeleton--circle{width:var(--s,40px);height:var(--s,40px);border-radius:50%;flex:none}
+.skeleton--block{height:var(--h,96px);border-radius:var(--radius-lg)}
+.skeleton--pill{height:var(--control-md);border-radius:var(--radius-md)}
+.skeleton-group{display:grid;gap:var(--space-3)}
+.skeleton-row{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3) var(--space-4)}
+@keyframes skeleton-shimmer{to{transform:translateX(-100%)}}
+@media (prefers-reduced-motion:reduce){.skeleton::after{display:none}}
+[data-skeleton-region][aria-busy=true]{pointer-events:none}
+
+/* ── Pagination ────────────────────────────────────────────────────── */
+.pagination{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:var(--space-2)}
+.pagination__pages{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-1);margin:0;padding:0;list-style:none}
+.pagination__page{display:inline-grid;place-items:center;min-width:var(--control-md);height:var(--control-md);padding:0 var(--space-2);border-radius:var(--radius-md);color:var(--text);font-weight:var(--weight-semibold);font-variant-numeric:tabular-nums;text-decoration:none}
+.pagination__page:hover{background:var(--surface-hover);text-decoration:none}
+.pagination__page[aria-current=page]{background:var(--accent);color:var(--on-accent)}
+.pagination__gap{min-width:24px;text-align:center;color:var(--text-subtle)}
+.pagination__status{font-size:var(--text-sm);color:var(--text-muted)}
+@media (max-width:479.98px){.pagination__pages{display:none}}
+@media (min-width:480px){.pagination__pages+.pagination__status{display:none}}
+
+/* ── Tooltip ───────────────────────────────────────────────────────── */
+.tooltip{position:fixed;z-index:var(--z-toast);max-width:min(280px,calc(100vw - 16px));padding:6px 10px;border-radius:var(--radius-sm);background:var(--text);color:var(--bg);font-size:var(--text-xs);font-weight:var(--weight-medium);line-height:1.6;pointer-events:none;box-shadow:var(--shadow-md)}
+.tooltip[hidden]{display:none}
+
 /* ── Dialog & sheet (native <dialog>) ──────────────────────────────── */
 .dialog{width:min(100% - 32px,440px);max-height:calc(100dvh - 32px);padding:0;border:0;border-radius:var(--radius-xl);background:var(--surface-raised);color:var(--text);box-shadow:var(--shadow-lg)}
 .dialog::backdrop{background:var(--scrim)}
@@ -876,6 +905,22 @@ html.dark .rating .star-empty{color:var(--text-subtle)}
 .auth__brand{display:flex;flex-direction:column;align-items:center;gap:var(--space-3);margin-block-end:var(--space-6);text-align:center}
 
 /* Print (QR sheet, receipts) */
+/* ── حالت کنتراست بالای ویندوز (forced-colors) ────────────────────────
+ * سیستم رنگ‌ها را با پالت خودش جایگزین می‌کند؛ هر چیزی که فقط با رنگ
+ * زمینه از اطرافش جدا می‌شد، باید قاب یا نشانهٔ دیگری بگیرد. */
+@media (forced-colors:active){
+  .btn,.input,.select,.textarea,.card,.stat,.choice__card,.chip,.slot,.day,.tab,.list-row,.alert,.badge,.pagination__page,.icon-tile,.brand-mark{border:1px solid CanvasText}
+  .btn--primary,.pagination__page[aria-current=page],.tabbar__item[aria-current=page],.nav-item[aria-current=page]{forced-color-adjust:none;background:Highlight;color:HighlightText;border-color:Highlight}
+  .choice__input:checked+.choice__card,.slot input:checked+span,.day[aria-current=date]{outline:3px solid Highlight;outline-offset:-3px}
+  .switch input:checked+.switch__track{background:Highlight}
+  :focus-visible{outline:3px solid Highlight!important;outline-offset:2px}
+  .bars__bar,.meter__fill,.dot,.color-bar{forced-color-adjust:none;background:CanvasText}
+  .skeleton{background:GrayText}
+  .skeleton::after{display:none}
+  .tooltip{border:1px solid CanvasText}
+  svg{forced-color-adjust:auto}
+}
+
 @media print{
   .app__sidebar,.appbar,.tabbar,.no-print,.install,.flash-stack{display:none!important}
   body{background:#fff;color:#000}

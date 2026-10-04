@@ -363,6 +363,81 @@
     if (ios && /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua)) setTimeout(function () { show('ios'); }, 4000);
   }
 
+  /* ── Skeleton هنگام رفتن به صفحهٔ بعد ───────────────────────────────
+   * لینکی با data-skeleton-for="شناسه" محتوای آن ناحیه را تا رسیدن صفحهٔ
+   * تازه با <template data-skeleton-tpl> همان ناحیه عوض می‌کند — روی
+   * اینترنت کند، کاربر می‌بیند که کلیکش ثبت شده. */
+  var skeletonSaved = [];
+  doc.addEventListener('click', function (e) {
+    var link = e.target.closest('a[data-skeleton-for]');
+    if (!link || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || link.target === '_blank') return;
+    var region = doc.getElementById(link.getAttribute('data-skeleton-for'));
+    var tpl = region && region.querySelector('template[data-skeleton-tpl]');
+    if (!tpl || region.getAttribute('aria-busy') === 'true') return;
+    var kept = doc.createDocumentFragment();
+    Array.prototype.slice.call(region.childNodes).forEach(function (n) { if (n !== tpl) kept.appendChild(n); });
+    skeletonSaved.push({ region: region, nodes: kept });
+    region.appendChild(tpl.content.cloneNode(true));
+    region.setAttribute('aria-busy', 'true');
+  });
+  // برگشت با دکمهٔ «عقب» صفحه را از کش مرورگر می‌آورد؛ محتوای واقعی برگردد
+  window.addEventListener('pageshow', function () {
+    skeletonSaved.forEach(function (s) {
+      var tpl = s.region.querySelector('template[data-skeleton-tpl]');
+      Array.prototype.slice.call(s.region.childNodes).forEach(function (n) { if (n !== tpl) n.remove(); });
+      s.region.insertBefore(s.nodes, tpl);
+      s.region.removeAttribute('aria-busy');
+    });
+    skeletonSaved = [];
+  });
+
+  /* ── Tooltip ────────────────────────────────────────────────────────
+   * دکمه‌های فقط‌آیکون (btn--icon با aria-label) خودکار؛ هر عنصر دیگر با
+   * data-tooltip. با hover و فوکوس صفحه‌کلید باز، با Escape بسته می‌شود.
+   * متن همان aria-label است، پس برای صفحه‌خوان دوباره خوانده نمی‌شود؛
+   * data-tooltip متفاوت با aria-describedby وصل می‌شود. */
+  var tip = null, tipOwner = null;
+  function tipText(el) { return el.getAttribute('data-tooltip') || el.getAttribute('aria-label') || ''; }
+  function tipFor(target) {
+    var el = target && target.closest ? target.closest('[data-tooltip], .btn--icon[aria-label]') : null;
+    return el && tipText(el) ? el : null;
+  }
+  function showTip(el) {
+    if (!tip) { tip = doc.createElement('div'); tip.className = 'tooltip'; tip.id = 'reshen-tooltip'; tip.setAttribute('role', 'tooltip'); tip.hidden = true; doc.body.appendChild(tip); }
+    tipOwner = el;
+    tip.textContent = tipText(el);
+    if (el.title) { el.setAttribute('data-title', el.title); el.removeAttribute('title'); } // جلوگیری از tooltip دوگانهٔ مرورگر
+    if (el.hasAttribute('data-tooltip') && el.getAttribute('data-tooltip') !== el.getAttribute('aria-label')) el.setAttribute('aria-describedby', tip.id);
+    tip.hidden = false;
+    var r = el.getBoundingClientRect(), t = tip.getBoundingClientRect();
+    var top = r.top - t.height - 8;
+    if (top < 8) top = r.bottom + 8;
+    var left = Math.min(Math.max(8, r.left + r.width / 2 - t.width / 2), window.innerWidth - t.width - 8);
+    tip.style.top = top + 'px';
+    tip.style.left = left + 'px';
+  }
+  function hideTip() {
+    if (!tip || tip.hidden) return;
+    tip.hidden = true;
+    if (tipOwner && tipOwner.getAttribute('aria-describedby') === 'reshen-tooltip') tipOwner.removeAttribute('aria-describedby');
+    tipOwner = null;
+  }
+  if (window.matchMedia && window.matchMedia('(hover:hover)').matches) {
+    doc.addEventListener('mouseover', function (e) { var el = tipFor(e.target); if (el && el !== tipOwner) showTip(el); else if (!el) hideTip(); });
+  }
+  function focusVisible(el) { try { return el.matches(':focus-visible'); } catch (err) { return true; } } // WebView قدیمی
+  doc.addEventListener('focusin', function (e) { var el = tipFor(e.target); if (el && focusVisible(e.target)) showTip(el); });
+  doc.addEventListener('focusout', hideTip);
+  doc.addEventListener('keydown', function (e) { if (e.key === 'Escape') hideTip(); });
+  window.addEventListener('scroll', hideTip, true);
+
+  /* ── پیش‌نمایش تم (گالری سیستم طراحی) ───────────────────────────── */
+  each('[data-theme-preview]', function (select) {
+    var target = doc.querySelector(select.getAttribute('data-theme-preview'));
+    if (!target) return;
+    select.addEventListener('change', function () { target.setAttribute('data-theme', select.value); });
+  });
+
   /* ── سرویس‌ورکر ─────────────────────────────────────────────────── */
   if ('serviceWorker' in navigator && window.isSecureContext && root.getAttribute('data-sw')) {
     window.addEventListener('load', function () { navigator.serviceWorker.register(root.getAttribute('data-sw')).catch(function () {}); });

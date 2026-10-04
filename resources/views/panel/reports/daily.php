@@ -19,13 +19,14 @@ $isToday = $date === Now::today()->format('Y-m-d');
   </div>
   <div class="page-head__actions">
     <nav class="btn-row" aria-label="جابه‌جایی روز">
-      <a class="btn btn--secondary btn--icon" href="<?= e(url('panel/reports?date=' . $prev)) ?>" aria-label="روز قبل"><?= icon('chevron-start') ?></a>
+      <a class="btn btn--secondary btn--icon" href="<?= e(url('panel/reports?date=' . $prev)) ?>" aria-label="روز قبل" data-skeleton-for="report-body"><?= icon('chevron-start') ?></a>
       <?php if (!$isToday): ?><a class="btn btn--secondary" href="<?= e(url('panel/reports')) ?>">امروز</a><?php endif; ?>
-      <?php if ($next <= Now::today()->format('Y-m-d')): ?><a class="btn btn--secondary btn--icon" href="<?= e(url('panel/reports?date=' . $next)) ?>" aria-label="روز بعد"><?= icon('chevron-end') ?></a><?php endif; ?>
+      <?php if ($next <= Now::today()->format('Y-m-d')): ?><a class="btn btn--secondary btn--icon" href="<?= e(url('panel/reports?date=' . $next)) ?>" aria-label="روز بعد" data-skeleton-for="report-body"><?= icon('chevron-end') ?></a><?php endif; ?>
     </nav>
   </div>
 </div>
-<div class="stack stack-lg">
+<div class="stack stack-lg" id="report-body" data-skeleton-region>
+  <template data-skeleton-tpl><?= partial('skeleton', ['variant' => 'cards']) ?></template>
   <?php $active = 'daily'; include __DIR__ . '/_tabs.php'; ?>
   <form method="get" action="<?= e(url('panel/reports')) ?>" class="cluster" aria-label="انتخاب روز">
     <?= partial('jalali-date-input', ['name' => 'date', 'value' => $date, 'label' => 'گزارش', 'years' => [-2, 0]]) ?>

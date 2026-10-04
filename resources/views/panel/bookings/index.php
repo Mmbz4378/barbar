@@ -30,9 +30,9 @@ $bySystem = (int) ($counts['cancelled_by']['system'] ?? 0);
   </div>
   <div class="page-head__actions">
     <nav class="btn-row" aria-label="جابه‌جایی بازه">
-      <a class="btn btn--secondary btn--icon" href="<?= e(url('panel/bookings?from=' . $prev . $staffQuery)) ?>" aria-label="دو هفتهٔ قبل"><?= icon('chevron-start') ?></a>
+      <a class="btn btn--secondary btn--icon" href="<?= e(url('panel/bookings?from=' . $prev . $staffQuery)) ?>" aria-label="دو هفتهٔ قبل" data-skeleton-for="bookings-list"><?= icon('chevron-start') ?></a>
       <?php if (!$isToday): ?><a class="btn btn--secondary" href="<?= e(url('panel/bookings' . ($staffFilter !== null ? '?staff=' . $staffFilter : ''))) ?>">امروز</a><?php endif; ?>
-      <a class="btn btn--secondary btn--icon" href="<?= e(url('panel/bookings?from=' . $next . $staffQuery)) ?>" aria-label="دو هفتهٔ بعد"><?= icon('chevron-end') ?></a>
+      <a class="btn btn--secondary btn--icon" href="<?= e(url('panel/bookings?from=' . $next . $staffQuery)) ?>" aria-label="دو هفتهٔ بعد" data-skeleton-for="bookings-list"><?= icon('chevron-end') ?></a>
     </nav>
     <?php if ($desk): ?><a class="btn btn--primary" href="<?= e(url('panel/bookings/new')) ?>"><?= icon('plus') ?> رزرو جدید</a><?php endif; ?>
   </div>
@@ -79,9 +79,9 @@ $bySystem = (int) ($counts['cancelled_by']['system'] ?? 0);
 
 <?php if ($desk && count($staffList) > 1): ?>
   <nav class="chips mb-4" aria-label="فیلتر بر اساس فرد">
-    <a class="chip" href="<?= e(url('panel/bookings?from=' . $from->format('Y-m-d'))) ?>" <?= $staffFilter === null ? 'aria-current="page"' : '' ?>>همه</a>
+    <a class="chip" data-skeleton-for="bookings-list" href="<?= e(url('panel/bookings?from=' . $from->format('Y-m-d'))) ?>" <?= $staffFilter === null ? 'aria-current="page"' : '' ?>>همه</a>
     <?php foreach ($staffList as $st): ?>
-      <a class="chip" href="<?= e(url('panel/bookings?from=' . $from->format('Y-m-d') . '&staff=' . $st['id'])) ?>" <?= $staffFilter === (int) $st['id'] ? 'aria-current="page"' : '' ?>><span class="dot" style="--c:<?= e(staff_color($st['color'])) ?>"></span><?= e($st['name']) ?></a>
+      <a class="chip" data-skeleton-for="bookings-list" href="<?= e(url('panel/bookings?from=' . $from->format('Y-m-d') . '&staff=' . $st['id'])) ?>" <?= $staffFilter === (int) $st['id'] ? 'aria-current="page"' : '' ?>><span class="dot" style="--c:<?= e(staff_color($st['color'])) ?>"></span><?= e($st['name']) ?></a>
     <?php endforeach; ?>
   </nav>
 <?php endif; ?>
@@ -95,7 +95,8 @@ $bySystem = (int) ($counts['cancelled_by']['system'] ?? 0);
       'actionLabel' => 'لینک رزرو سالن',
   ]) ?></div>
 <?php else: ?>
-  <div class="stack">
+  <div class="stack" id="bookings-list" data-skeleton-region>
+    <template data-skeleton-tpl><?= partial('skeleton', ['variant' => 'list']) ?></template>
     <?php foreach ($days as $day): if ($day['rows'] === []) { continue; } $full = JalaliCalendar::humanDate($day['date']); ?>
       <section class="card" aria-label="<?= e($full) ?>">
         <div class="card__header card__header--divided">

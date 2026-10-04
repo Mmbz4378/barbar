@@ -71,7 +71,8 @@ $qs = static fn (array $over) => http_build_query(array_filter(array_merge($filt
   <?php if ($salons === []): ?>
     <?= partial('empty-state', ['icon' => 'store', 'title' => 'سالنی پیدا نشد', 'text' => 'فیلترها را تغییر دهید.']) ?>
   <?php else: ?>
-    <div class="table-wrap">
+    <div class="table-wrap" id="salon-table" data-skeleton-region>
+      <template data-skeleton-tpl><?= partial('skeleton', ['variant' => 'list', 'count' => 6]) ?></template>
       <table class="table table--stack">
         <thead><tr><th scope="col">سالن</th><th scope="col">وضعیت</th><th scope="col" class="num">کارکنان</th><th scope="col" class="num">مراجعه (۳۰ روز)</th><th scope="col" class="num">پیامک</th><th scope="col">عضویت</th></tr></thead>
         <tbody>
@@ -95,12 +96,6 @@ $qs = static fn (array $over) => http_build_query(array_filter(array_merge($filt
         </tbody>
       </table>
     </div>
-    <?php if ($pages > 1): ?>
-      <nav class="spread" aria-label="صفحه‌بندی">
-        <?php if ($page > 1): ?><a class="btn btn--secondary" href="<?= e(url('platform?' . $qs(['page' => $page - 1]))) ?>"><?= icon('chevron-start') ?> قبلی</a><?php else: ?><span></span><?php endif; ?>
-        <span class="text-sm muted">صفحهٔ <?= e(fa_num($page)) ?> از <?= e(fa_num($pages)) ?></span>
-        <?php if ($page < $pages): ?><a class="btn btn--secondary" href="<?= e(url('platform?' . $qs(['page' => $page + 1]))) ?>">بعدی <?= icon('chevron-end') ?></a><?php else: ?><span></span><?php endif; ?>
-      </nav>
-    <?php endif; ?>
+    <?= partial('pagination', ['page' => $page, 'pages' => $pages, 'url' => static fn (int $p): string => url('platform?' . $qs(['page' => $p])), 'label' => 'صفحه‌های فهرست سالن‌ها', 'skeletonFor' => 'salon-table']) ?>
   <?php endif; ?>
 </div>

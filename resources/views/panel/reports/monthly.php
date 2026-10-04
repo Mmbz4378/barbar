@@ -21,15 +21,16 @@ $activeDays = count(array_filter($bars, static fn ($b) => $b['total'] > 0));
   </div>
   <div class="page-head__actions">
     <nav class="btn-row" aria-label="جابه‌جایی ماه">
-      <a class="btn btn--secondary btn--icon" href="<?= e(url('panel/reports/monthly?jy=' . $prev[0] . '&jm=' . $prev[1])) ?>" aria-label="ماه قبل"><?= icon('chevron-start') ?></a>
+      <a class="btn btn--secondary btn--icon" href="<?= e(url('panel/reports/monthly?jy=' . $prev[0] . '&jm=' . $prev[1])) ?>" aria-label="ماه قبل" data-skeleton-for="report-body"><?= icon('chevron-start') ?></a>
       <?php if (!$isCurrent): ?>
         <a class="btn btn--secondary" href="<?= e(url('panel/reports/monthly')) ?>">ماه جاری</a>
-        <a class="btn btn--secondary btn--icon" href="<?= e(url('panel/reports/monthly?jy=' . $next[0] . '&jm=' . $next[1])) ?>" aria-label="ماه بعد"><?= icon('chevron-end') ?></a>
+        <a class="btn btn--secondary btn--icon" href="<?= e(url('panel/reports/monthly?jy=' . $next[0] . '&jm=' . $next[1])) ?>" aria-label="ماه بعد" data-skeleton-for="report-body"><?= icon('chevron-end') ?></a>
       <?php endif; ?>
     </nav>
   </div>
 </div>
-<div class="stack stack-lg">
+<div class="stack stack-lg" id="report-body" data-skeleton-region>
+  <template data-skeleton-tpl><?= partial('skeleton', ['variant' => 'cards']) ?></template>
   <?php $active = 'monthly'; include __DIR__ . '/_tabs.php'; ?>
 
   <section class="card" aria-labelledby="r-chart">

@@ -5,12 +5,14 @@
  *
  * @var array<int,array{date:string,label:string,day:string,month:string,available:bool,selected:bool}> $days
  * @var callable(string):string $linkFor
+ * @var string|null $skeletonFor شناسهٔ ناحیه‌ای که تا رسیدن روز تازه skeleton نشان دهد
  */
+$skeletonAttr = !empty($skeletonFor) ? ' data-skeleton-for="' . e($skeletonFor) . '"' : '';
 ?>
 <div class="day-strip" role="list" aria-label="انتخاب روز">
   <?php foreach ($days as $d): ?>
     <?php if ($d['available'] || $d['selected']): ?>
-      <a role="listitem" class="day" href="<?= e($linkFor($d['date'])) ?>" <?= $d['selected'] ? 'aria-current="date"' : '' ?>>
+      <a role="listitem" class="day" href="<?= e($linkFor($d['date'])) ?>" <?= $d['selected'] ? 'aria-current="date"' : '' ?><?= $skeletonAttr ?>>
         <span class="day__label"><?= e($d['label']) ?></span>
         <span class="day__num"><?= e($d['day']) ?></span>
         <span class="day__note"><?= e($d['available'] ? $d['month'] : 'پر') ?></span>

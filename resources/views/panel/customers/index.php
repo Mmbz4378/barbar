@@ -19,6 +19,8 @@
       ? ['icon' => 'search', 'title' => 'مشتری‌ای پیدا نشد', 'text' => 'نام یا بخشی از شماره را امتحان کنید.', 'actionHref' => url('panel/customers'), 'actionLabel' => 'همهٔ مشتریان']
       : ['icon' => 'users', 'title' => 'هنوز مشتری‌ای ثبت نشده', 'text' => 'با اولین رزرو یا پذیرش حضوری، پروندهٔ مشتری خودکار ساخته می‌شود.']) ?></div>
 <?php else: ?>
+  <div id="customer-list" data-skeleton-region>
+  <template data-skeleton-tpl><?= partial('skeleton', ['variant' => 'list', 'count' => 6]) ?></template>
   <ul class="card list">
     <?php foreach ($customers as $c): ?>
       <li><a class="list-row" href="<?= e(url('panel/customers/' . $c['id'])) ?>">
@@ -31,10 +33,6 @@
       </a></li>
     <?php endforeach; ?>
   </ul>
-  <?php if ($page > 1 || $hasNext): ?>
-    <nav class="btn-row mt-4 justify-center" aria-label="صفحه‌ها">
-      <?php if ($page > 1): ?><a class="btn btn--secondary" href="<?= e(url('panel/customers?' . http_build_query(['q' => $q, 'page' => $page - 1]))) ?>"><?= icon('chevron-start') ?> قبلی</a><?php endif; ?>
-      <?php if ($hasNext): ?><a class="btn btn--secondary" href="<?= e(url('panel/customers?' . http_build_query(['q' => $q, 'page' => $page + 1]))) ?>">بعدی <?= icon('chevron-end') ?></a><?php endif; ?>
-    </nav>
-  <?php endif; ?>
+  </div>
+  <div class="mt-4"><?= partial('pagination', ['page' => $page, 'hasNext' => $hasNext, 'url' => static fn (int $p): string => url('panel/customers?' . http_build_query(['q' => $q, 'page' => $p])), 'label' => 'صفحه‌های فهرست مشتریان', 'skeletonFor' => 'customer-list']) ?></div>
 <?php endif; ?>

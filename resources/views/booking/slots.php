@@ -60,7 +60,7 @@ $wide = true;
       <p class="step-head__sub"><?= $isFirstStep ? 'روز و یکی از ساعت‌های آزاد را انتخاب کن؛ خدمت را در گام بعد انتخاب می‌کنی.' : 'فقط ساعت‌هایی نشان داده می‌شوند که برای همهٔ خدمات انتخابی وقت کافی دارند.' ?></p>
     </div>
 
-    <?= partial('day-strip', ['days' => $days, 'linkFor' => static fn (string $g): string => url($baseUrl . '?date=' . $g)]) ?>
+    <?= partial('day-strip', ['days' => $days, 'linkFor' => static fn (string $g): string => url($baseUrl . '?date=' . $g), 'skeletonFor' => 'slots-area']) ?>
 
     <details class="mt-2 mb-4">
       <summary class="btn btn--link"><?= icon('calendar') ?> روز دیگری می‌خواهم</summary>
@@ -75,7 +75,8 @@ $wide = true;
       </div>
     </details>
 
-    <section aria-labelledby="slots-title">
+    <section aria-labelledby="slots-title" id="slots-area" data-skeleton-region>
+      <template data-skeleton-tpl><?= partial('skeleton', ['variant' => 'slots']) ?></template>
       <div class="spread mb-2">
         <h2 class="title-xs" id="slots-title">ساعت‌های آزاد <?= e($selectedDateLabel) ?></h2>
         <?php if ($slots !== []): ?><span class="text-sm muted"><?= e(fa_num(count($slots))) ?> ساعت</span><?php endif; ?>
