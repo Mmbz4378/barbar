@@ -146,6 +146,20 @@ final class Cache
         return true;
     }
 
+    /** شمارندهٔ اتمی (APCu)؛ مقدار تازه را برمی‌گرداند. برای محدودیت نرخ. */
+    public static function increment(string $key, int $ttl): int
+    {
+        if (self::enabled()) {
+            apcu_add(self::$prefix . $key, 0, max(1, $ttl));
+            $value = apcu_inc(self::$prefix . $key);
+
+            return $value === false ? 1 : (int) $value;
+        }
+        self::$local[$key] = (int) (self::$local[$key] ?? 0) + 1;
+
+        return self::$local[$key];
+    }
+
     public static function forget(string $key): void
     {
         unset(self::$local[$key]);

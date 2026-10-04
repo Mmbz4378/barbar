@@ -6,6 +6,7 @@ namespace App\Domain\Identity;
 
 use App\Core\Config;
 use App\Core\DB;
+use App\Core\RateLimiter;
 use App\Domain\Messaging\SmsBreaker;
 use App\Domain\Messaging\SmsManager;
 use App\Support\IranMobile;
@@ -24,6 +25,11 @@ final class OtpService
     public function request(IranMobile $phone, string $purpose = 'login'): array
     {
         $ip = self::clientIp();
+
+        // سیلِ ربات پیش از هر کوئری پس زده می‌شود (فقط با APCu؛ سقف بالا به‌خاطر CGNAT)
+        if ($ip !== null && !RateLimiter::allow('otp-ip:' . $ip, (int) Config::get('reshen.sms.otp_burst_per_ip_per_minute', 60), 60)) {
+            return ['ok' => false, 'error' => 'از این شبکه درخواست زیادی رسید. یک دقیقهٔ دیگر دوباره تلاش کنید.', 'retry_after' => 60];
+        }
 
         $recent = DB::selectOne(
             'SELECT created_at FROM otp_codes WHERE phone = ? AND purpose = ? AND consumed_at IS NULL ORDER BY id DESC LIMIT 1',
@@ -174,6 +180,19 @@ final class OtpService
 
     public static function clientIp(): ?string
     {
+        /*
+         * پشت CDN (TRUST_PROXY=true) نشانی واقعی در سرآیند است؛ بدونش همهٔ
+         * بازدیدکننده‌ها نشانیِ پروکسی را داشتند و سقف هر IP برای همه با هم پر
+         * می‌شد. بدون پروکسی به سرآیندها اعتماد نمی‌کنیم چون جعل‌شدنی‌اند.
+         */
+        if (Config::get('app.trust_proxy', false)) {
+            foreach (['HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR'] as $header) {
+                $candidate = trim(explode(',', (string) ($_SERVER[$header] ?? ''))[0]);
+                if ($candidate !== '' && filter_var($candidate, FILTER_VALIDATE_IP) !== false) {
+                    return substr($candidate, 0, 45);
+                }
+            }
+        }
         $ip = $_SERVER['REMOTE_ADDR'] ?? null;
 
         return is_string($ip) && $ip !== '' ? substr($ip, 0, 45) : null;

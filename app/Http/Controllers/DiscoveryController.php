@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Core\Cache;
 use App\Core\DB;
+use App\Core\RateLimiter;
 use App\Core\Request;
 use App\Core\Response;
 use App\Domain\Catalog\ServiceRepository;
@@ -23,6 +24,11 @@ final class DiscoveryController extends Controller
         foreach (['q', 'city', 'neighborhood', 'max_price', 'rating', 'page', 'audience', 'cat'] as $key) {
             $value = $request->query($key, '');
             $filters[$key] = is_string($value) ? trim($value) : '';
+        }
+        // جست‌وجوی متنی هر بار کلید تازه‌ای در کش می‌سازد و به دیتابیس می‌رسد؛
+        // سیلِ آن از یک شبکه ارزان پس زده می‌شود. مرورِ عادی هرگز به این سقف نمی‌رسد.
+        if ($filters['q'] !== '' && !RateLimiter::allow('search-ip:' . $request->ip(), 300, 60)) {
+            return RateLimiter::tooMany(60);
         }
         $filters['favorites'] = $request->path === '/me/favorites';
         if ($filters['favorites'] && !CustomerAuth::check()) {

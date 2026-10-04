@@ -520,6 +520,33 @@ try {
     check('جدول ناموجود «شلوغ است» نیست', !App\Core\Overloaded::isOverload($pdoError('missing table', 1146)));
     check('بن‌بست «شلوغ است» نیست (تلاش دوباره دارد)', !App\Core\Overloaded::isOverload($pdoError('deadlock', 1213)));
 
+    // ─── محدودیت نرخ ──────────────────────────────────────────────────
+    section('محدودیت نرخ');
+    $bucket = 'test-' . bin2hex(random_bytes(3));
+    $allowed = 0;
+    for ($i = 0; $i < 5; $i++) {
+        $allowed += App\Core\RateLimiter::allow($bucket, 3, 60) ? 1 : 0;
+    }
+    if (App\Core\Cache::shared()) {
+        check('با APCu: پس از سقف پس زده می‌شود', $allowed === 3, (string) $allowed);
+        check('هر سطل جداست', App\Core\RateLimiter::allow($bucket . '-other', 3, 60));
+        $_SERVER['REMOTE_ADDR'] = '10.9.8.' . random_int(1, 250);
+        for ($i = 0; $i < 60; $i++) {
+            App\Core\RateLimiter::allow('otp-ip:' . $_SERVER['REMOTE_ADDR'], 60, 60);
+        }
+        $burst = (new OtpService())->request(IranMobile::parse('09127770002'));
+        check('سیلِ درخواست کد از یک شبکه پیش از دیتابیس پس زده می‌شود', !$burst['ok'] && ($burst['retry_after'] ?? 0) === 60, (string) ($burst['error'] ?? ''));
+        unset($_SERVER['REMOTE_ADDR']);
+    } else {
+        check('بدون APCu: محدودیت حافظه‌ای کاری نمی‌کند (نوشتن دیتابیسی اضافه نیست)', $allowed === 5);
+    }
+    check('۴۲۹ سبک با Retry-After و بدون کش', App\Core\RateLimiter::tooMany(30)->status === 429 && App\Core\RateLimiter::tooMany(30)->headers['Retry-After'] === '30' && App\Core\RateLimiter::tooMany()->headers['Cache-Control'] === 'no-store');
+    $_SERVER['REMOTE_ADDR'] = '10.0.0.1';
+    $_SERVER['HTTP_X_FORWARDED_FOR'] = '1.2.3.4';
+    check('بدون پروکسیِ تعریف‌شده، سرآیند جعلی IP را عوض نمی‌کند', OtpService::clientIp() === '10.0.0.1');
+    unset($_SERVER['REMOTE_ADDR'], $_SERVER['HTTP_X_FORWARDED_FOR']);
+    check('سقف IPِ کد ورود برای CGNAT واقع‌بینانه است', (int) Config::get('reshen.sms.otp_hourly_limit_ip') >= 100 && (int) Config::get('reshen.sms.otp_hourly_limit_phone') === 5);
+
     // ─── صندوق خروجی پیامک ────────────────────────────────────────────
     section('صندوق خروجی پیامک');
     $gw = new class implements SmsGatewayInterface {

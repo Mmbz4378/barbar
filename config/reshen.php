@@ -97,8 +97,11 @@ return [
         'max_per_phone_per_day' => 5,
 
         // سقف رزرو از یک IP در یک ساعت — جلوی ساختن انبوه نوبت با
-        // شماره‌های الکی را می‌گیرد
-        'max_per_ip_per_hour' => 10,
+        // شماره‌های الکی را می‌گیرد (شماره به‌طور پیش‌فرض تأیید نمی‌شود).
+        // اینترنت موبایل ایران (CGNAT) خیلی‌ها را پشت یک IP می‌گذارد؛ ۱۰ در
+        // هجوم روی یک سالن پرطرفدار مشتریِ واقعی را هم پس می‌زد. نزدیک ظرفیت
+        // ساعتیِ یک سالن بزرگ است، پس هنوز جلوی پرکردنِ سالن را می‌گیرد.
+        'max_per_ip_per_hour' => (int) Env::get('BOOKING_MAX_PER_IP_PER_HOUR', '30'),
 
         // نوبت‌های آیندهٔ هم‌زمانِ یک شماره. بیشتر از این یعنی یا
         // اشتباه است یا سوءاستفاده.
@@ -177,8 +180,13 @@ return [
 
         // OTP abuse limits. A per-phone cooldown alone is not enough: one
         // attacker cycling many numbers from a single IP never trips it.
+        // سقف هر شماره سخت می‌ماند (جلوی بمباران پیامکیِ یک قربانی). سقف IP
+        // برای همهٔ ورودها در کل سایت است و پشت CGNAT موبایل، ۱۵ در ساعت یعنی
+        // قفل‌شدن ورود برای همه در اولین دقیقه‌های هجوم.
         'otp_hourly_limit_phone' => 5,
-        'otp_hourly_limit_ip' => 15,
+        'otp_hourly_limit_ip' => (int) Env::get('OTP_HOURLY_LIMIT_IP', '200'),
+        // سقف کوتاه‌مدت در حافظه (APCu)، پیش از هر کوئری — سیلِ ربات را ارزان پس می‌زند
+        'otp_burst_per_ip_per_minute' => (int) Env::get('OTP_BURST_PER_IP', '60'),
 
         'max_per_appointment' => 4,
         'quiet_hours_start' => 23,
