@@ -80,6 +80,13 @@ jobs:
       - name: Flow tests with shared cache (APCu)
         run: php -d apc.enable_cli=1 tools/test-flows.php
 
+      # رزرو هم‌زمان با پردازش‌های واقعی و commit واقعی: یک سانس فقط یک برنده،
+      # یک شماره فقط یک نوبت، و قفلِ گرفته‌شده ← «شلوغ است» پس از ~۵ ثانیه.
+      - name: Concurrent booking race
+        run: |
+          php tools/seed-demo.php
+          php tests/load/booking-race.php --n=12
+
   ui:
     runs-on: ubuntu-latest
     services:

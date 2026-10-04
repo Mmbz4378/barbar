@@ -11,4 +11,6 @@ return [
     'username' => Env::get('DB_USERNAME', 'root'),
     'password' => Env::get('DB_PASSWORD', ''),
     'charset' => 'utf8mb4',
+    // سقف انتظار برای قفل ردیف (ثانیه) — app/Core/DB.php
+    'lock_wait_timeout' => (int) Env::get('DB_LOCK_WAIT_TIMEOUT', '5'),
 ];

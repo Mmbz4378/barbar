@@ -444,6 +444,34 @@ try {
     Now::freeze($was);
     check('پس از یک دقیقه دوباره حساب می‌شود (سقف کهنگی)', $calls === 5, (string) $calls);
 
+    // ─── تلاش دوباره روی قفل (سطح درونی) ─────────────────────────────
+    // آزمون داخل تراکنش است: سطح درونی نباید خودش تلاش کند — بن‌بست کل تراکنش را
+    // برگردانده و فقط بیرونی‌ترین سطح می‌تواند از نو شروع کند (tests/load/booking-race.php).
+    section('قفل و هم‌زمانی');
+    $deadlock = new PDOException('deadlock');
+    $deadlock->errorInfo = ['40001', 1213, 'Deadlock'];
+    $seen = null;
+    try {
+        DB::retryOnLockConflict(static function () use ($deadlock) {
+            throw $deadlock;
+        });
+    } catch (Throwable $e) {
+        $seen = $e;
+    }
+    check('بن‌بست در سطح درونی به بیرون سپرده می‌شود', $seen === $deadlock);
+    $other = new PDOException('other');
+    $other->errorInfo = ['42S02', 1146, 'missing table'];
+    $seen = null;
+    try {
+        DB::retryOnLockConflict(static function () use ($other) {
+            throw $other;
+        });
+    } catch (Throwable $e) {
+        $seen = $e;
+    }
+    check('خطای غیرقفلی دست‌نخورده بالا می‌رود', $seen === $other);
+    check('سقف انتظار قفل روی اتصال اعمال شده', (int) DB::selectOne('SELECT @@SESSION.innodb_lock_wait_timeout AS w')['w'] === (int) Config::get('database.lock_wait_timeout', 5));
+
     // ─── صندوق خروجی پیامک ────────────────────────────────────────────
     section('صندوق خروجی پیامک');
     $gw = new class implements SmsGatewayInterface {

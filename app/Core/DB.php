@@ -41,6 +41,16 @@ final class DB
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES => false,
             ]);
+
+            /*
+             * سقف انتظار برای قفل ردیف. پیش‌فرض MySQL پنجاه ثانیه است: زیر هجوم
+             * روی یک سالن، درخواست‌ها تا پنجاه ثانیه پشت قفل می‌ماندند و هرکدام
+             * یک پردازش PHP را نگه می‌داشت — سالن‌های دیگر هم از دسترس خارج
+             * می‌شدند. بخش قفل‌شده چند میلی‌ثانیه است، پس چند ثانیه انتظار یعنی
+             * صدها درخواستِ جلوتر؛ بیش از آن، پیام «شلوغ است» بهتر از معطلی است.
+             */
+            $wait = max(1, min(50, (int) Config::get('database.lock_wait_timeout', 5)));
+            self::$pdo->exec('SET SESSION innodb_lock_wait_timeout = ' . $wait);
         }
 
         return self::$pdo;
@@ -147,6 +157,37 @@ final class DB
      * خطا ردش می‌کند — یک SAVEPOINT ساخته می‌شود تا شکستِ بخش درونی فقط
      * همان بخش را برگرداند.
      */
+    /**
+     * کار را اجرا می‌کند و اگر به بن‌بست (deadlock) خورد، یک بار دیگر.
+     *
+     *  - 1213 بن‌بست: InnoDB یکی از دو تراکنش را برگردانده و طرف مقابل رفته؛
+     *    تلاش دوباره معمولاً موفق است.
+     *  - 1205 پایان مهلت قفل: نگه‌دارنده هنوز نگه داشته؛ تلاش دوباره فقط انتظار
+     *    را دو برابر می‌کرد. بی‌درنگ پیام «شلوغ است».
+     *
+     * فقط در بیرونی‌ترین سطح دوباره تلاش می‌کند: بن‌بست کل تراکنش را برمی‌گرداند
+     * و تکرارِ یک savepoint درونی بی‌معناست؛ آنجا خطا بالا می‌رود تا سطح بیرونی
+     * تصمیم بگیرد.
+     */
+    public static function retryOnLockConflict(callable $work, int $retries = 1): mixed
+    {
+        $attempt = 0;
+        while (true) {
+            try {
+                return $work();
+            } catch (\PDOException $e) {
+                $code = (int) ($e->errorInfo[1] ?? 0);
+                if (($code !== 1213 && $code !== 1205) || self::connection()->inTransaction()) {
+                    throw $e;
+                }
+                if ($code === 1205 || $attempt++ >= $retries) {
+                    throw new LockConflict();
+                }
+                usleep(random_int(20, 100) * 1000);
+            }
+        }
+    }
+
     public static function transaction(callable $callback): mixed
     {
         $pdo = self::connection();

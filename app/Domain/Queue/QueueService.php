@@ -35,9 +35,15 @@ final class QueueService
     {
         if (DB::connection()->inTransaction()) return $callback();
         try {
-        $result = DB::transaction(function() use($salonId,$callback) {
-            if (!DB::selectOne('SELECT id FROM salons WHERE id=? AND is_active=1 FOR UPDATE',[$salonId])) throw new RuntimeException('سالن فعال نیست.');
-            return $callback();
+        // بن‌بست یک بار دوباره؛ پیش از هر تلاش، اعلان‌های تلاشِ برگشته پاک می‌شوند.
+        $result = DB::retryOnLockConflict(function () use ($salonId, $callback) {
+            $this->notifyPending = [];
+            $this->cancelledBySalon = [];
+
+            return DB::transaction(function() use($salonId,$callback) {
+                if (!DB::selectOne('SELECT id FROM salons WHERE id=? AND is_active=1 FOR UPDATE',[$salonId])) throw new RuntimeException('سالن فعال نیست.');
+                return $callback();
+            });
         });
         } catch (\Throwable $e) {
             $this->notifyPending = [];

@@ -69,11 +69,17 @@ final class BookingService
         }
         $start = new DateTimeImmutable($date->format('Y-m-d') . ' ' . $time . ':00');
 
-        $result = DB::transaction(function () use ($salonId, $preferredStaffId, $serviceIds, $start, $phoneRaw, $name, $ip, $online, $note, $createdBy) {
+        $result = DB::retryOnLockConflict(fn () => DB::transaction(function () use ($salonId, $preferredStaffId, $serviceIds, $start, $phoneRaw, $name, $ip, $online, $note, $createdBy) {
             /*
-             * قفل روی ردیف سالن: رزرو آنلاین، رزرو پنل و اکشن‌های صف همه
-             * از همین قفل رد می‌شوند، پس دو درخواست هم‌زمان نمی‌توانند یک
-             * سانس را دو بار بگیرند.
+             * قفل روی ردیف سالن: رزرو آنلاین، رزرو پنل و اکشن‌های صف (نوبت
+             * حضوری، شروع، پایان، لغو) همه از همین قفل رد می‌شوند، پس دو درخواست
+             * هم‌زمان نمی‌توانند یک صندلی را دو بار بگیرند.
+             *
+             * عمداً به قفلِ تک‌تکِ کارکنان باریک نشده: صف حضوری «هر کسی که آزاد
+             * است» را بین همهٔ کارکنان انتخاب می‌کند، پس قفلِ جزئی، این دو را از
+             * هم جدا می‌کرد و دوبار رزرو ممکن می‌شد. به‌جایش بخش قفل‌شده کوتاه است
+             * (چند میلی‌ثانیه؛ پیامک بیرون از آن و پس از پاسخ) و انتظار برای قفل سقف
+             * دارد (DB::connection) — سالنِ پرتقاضا پردازش‌ها را معطل نمی‌کند.
              */
             $salon = DB::selectOne(
                 'SELECT id, name, deposit_card_number, deposit_hold_minutes FROM salons WHERE id = ? AND is_active = 1 FOR UPDATE',
@@ -148,7 +154,7 @@ final class BookingService
                 'customer' => $customer,
                 'confirmed' => $status === 'confirmed',
             ];
-        });
+        }));
 
         if ($result['confirmed']) {
             $this->sendConfirmation($salonId, $result['appointment'], $result['customer']);
@@ -237,7 +243,7 @@ final class BookingService
      */
     public function confirmDeposit(int $salonId, int $appointmentId, string $method, ?int $userId): void
     {
-        $confirmed = DB::transaction(function () use ($salonId, $appointmentId, $method, $userId) {
+        $confirmed = DB::retryOnLockConflict(fn () => DB::transaction(function () use ($salonId, $appointmentId, $method, $userId) {
             $appointments = new AppointmentRepository();
             $appt = DB::selectOne('SELECT * FROM appointments WHERE salon_id = ? AND id = ? FOR UPDATE', [$salonId, $appointmentId]);
             if ($appt === null) {
@@ -258,7 +264,7 @@ final class BookingService
             }
 
             return $appointments->find($salonId, (int) $group[0]['id']);
-        });
+        }));
 
         if ($confirmed !== null) {
             $customer = DB::selectOne('SELECT * FROM customers WHERE id = ? AND salon_id = ?', [$confirmed['customer_id'], $salonId]);
