@@ -905,6 +905,18 @@ html.dark .rating .star-empty{color:var(--text-subtle)}
 .auth__brand{display:flex;flex-direction:column;align-items:center;gap:var(--space-3);margin-block-end:var(--space-6);text-align:center}
 
 /* Print (QR sheet, receipts) */
+/* ── گالری سیستم طراحی (/system/design) ─────────────────────────── */
+.ds-toc{padding-block:var(--space-2)}
+.ds-demo{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-3);padding:var(--space-4);border:1px dashed var(--border-strong);border-radius:var(--radius-lg);background:var(--bg)}
+.ds-demo--stack{flex-direction:column;align-items:stretch}
+.ds-demo>*{min-width:0;max-width:100%}
+.ds-demo .day-strip{margin-inline:0;padding-inline:0}
+.ds-swatches{display:grid;gap:var(--space-3);grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
+.ds-swatch{display:flex;flex-direction:column;gap:var(--space-1);font-size:var(--text-xs)}
+.ds-swatch__chip{height:56px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--sw)}
+.ds-space{height:12px;width:var(--sw);border-radius:var(--radius-xs);background:var(--accent)}
+.ds-radius{width:56px;height:56px;border:2px solid var(--accent);border-radius:var(--sw);background:var(--accent-soft)}
+
 /* ── حالت کنتراست بالای ویندوز (forced-colors) ────────────────────────
  * سیستم رنگ‌ها را با پالت خودش جایگزین می‌کند؛ هر چیزی که فقط با رنگ
  * زمینه از اطرافش جدا می‌شد، باید قاب یا نشانهٔ دیگری بگیرد. */

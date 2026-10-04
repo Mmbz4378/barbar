@@ -31,6 +31,7 @@ $router->group(['middleware' => [PlatformAdminRequired::class]], function ($rout
 // به‌روزرسانی سامانه — مدیر پلتفرم، یا صاحب سالن در نصب تک‌سالنی
 $router->group(['middleware' => [SystemAdminRequired::class]], function ($router) {
     $router->get('/system/updates', [SystemUpdateController::class, 'index']);
+    $router->get('/system/design', [App\Http\Controllers\DesignSystemController::class, 'index']);
 
     $router->group(['middleware' => [VerifyCsrf::class]], function ($router) {
         $router->post('/system/updates/check', [SystemUpdateController::class, 'check']);

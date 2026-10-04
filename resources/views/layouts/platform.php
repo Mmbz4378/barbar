@@ -12,9 +12,11 @@ $items = $isAdmin ? [
     ['/platform/moderation', 'بررسی انتشار و نظرها', 'shield', false, 'بررسی'],
     ['/platform/holidays', 'تعطیلات رسمی', 'calendar', false, 'تعطیلات'],
     ['/system/updates', 'به‌روزرسانی سامانه', 'refresh', false, 'نسخه'],
+    ['/system/design', 'سیستم طراحی', 'palette', false, 'طراحی'],
 ] : [
     ['/panel', 'بازگشت به پنل سالن', 'home', true, 'پنل'],
     ['/system/updates', 'به‌روزرسانی سامانه', 'refresh', false, 'نسخه'],
+    ['/system/design', 'سیستم طراحی', 'palette', false, 'طراحی'],
 ];
 ?>
 <!doctype html>
@@ -46,7 +48,7 @@ $items = $isAdmin ? [
   </div>
 </div>
 <nav class="tabbar" aria-label="ناوبری پلتفرم">
-  <?php foreach ($items as [$href, $label, $symbol, $exact, $short]): ?>
+  <?php foreach ($items as [$href, $label, $symbol, $exact, $short]): if ($href === '/system/design') { continue; } // ابزار توسعه؛ فقط در منوی دسکتاپ ?>
     <a class="tabbar__item" href="<?= e(url($href)) ?>" <?= is_path($href, $exact) ? 'aria-current="page"' : '' ?> aria-label="<?= e($label) ?>"><?= icon($symbol) ?><span><?= e($short) ?></span><?php if ($href === '/system/updates' && $updateBadge): ?><span class="tabbar__badge" aria-label="نسخهٔ تازه">۱</span><?php endif; ?></a>
   <?php endforeach; ?>
   <a class="tabbar__item" href="<?= e(url('logout')) ?>"><?= icon('logout') ?><span>خروج</span></a>
