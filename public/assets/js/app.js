@@ -141,6 +141,12 @@
     if (e.target.tagName === 'DIALOG' && e.target.classList.contains('sheet')) closeDialog(e.target);
   });
 
+  /* ── چاپ و بازگشت (جای onclick/javascript: درون‌خطی، تا CSP سفت بماند) ── */
+  doc.addEventListener('click', function (e) {
+    if (e.target.closest('[data-print]')) { e.preventDefault(); window.print(); return; }
+    if (e.target.closest('[data-back]')) { e.preventDefault(); history.back(); }
+  });
+
   /* ── منوی «بیشتر» (details) با Escape بسته می‌شود ─────────────────── */
   doc.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;

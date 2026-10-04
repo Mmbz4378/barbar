@@ -8,6 +8,6 @@
   <?php else: ?>
     <h1 class="empty__title">خطایی رخ داد</h1>
     <p class="empty__text">درخواست شما انجام نشد. چند لحظه بعد دوباره تلاش کنید؛ اگر مشکل ادامه داشت با سالن تماس بگیرید.</p>
-    <a class="btn btn--secondary" href="javascript:history.back()">بازگشت</a>
+    <button type="button" class="btn btn--secondary" data-back>بازگشت</button>
   <?php endif; ?>
 </div>

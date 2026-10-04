@@ -136,7 +136,7 @@ $role = (string) $v('role', $account['role'] ?? 'staff');
     <a class="btn btn--ghost btn--lg" href="<?= e(url('panel/staff')) ?>">انصراف</a>
   </div>
 </form>
-<script>
+<script nonce="<?= e(csp_nonce()) ?>">
 /* ساعت‌ها فقط وقتی «ساعت دیگر» انتخاب شده نمایش داده می‌شوند. */
 (function () {
   Array.prototype.forEach.call(document.querySelectorAll('[data-hours-mode]'), function (select) {

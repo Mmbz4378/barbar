@@ -110,7 +110,7 @@ $oldTime = (string) old('time');
     </div>
   </form>
 </div>
-<script>
+<script nonce="<?= e(csp_nonce()) ?>">
 /* تغییر انتخاب‌ها ساعت‌ها را دوباره حساب کند (بدون این هم دکمه کار می‌کند). */
 (function () { var f = document.getElementById('pick-form'); if (f) f.addEventListener('change', function () { f.submit(); }); })();
 </script>

@@ -45,7 +45,7 @@ $menuLink = rtrim($link, '/') . '/menu';
       <div class="card"><div class="card__body stack stack-md">
         <h2 class="card__title">فایل QR</h2>
         <div class="btn-row">
-          <button type="button" class="btn btn--primary" onclick="window.print()"><?= icon('printer') ?> چاپ برگه</button>
+          <button type="button" class="btn btn--primary" data-print><?= icon('printer') ?> چاپ برگه</button>
           <a class="btn btn--secondary" href="<?= e(url('panel/qr.svg')) ?>" download><?= icon('download') ?> SVG برای چاپ</a>
           <?php if ($pngAvailable): ?><a class="btn btn--secondary" href="<?= e(url('panel/qr.png')) ?>" download><?= icon('download') ?> PNG برای واتساپ</a><?php endif; ?>
         </div>

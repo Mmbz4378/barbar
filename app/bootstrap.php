@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Core\Autoloader;
 use App\Core\Config;
 use App\Core\Env;
+use App\Core\Security;
 use App\Core\Session;
 use App\Core\View;
 
@@ -37,6 +38,11 @@ date_default_timezone_set((string) Config::get('app.timezone', 'Asia/Tehran'));
 View::setBasePath(BASE_PATH . '/resources/views');
 
 Session::start();
+
+// سربرگ‌های امنیتی و CSP روی هر پاسخ (عادی، خطا، حالت تعمیر) — مستقل از
+// اینکه میزبان آپاچی است یا نه. nonce همین‌جا ساخته می‌شود تا تگ‌های
+// اسکریپت درون‌خطی نماها با سربرگ CSP یکی باشند.
+Security::send();
 
 if (Config::get('app.debug')) {
     ini_set('display_errors', '1');

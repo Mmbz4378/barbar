@@ -28,7 +28,7 @@ $manifestUrl = url('manifest.webmanifest') . ($pwaSlug !== null ? '?s=' . rawurl
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="<?= e($pwaTitle ?? 'رشن') ?>">
-<script>
+<script nonce="<?= e(csp_nonce()) ?>">
 /* روشن/تیره پیش از اولین رنگ‌آمیزی، تا «پرش سفید» دیده نشود. */
 (function () {
   window.reshenApplyMode = function (dark) {

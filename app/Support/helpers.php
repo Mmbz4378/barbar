@@ -37,6 +37,14 @@ if (!function_exists('e')) {
     }
 }
 
+if (!function_exists('csp_nonce')) {
+    /** nonce سیاست امنیت محتوا برای تگ‌های <script> درون‌خطی. */
+    function csp_nonce(): string
+    {
+        return \App\Core\Security::nonce();
+    }
+}
+
 if (!function_exists('url')) {
     function url(string $path = ''): string
     {
