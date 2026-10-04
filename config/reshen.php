@@ -39,7 +39,9 @@ return [
         'rolling_window_samples' => 200,
         // Outlier filtering: durations outside this range are discarded from stats.
         'outlier_min_minutes' => 5,
-        'outlier_max_minutes' => 180,
+        // خدمات زنانه (رنگ و لایت، عروس) تا چند ساعت طول می‌کشند؛ سقف ۱۸۰
+        // دقیقه همهٔ نمونه‌های واقعی آن‌ها را دور می‌ریخت.
+        'outlier_max_minutes' => 480,
         // Customer personal duration factor: needs at least this many visits to activate.
         'customer_factor_min_visits' => 3,
         'customer_factor_min' => 0.7,
@@ -186,12 +188,5 @@ return [
     ],
 
     'discovery' => ['maps_enabled' => Env::get('MAPS_ENABLED', 'true') === 'true'],
-    'payment' => [
-        'driver' => Env::get('PAYMENT_DRIVER', 'disabled'),
-        'zarinpal' => ['merchant_id' => Env::get('ZARINPAL_MERCHANT_ID', ''), 'sandbox' => Env::get('ZARINPAL_SANDBOX', 'true') === 'true'],
-    ],
-    'payments' => [
-        'driver' => Env::get('PAYMENT_DRIVER', 'manual'),
-    ],
 ];
 

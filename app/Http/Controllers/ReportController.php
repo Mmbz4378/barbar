@@ -19,7 +19,10 @@ final class ReportController extends Controller
     public function daily(Request $request): Response
     {
         $salonId = (int) Auth::salonId();
-        $date = jalali_date_from_request($request, 'date') ?? Now::today()->format('Y-m-d');
+        $raw = (string) $request->query('date', '');
+        $date = preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw) === 1 && checkdate((int) substr($raw, 5, 2), (int) substr($raw, 8, 2), (int) substr($raw, 0, 4))
+            ? $raw
+            : (jalali_date_from_request($request, 'date') ?? Now::today()->format('Y-m-d'));
 
         return $this->page('layouts.panel', 'panel.reports.daily', array_merge(
             ['title' => 'گزارش روزانه', 'date' => $date, 'label' => JalaliCalendar::humanDate(new DateTimeImmutable($date), true)],

@@ -1,9 +1,9 @@
 <?php
 /** قالب پنل پلتفرم — بیرون از هر سالن. */
 $items = [
-    ['/platform', 'سالن‌ها', 'store', true],
-    ['/platform/moderation', 'بررسی انتشار و نظرها', 'shield', false],
-    ['/platform/holidays', 'تعطیلات رسمی', 'calendar', false],
+    ['/platform', 'سالن‌ها', 'store', true, 'سالن‌ها'],
+    ['/platform/moderation', 'بررسی انتشار و نظرها', 'shield', false, 'بررسی'],
+    ['/platform/holidays', 'تعطیلات رسمی', 'calendar', false, 'تعطیلات'],
 ];
 ?>
 <!doctype html>
@@ -35,8 +35,8 @@ $items = [
   </div>
 </div>
 <nav class="tabbar" aria-label="ناوبری پلتفرم">
-  <?php foreach ($items as [$href, $label, $symbol, $exact]): ?>
-    <a class="tabbar__item" href="<?= e(url($href)) ?>" <?= is_path($href, $exact) ? 'aria-current="page"' : '' ?>><?= icon($symbol) ?><span><?= e($label) ?></span></a>
+  <?php foreach ($items as [$href, $label, $symbol, $exact, $short]): ?>
+    <a class="tabbar__item" href="<?= e(url($href)) ?>" <?= is_path($href, $exact) ? 'aria-current="page"' : '' ?> aria-label="<?= e($label) ?>"><?= icon($symbol) ?><span><?= e($short) ?></span></a>
   <?php endforeach; ?>
   <a class="tabbar__item" href="<?= e(url('logout')) ?>"><?= icon('logout') ?><span>خروج</span></a>
 </nav>

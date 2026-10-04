@@ -1,40 +1,106 @@
-<?php /** @var array $salons @var array $metrics */ ?>
-<h1 class="page-title mb-5">پنل پلتفرم</h1>
+<?php
+/**
+ * @var array $salons
+ * @var array $metrics
+ * @var array $filters
+ * @var int $total
+ * @var int $page
+ * @var int $pages
+ */
+use App\Support\Audience;
 
-<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-  <div class="glass rounded-2xl p-4 text-center">
-    <div class="text-2xl font-extrabold text-accent"><?= fa_num($metrics['active_salons']) ?></div>
-    <div class="text-[12px] text-ink-400 mt-1">سالن فعال</div>
+$plans = ['trial' => 'آزمایشی', 'basic' => 'پایه', 'pro' => 'حرفه‌ای', 'free' => 'رایگان'];
+
+$pubLabels = ['draft' => ['پیش‌نویس', ''], 'pending' => ['در انتظار بررسی', 'badge--warning'], 'published' => ['منتشرشده', 'badge--success'], 'rejected' => ['رد شده', 'badge--danger']];
+$qs = static fn (array $over) => http_build_query(array_filter(array_merge($filters, $over), static fn ($v) => $v !== '' && $v !== null && $v !== 1));
+?>
+<div class="page-head">
+  <div class="page-head__text">
+    <h1 class="page-head__title">سالن‌ها</h1>
+    <p class="page-head__sub"><?= e(fa_num($total)) ?> سالن<?= array_filter($filters) ? ' با این فیلتر' : '' ?></p>
   </div>
-  <div class="glass rounded-2xl p-4 text-center">
-    <div class="text-2xl font-extrabold text-ink-800"><?= fa_num($metrics['completed_this_week']) ?></div>
-    <div class="text-[12px] text-ink-400 mt-1">نوبت به‌سرانجام‌رسیدهٔ هفته</div>
-  </div>
-  <div class="glass rounded-2xl p-4 text-center">
-    <div class="text-2xl font-extrabold <?= $metrics['mae_minutes'] !== null && $metrics['mae_minutes'] > 12 ? 'text-red-500' : 'text-emerald-600' ?>">
-      <?= $metrics['mae_minutes'] !== null ? fa_num($metrics['mae_minutes']) : '—' ?>
-    </div>
-    <div class="text-[12px] text-ink-400 mt-1">MAE (دقیقه)</div>
-  </div>
-  <div class="glass rounded-2xl p-4 text-center">
-    <div class="text-2xl font-extrabold <?= $metrics['end_registration_rate'] !== null && $metrics['end_registration_rate'] < 70 ? 'text-red-500' : 'text-emerald-600' ?>">
-      <?= $metrics['end_registration_rate'] !== null ? fa_num($metrics['end_registration_rate']) . '٪' : '—' ?>
-    </div>
-    <div class="text-[12px] text-ink-400 mt-1">نرخ ثبت پایان</div>
-  </div>
+  <?php if ($metrics['pending'] > 0): ?>
+    <div class="page-head__actions"><a class="btn btn--primary" href="<?= e(url('platform/moderation')) ?>"><?= icon('shield') ?> بررسی <?= e(fa_num($metrics['pending'])) ?> مورد</a></div>
+  <?php endif; ?>
 </div>
 
-<div class="glass rounded-2xl divide-y divide-ink-100">
-  <?php foreach ($salons as $s): ?>
-  <a href="<?= url('platform/' . $s['id']) ?>" class="flex items-center justify-between px-5 py-3.5 hover:bg-ink-50">
-    <div>
-      <div class="font-bold text-ink-800"><?= e($s['name']) ?></div>
-      <div class="text-xs text-ink-400"><?= e($s['city'] ?? '—') ?> · <?= fa_num($s['staff_count']) ?> آرایشگر · <?= fa_num($s['completed_count']) ?> نوبت</div>
+<div class="stack stack-lg">
+  <div class="stats" style="--cols:4">
+    <div class="stat stat--accent">
+      <span class="stat__label"><?= icon('store') ?> سالن فعال</span>
+      <span class="stat__value num"><?= e(fa_num($metrics['active_salons'])) ?></span>
+      <span class="stat__hint">مردانه <?= e(fa_num($metrics['by_audience']['men'])) ?> · بانوان <?= e(fa_num($metrics['by_audience']['women'])) ?> · هر دو <?= e(fa_num($metrics['by_audience']['unisex'])) ?></span>
     </div>
-    <div class="text-left">
-      <span class="text-[12px] px-2 py-0.5 rounded-full bg-gold-50 text-accent"><?= e($s['plan_code']) ?></span>
-      <div class="text-[12px] text-ink-400 mt-1"><?= jdate($s['created_at'], 'Y/m/d') ?></div>
+    <div class="stat">
+      <span class="stat__label"><?= icon('circle-check') ?> مراجعهٔ انجام‌شده (۷ روز)</span>
+      <span class="stat__value num"><?= e(fa_num($metrics['completed_this_week'])) ?></span>
     </div>
-  </a>
-  <?php endforeach; ?>
+    <div class="stat">
+      <span class="stat__label"><?= icon('clock') ?> خطای تخمین زمان</span>
+      <span class="stat__value num <?= $metrics['mae_minutes'] !== null && $metrics['mae_minutes'] > 12 ? 'danger-text' : '' ?>"><?= $metrics['mae_minutes'] !== null ? e(fa_num($metrics['mae_minutes'])) . ' <span class="text-sm muted">دقیقه</span>' : '—' ?></span>
+      <span class="stat__hint">میانگین اختلاف شروع واقعی با تخمین (۳۰ روز)</span>
+    </div>
+    <div class="stat">
+      <span class="stat__label"><?= icon('list') ?> نرخ ثبت پایان</span>
+      <span class="stat__value num <?= $metrics['end_registration_rate'] !== null && $metrics['end_registration_rate'] < 70 ? 'danger-text' : '' ?>"><?= $metrics['end_registration_rate'] !== null ? e(fa_num($metrics['end_registration_rate'])) . '٪' : '—' ?></span>
+      <span class="stat__hint"><?= $metrics['low_sms'] > 0 ? e(fa_num($metrics['low_sms'])) . ' سالن اعتبار پیامک کم دارند' : 'نوبت‌هایی که پایانشان ثبت شده' ?></span>
+    </div>
+  </div>
+
+  <form method="get" action="<?= e(url('platform')) ?>" class="card card--flat"><div class="card__body cluster" style="--gap:12px">
+    <div class="field grow" style="min-width:200px">
+      <label class="sr-only" for="pf-q">جست‌وجو</label>
+      <input class="input input-search" id="pf-q" type="search" name="q" value="<?= e($filters['q']) ?>" placeholder="نام، نشانی صفحه، شهر یا تلفن">
+    </div>
+    <label class="sr-only" for="pf-status">وضعیت</label>
+    <select class="select select--compact" id="pf-status" name="status">
+      <option value="">همهٔ وضعیت‌ها</option>
+      <?php foreach (['published' => 'منتشرشده', 'pending' => 'در انتظار بررسی', 'draft' => 'پیش‌نویس', 'rejected' => 'رد شده', 'inactive' => 'غیرفعال'] as $key => $label): ?>
+        <option value="<?= e($key) ?>" <?= $filters['status'] === $key ? 'selected' : '' ?>><?= e($label) ?></option>
+      <?php endforeach; ?>
+    </select>
+    <label class="sr-only" for="pf-aud">نوع سالن</label>
+    <select class="select select--compact" id="pf-aud" name="audience">
+      <option value="">همهٔ انواع</option>
+      <?php foreach (Audience::options() as $key => $label): ?><option value="<?= e($key) ?>" <?= $filters['audience'] === $key ? 'selected' : '' ?>><?= e($label) ?></option><?php endforeach; ?>
+    </select>
+    <button class="btn btn--secondary" type="submit"><?= icon('filter') ?> اعمال</button>
+    <?php if (array_filter($filters)): ?><a class="btn btn--ghost" href="<?= e(url('platform')) ?>">پاک کردن</a><?php endif; ?>
+  </div></form>
+
+  <?php if ($salons === []): ?>
+    <?= partial('empty-state', ['icon' => 'store', 'title' => 'سالنی پیدا نشد', 'text' => 'فیلترها را تغییر دهید.']) ?>
+  <?php else: ?>
+    <div class="table-wrap">
+      <table class="table table--stack">
+        <thead><tr><th scope="col">سالن</th><th scope="col">وضعیت</th><th scope="col" class="num">کارکنان</th><th scope="col" class="num">مراجعه (۳۰ روز)</th><th scope="col" class="num">پیامک</th><th scope="col">عضویت</th></tr></thead>
+        <tbody>
+          <?php foreach ($salons as $s): [$pubText, $pubClass] = $pubLabels[$s['publication_status']] ?? ['—', '']; ?>
+            <tr>
+              <td data-label="سالن">
+                <a class="row" style="--gap:10px;color:inherit" href="<?= e(url('platform/' . $s['id'])) ?>">
+                  <span class="avatar avatar--sm avatar--square" data-theme="<?= e(App\Support\Theme::resolve($s['theme'])) ?>" aria-hidden="true"><?= e(initial($s['name'])) ?></span>
+                  <span class="stack" style="gap:0"><strong><?= e($s['name']) ?></strong><span class="text-xs muted"><?= e(Audience::options()[$s['audience']] ?? '') ?><?= $s['city'] ? ' · ' . e($s['city']) : '' ?></span></span>
+                </a>
+              </td>
+              <td data-label="وضعیت">
+                <?php if (!(int) $s['is_active']): ?><span class="badge badge--danger">غیرفعال</span><?php else: ?><span class="badge <?= e($pubClass) ?>"><?= e($pubText) ?></span><?php endif; ?>
+              </td>
+              <td data-label="کارکنان" class="num"><?= e(fa_num((int) $s['staff_count'])) ?></td>
+              <td data-label="مراجعه (۳۰ روز)" class="num"><?= e(fa_num((int) $s['completed_30d'])) ?></td>
+              <td data-label="پیامک" class="num <?= (int) $s['sms_credit'] < 20 ? 'warning-text' : '' ?>"><?= e(fa_num((int) $s['sms_credit'])) ?></td>
+              <td data-label="عضویت"><span class="badge badge--outline"><?= e($plans[$s['plan_code']] ?? $s['plan_code']) ?></span> <span class="text-xs muted"><?= e(jdate($s['created_at'], 'Y/m/d')) ?></span></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+    <?php if ($pages > 1): ?>
+      <nav class="spread" aria-label="صفحه‌بندی">
+        <?php if ($page > 1): ?><a class="btn btn--secondary" href="<?= e(url('platform?' . $qs(['page' => $page - 1]))) ?>"><?= icon('chevron-start') ?> قبلی</a><?php else: ?><span></span><?php endif; ?>
+        <span class="text-sm muted">صفحهٔ <?= e(fa_num($page)) ?> از <?= e(fa_num($pages)) ?></span>
+        <?php if ($page < $pages): ?><a class="btn btn--secondary" href="<?= e(url('platform?' . $qs(['page' => $page + 1]))) ?>">بعدی <?= icon('chevron-end') ?></a><?php else: ?><span></span><?php endif; ?>
+      </nav>
+    <?php endif; ?>
+  <?php endif; ?>
 </div>

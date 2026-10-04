@@ -48,54 +48,56 @@ foreach ($groups as $rows) {
 }
 ?>
 <!doctype html>
-<html lang="fa" dir="rtl">
+<html lang="fa" dir="rtl" data-font="<?= e((string) App\Core\Config::get('reshen.ui.font', 'iranyekan')) ?>">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>سلامت سیستم — رشن</title>
-<link rel="stylesheet" href="<?= e(asset('css/app.css')) ?>">
+<?php $title = 'سلامت سیستم'; include BASE_PATH . '/resources/views/components/head.php'; ?>
 </head>
-<body class="bg-slate-50 text-slate-900 p-4">
-<div class="max-w-3xl mx-auto py-6">
-
-  <h1 class="text-2xl font-bold text-brand-700 mb-1">سلامت سیستم</h1>
-  <p class="text-sm text-slate-500 mb-5">
-    <?= e($_SERVER['HTTP_HOST'] ?? '') ?> · <?= e(jdate(date('Y-m-d H:i:s'))) ?>
-  </p>
-
-  <div class="rounded-xl p-4 mb-6 font-bold <?= $counts['fail'] > 0
-        ? 'bg-red-50 text-red-700' : ($counts['warn'] > 0 ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700') ?>">
-    <?php if ($counts['fail'] > 0): ?>
-      <?= e(fa_num($counts['fail'])) ?> مورد نیاز به رسیدگی دارد.
-    <?php elseif ($counts['warn'] > 0): ?>
-      همه‌چیز کار می‌کند، ولی <?= e(fa_num($counts['warn'])) ?> هشدار هست.
-    <?php else: ?>
-      همه‌چیز سالم است.
-    <?php endif; ?>
+<body>
+<?php include BASE_PATH . '/resources/views/components/body-start.php'; ?>
+<main id="main" class="public__main" style="max-width:760px;margin-inline:auto;padding:24px 16px 48px">
+  <div class="page-head">
+    <div class="page-head__text">
+      <h1 class="page-head__title">سلامت سیستم</h1>
+      <p class="page-head__sub"><span class="ltr"><?= e($_SERVER['HTTP_HOST'] ?? '') ?></span> · <?= e(jdate(date('Y-m-d H:i:s'))) ?></p>
+    </div>
   </div>
 
-  <?php foreach ($groups as $group => $rows): ?>
-    <h2 class="text-xs font-bold text-slate-500 mt-5 mb-2"><?= e((string) $group) ?></h2>
-    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
-      <?php foreach ($rows as $row): ?>
-        <div class="flex flex-wrap gap-2 items-start px-4 py-3 border-b border-slate-100 last:border-b-0">
-          <span class="w-5 font-bold <?= $row['status'] === 'ok' ? 'text-green-600'
-                : ($row['status'] === 'warn' ? 'text-amber-600' : 'text-red-600') ?>">
-            <?= $row['status'] === 'ok' ? '✓' : ($row['status'] === 'warn' ? '!' : '✗') ?>
-          </span>
-          <span class="flex-1 min-w-0 font-semibold text-sm"><?= e($row['label']) ?></span>
-          <span class="text-xs text-slate-500 font-mono ltr"><?= e($row['value']) ?></span>
-          <?php if ($row['hint'] !== ''): ?>
-            <p class="w-full text-xs text-slate-500 ps-7 mt-1"><?= e($row['hint']) ?></p>
-          <?php endif; ?>
-        </div>
-      <?php endforeach; ?>
-    </div>
-  <?php endforeach; ?>
+  <?php $tone = $counts['fail'] > 0 ? 'danger' : ($counts['warn'] > 0 ? 'warning' : 'success'); ?>
+  <div class="alert alert--<?= $tone ?> mb-6" role="status">
+    <?= icon($tone === 'success' ? 'circle-check' : 'alert') ?>
+    <div class="alert__body"><p class="alert__title">
+      <?php if ($counts['fail'] > 0): ?>
+        <?= e(fa_num($counts['fail'])) ?> مورد نیاز به رسیدگی دارد.
+      <?php elseif ($counts['warn'] > 0): ?>
+        همه‌چیز کار می‌کند، ولی <?= e(fa_num($counts['warn'])) ?> هشدار هست.
+      <?php else: ?>
+        همه‌چیز سالم است.
+      <?php endif; ?>
+    </p></div>
+  </div>
 
-  <p class="text-xs text-slate-400 mt-6 text-center">
-    <a class="text-brand-600" href="<?= e(url('/panel')) ?>">بازگشت به پنل</a>
-  </p>
-</div>
+  <div class="stack stack-lg">
+  <?php foreach ($groups as $group => $rows): ?>
+    <section class="stack stack-sm">
+      <h2 class="title-xs muted"><?= e((string) $group) ?></h2>
+      <div class="card"><ul class="list" role="list">
+        <?php foreach ($rows as $row): $st = $row['status']; ?>
+          <li class="list-row" style="align-items:flex-start">
+            <span class="icon-tile icon-tile--<?= $st === 'ok' ? 'success' : ($st === 'warn' ? 'warning' : 'danger') ?>" style="width:32px;height:32px"><?= icon($st === 'ok' ? 'check' : ($st === 'warn' ? 'alert' : 'x'), 'icon', $st === 'ok' ? 'سالم' : ($st === 'warn' ? 'هشدار' : 'خطا')) ?></span>
+            <span class="list-row__body">
+              <span class="list-row__title"><?= e($row['label']) ?></span>
+              <?php if ($row['hint'] !== ''): ?><span class="list-row__meta"><?= e($row['hint']) ?></span><?php endif; ?>
+            </span>
+            <span class="list-row__end text-xs muted ltr" style="max-width:45%;overflow-wrap:anywhere"><?= e($row['value']) ?></span>
+          </li>
+        <?php endforeach; ?>
+      </ul></div>
+    </section>
+  <?php endforeach; ?>
+  </div>
+
+  <p class="center mt-8"><a class="btn btn--secondary" href="<?= e(url('/panel')) ?>"><?= icon('chevron-start') ?> بازگشت به پنل</a></p>
+</main>
+<?php $withInstall = false; include BASE_PATH . '/resources/views/components/body-end.php'; ?>
 </body>
 </html>

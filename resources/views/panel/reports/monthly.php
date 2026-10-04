@@ -1,49 +1,55 @@
 <?php
-/** @var int $jy @var int $jm @var array $totals @var array $breakdown @var array $rescued @var array $dailySeries */
-$methodLabels = ['cash'=>'نقدی','card_to_card'=>'کارت‌به‌کارت','pos'=>'کارتخوان','online'=>'آنلاین'];
-$monthNames = [1=>'فروردین',2=>'اردیبهشت',3=>'خرداد',4=>'تیر',5=>'مرداد',6=>'شهریور',7=>'مهر',8=>'آبان',9=>'آذر',10=>'دی',11=>'بهمن',12=>'اسفند'];
-$maxDaily = max(array_map(fn($d) => (int)$d['total'], $dailySeries) ?: [1]);
+/**
+ * گزارش ماهانه.
+ *
+ * @var int $jy
+ * @var int $jm
+ * @var string $label
+ * @var array $bars
+ * @var array $prev
+ * @var array $next
+ * @var bool $isCurrent
+ */
+$max = max(1, ...array_column($bars, 'total'));
+$best = array_reduce($bars, static fn ($carry, $b) => $carry === null || $b['total'] > $carry['total'] ? $b : $carry);
+$activeDays = count(array_filter($bars, static fn ($b) => $b['total'] > 0));
 ?>
-<div class="flex items-center justify-between mb-5">
-  <h1 class="page-title">گزارش ماهانه — <?= e($monthNames[$jm]) ?> <?= fa_num($jy) ?></h1>
-  <a href="<?= url('panel/reports') ?>" class="text-xs text-accent hover:underline">گزارش روزانه ←</a>
-</div>
-
-<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-  <div class="glass rounded-2xl p-4 text-center">
-    <div class="text-2xl font-extrabold text-accent"><?= toman((int)$totals['total']) ?></div>
-    <div class="text-[12px] text-ink-400 mt-1">فروش کل</div>
+<div class="page-head">
+  <div class="page-head__text">
+    <h1 class="page-head__title">گزارش ماهانه</h1>
+    <p class="page-head__sub"><?= e($label) ?></p>
   </div>
-  <div class="glass rounded-2xl p-4 text-center">
-    <div class="text-2xl font-extrabold text-ink-800"><?= fa_num($totals['count']) ?></div>
-    <div class="text-[12px] text-ink-400 mt-1">تعداد نوبت</div>
-  </div>
-  <div class="glass rounded-2xl p-4 text-center">
-    <div class="text-2xl font-extrabold text-ink-800"><?= toman((int)$totals['tips']) ?></div>
-    <div class="text-[12px] text-ink-400 mt-1">انعام</div>
-  </div>
-  <div class="bg-green-50 rounded-2xl border border-green-100 p-4 text-center">
-    <div class="text-2xl font-extrabold text-green-800"><?= fa_num($rescued['count']) ?></div>
-    <div class="text-[12px] text-green-800 mt-1">نجات‌یافته با یادآور</div>
+  <div class="page-head__actions">
+    <nav class="btn-row" aria-label="جابه‌جایی ماه">
+      <a class="btn btn--secondary btn--icon" href="<?= e(url('panel/reports/monthly?jy=' . $prev[0] . '&jm=' . $prev[1])) ?>" aria-label="ماه قبل"><?= icon('chevron-start') ?></a>
+      <?php if (!$isCurrent): ?>
+        <a class="btn btn--secondary" href="<?= e(url('panel/reports/monthly')) ?>">ماه جاری</a>
+        <a class="btn btn--secondary btn--icon" href="<?= e(url('panel/reports/monthly?jy=' . $next[0] . '&jm=' . $next[1])) ?>" aria-label="ماه بعد"><?= icon('chevron-end') ?></a>
+      <?php endif; ?>
+    </nav>
   </div>
 </div>
+<div class="stack stack-lg">
+  <?php $active = 'monthly'; include __DIR__ . '/_tabs.php'; ?>
 
-<div class="glass rounded-2xl p-5 mb-5">
-  <h2 class="card-title mb-4">روند فروش روزانه</h2>
-  <div class="flex items-end gap-1 h-32">
-    <?php foreach ($dailySeries as $d): $h = max(4, (int)round(((int)$d['total'] / $maxDaily) * 100)); ?>
-    <div class="flex-1 bg-gold-500 rounded-t" style="height:<?= $h ?>%" title="<?= e($d['d']) ?>"></div>
-    <?php endforeach; ?>
-    <?php if (empty($dailySeries)): ?><p class="text-xs text-ink-400">داده‌ای برای این ماه نیست.</p><?php endif; ?>
-  </div>
-</div>
+  <section class="card" aria-labelledby="r-chart">
+    <div class="card__header card__header--divided spread">
+      <h2 class="card__title" id="r-chart">فروش روزبه‌روز</h2>
+      <?php if ($best !== null && $best['total'] > 0): ?><span class="text-sm muted">بهترین روز: <?= e(fa_num($best['day'])) ?>ام · <?= e(toman($best['total'])) ?></span><?php endif; ?>
+    </div>
+    <div class="card__body">
+      <?php if ($activeDays === 0): ?>
+        <?= partial('empty-state', ['icon' => 'chart', 'title' => 'در این ماه پرداختی ثبت نشده']) ?>
+      <?php else: ?>
+        <div class="bars" role="img" aria-label="نمودار فروش روزانهٔ <?= e($label) ?>؛ <?= e(fa_num($activeDays)) ?> روز با فروش">
+          <?php foreach ($bars as $b): ?>
+            <a class="bars__bar<?= $b['total'] === 0 ? ' bars__bar--empty' : '' ?>" style="--v:<?= $b['total'] === 0 ? 0 : max(2, (int) round($b['total'] / $max * 100)) ?>" href="<?= e(url('panel/reports?date=' . $b['date'])) ?>" title="<?= e(fa_num($b['day']) . ' — ' . toman($b['total'])) ?>" tabindex="-1"></a>
+          <?php endforeach; ?>
+        </div>
+        <div class="spread text-xs muted num" aria-hidden="true" style="margin-top:6px"><span>۱</span><span><?= e(fa_num(intdiv(count($bars), 2))) ?></span><span><?= e(fa_num(count($bars))) ?></span></div>
+      <?php endif; ?>
+    </div>
+  </section>
 
-<div class="glass rounded-2xl p-5">
-  <h2 class="card-title mb-3">به تفکیک روش پرداخت</h2>
-  <?php foreach ($breakdown as $b): ?>
-  <div class="flex items-center justify-between text-sm py-1.5">
-    <span class="text-ink-600"><?= e($methodLabels[$b['method']] ?? $b['method']) ?></span>
-    <span class="font-bold text-ink-800"><?= toman((int)$b['total']) ?></span>
-  </div>
-  <?php endforeach; ?>
+  <?php include __DIR__ . '/_body.php'; ?>
 </div>

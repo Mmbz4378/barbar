@@ -12,7 +12,7 @@
     <div class="spread text-sm">
       <span class="rating">
         <?php if ((int) $salon['rating_count'] > 0): ?>
-          <?= icon('star') ?><?= e(fa_num(number_format((float) $salon['rating_avg'], 1))) ?> <span class="muted">(<?= e(fa_num($salon['rating_count'])) ?> نظر)</span>
+          <?= icon('star-solid') ?><?= e(fa_num(number_format((float) $salon['rating_avg'], 1))) ?> <span class="muted">(<?= e(fa_num($salon['rating_count'])) ?> نظر)</span>
         <?php else: ?>
           <span class="muted">هنوز نظری ثبت نشده</span>
         <?php endif; ?>

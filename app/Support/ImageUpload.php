@@ -21,17 +21,17 @@ namespace App\Support;
  */
 final class ImageUpload
 {
-    /** حداکثر اندازهٔ فایل ورودی. بزرگ‌تر از این، لوگو نیست. */
+    /** حداکثر اندازهٔ فایل ورودی. */
     private const MAX_BYTES = 3 * 1024 * 1024;
 
-    /** لوگو بزرگ‌تر از این لازم نیست و روی موبایل فقط کندی می‌آورد. */
+    /** پیش‌فرض برای لوگو؛ عکس کاور و خدمت بزرگ‌تر ذخیره می‌شوند. */
     private const MAX_DIMENSION = 512;
 
     /**
      * @param array{name?:string,type?:string,tmp_name?:string,error?:int,size?:int}|null $file
      * @return array{ok:bool,path:?string,error:?string} path نسبی به public
      */
-    public static function saveImage(?array $file, string $targetDir, string $prefix = 'img'): array
+    public static function saveImage(?array $file, string $targetDir, string $prefix = 'img', int $maxDimension = self::MAX_DIMENSION): array
     {
         if ($file === null || ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
             return ['ok' => false, 'path' => null, 'error' => null];
@@ -63,7 +63,7 @@ final class ImageUpload
             return ['ok' => false, 'path' => null, 'error' => 'قالب تصویر پشتیبانی نمی‌شود. PNG یا JPG بفرست.'];
         }
 
-        $resized = self::fitWithin($source, self::MAX_DIMENSION);
+        $resized = self::fitWithin($source, max(64, min(2000, $maxDimension)));
         imagedestroy($source);
 
         if (!is_dir($targetDir) && !mkdir($targetDir, 0755, true) && !is_dir($targetDir)) {

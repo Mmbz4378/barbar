@@ -144,7 +144,7 @@ final class ServiceController extends Controller
             return $this->withSuccess('عکس حذف شد.', '/panel/services/' . $id . '/edit');
         }
 
-        $upload = ImageUpload::saveImage($request->file('image'), BASE_PATH . '/public/uploads/media', 'service-' . $id);
+        $upload = ImageUpload::saveImage($request->file('image'), BASE_PATH . '/public/uploads/media', 'service-' . $id, 960);
         if (!$upload['ok']) {
             return $this->withError($upload['error'] ?? 'یک عکس انتخاب کنید.', '/panel/services/' . $id . '/edit');
         }

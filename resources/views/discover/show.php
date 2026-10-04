@@ -28,7 +28,7 @@ $serviceCount = array_sum(array_map(static fn ($g) => count($g['services']), $gr
       <div class="cluster"><span class="badge badge--accent"><?= e(term('salon_type')) ?></span><?php if (!empty($salon['neighborhood'])): ?><span class="badge"><?= e($salon['neighborhood']) ?></span><?php endif; ?></div>
       <h1 class="title-lg"><?= e($salon['name']) ?></h1>
       <p class="muted"><?= icon('map-pin', 'icon') ?> <?= e(trim(($salon['city'] ?? '') . '، ' . ($salon['address'] ?? ''), '، ')) ?></p>
-      <a class="rating" href="#reviews"><?= icon('star') ?>
+      <a class="rating" href="#reviews"><?= icon('star-solid') ?>
         <?php if ((int) $salon['rating_count'] > 0): ?>
           <?= e(fa_num(number_format((float) $salon['rating_avg'], 1))) ?> از ۵ <span class="muted">· <?= e(fa_num($salon['rating_count'])) ?> نظر</span>
         <?php else: ?><span class="muted">هنوز نظری منتشر نشده</span><?php endif; ?>
@@ -90,7 +90,7 @@ $serviceCount = array_sum(array_map(static fn ($g) => count($g['services']), $gr
     <section class="section" id="reviews" aria-labelledby="reviews-title">
       <div class="section__head">
         <h2 class="section__title" id="reviews-title">نظر مراجعان</h2>
-        <?php if ((int) $salon['rating_count'] > 0): ?><span class="rating"><?= icon('star') ?><?= e(fa_num(number_format((float) $salon['rating_avg'], 1))) ?> از ۵</span><?php endif; ?>
+        <?php if ((int) $salon['rating_count'] > 0): ?><span class="rating"><?= icon('star-solid') ?><?= e(fa_num(number_format((float) $salon['rating_avg'], 1))) ?> از ۵</span><?php endif; ?>
       </div>
       <p class="section__sub">فقط کسی که نوبتش انجام شده می‌تواند نظر بدهد؛ نظرها پیش از انتشار بررسی می‌شوند.</p>
       <?php if ($reviews === []): ?>
@@ -100,7 +100,7 @@ $serviceCount = array_sum(array_map(static fn ($g) => count($g['services']), $gr
           <?php foreach ($reviews as $review): ?>
             <article class="card card--flat"><div class="card__body stack stack-sm">
               <div class="spread">
-                <span class="rating"><?php for ($i = 1; $i <= 5; $i++): ?><svg class="icon" aria-hidden="true" style="<?= $i > (int) $review['rating'] ? 'opacity:.25' : '' ?>"><use href="#i-star"></use></svg><?php endfor; ?><span class="sr-only"><?= e(fa_num($review['rating'])) ?> از ۵</span></span>
+                <span class="rating"><?php for ($i = 1; $i <= 5; $i++): ?><?= $i <= (int) $review['rating'] ? icon('star-solid') : icon('star', 'icon star-empty') ?><?php endfor; ?><span class="sr-only"><?= e(fa_num($review['rating'])) ?> از ۵</span></span>
                 <span class="text-xs muted"><?= e(trim(explode(' ', (string) ($review['customer_name'] ?? ''))[0]) ?: 'مراجع') ?> · <?= e(jdate($review['created_at'], 'j M Y')) ?></span>
               </div>
               <?php if (!empty($review['comment'])): ?><p><?= e($review['comment']) ?></p><?php endif; ?>

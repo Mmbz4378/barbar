@@ -51,7 +51,7 @@ $card = static function (array $a, bool $upcoming): void {
                 <div class="star-input">
                   <?php for ($r = 5; $r >= 1; $r--): ?>
                     <input type="radio" id="r<?= (int) $a['id'] ?>-<?= $r ?>" name="rating" value="<?= $r ?>" required>
-                    <label for="r<?= (int) $a['id'] ?>-<?= $r ?>" title="<?= e(fa_num($r)) ?> از ۵"><svg class="icon" aria-hidden="true"><use href="#i-star"></use></svg><span class="sr-only"><?= e(fa_num($r)) ?> از ۵</span></label>
+                    <label for="r<?= (int) $a['id'] ?>-<?= $r ?>" title="<?= e(fa_num($r)) ?> از ۵"><svg class="icon" aria-hidden="true"><use href="#i-star-solid"></use></svg><span class="sr-only"><?= e(fa_num($r)) ?> از ۵</span></label>
                   <?php endfor; ?>
                 </div>
               </fieldset>

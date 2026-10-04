@@ -449,8 +449,10 @@ button.list-row{width:100%;border:0;background:transparent;text-align:start}
 .tab .badge{min-height:20px;padding:0 7px}
 
 /* ── Avatar & media ────────────────────────────────────────────────── */
-.avatar{display:inline-grid;place-items:center;flex:none;width:40px;height:40px;border-radius:var(--radius-full);background:var(--avatar-bg,var(--accent));color:#fff;font-size:var(--text-base);font-weight:var(--weight-bold);line-height:1;overflow:hidden}
+.avatar{display:inline-grid;place-items:center;flex:none;width:40px;height:40px;border-radius:var(--radius-full);background:var(--accent);color:var(--on-accent);font-size:var(--text-base);font-weight:var(--weight-bold);line-height:1;overflow:hidden}
 .avatar img{width:100%;height:100%;object-fit:cover}
+/* رنگ اختصاصی کارکنان همیشه تیره است (StaffColor) ← متن سفید */
+.avatar[style*="--avatar-bg"]{background:var(--avatar-bg);color:#fff}
 .avatar--sm{width:32px;height:32px;font-size:var(--text-sm)}
 .avatar--lg{width:56px;height:56px;font-size:var(--text-xl)}
 .avatar--square{border-radius:var(--radius-md)}
@@ -740,7 +742,10 @@ a.calendar__day:hover{background:var(--surface-hover);text-decoration:none}
 .salon-cover img{width:100%;height:100%;object-fit:cover}
 @media (min-width:768px){.salon-cover{aspect-ratio:16/6}}
 .rating{display:inline-flex;align-items:center;gap:4px;font-weight:var(--weight-semibold);font-variant-numeric:tabular-nums}
-.rating svg{width:16px;height:16px;color:#d4a10a;fill:#f5c518}
+.rating svg{width:16px;height:16px;color:#d4a10a}
+.rating .star-empty{color:var(--text-subtle)}
+html.dark .rating svg{color:#f5c518}
+html.dark .rating .star-empty{color:var(--text-subtle)}
 .star-input{display:flex;flex-direction:row-reverse;justify-content:flex-end;gap:4px}
 .star-input input{position:absolute;opacity:0}
 .star-input label{cursor:pointer;color:var(--border-strong);padding:4px}

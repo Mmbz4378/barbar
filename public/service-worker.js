@@ -11,27 +11,23 @@
  * نسخه را با هر تغییرِ دارایی‌ها بالا ببر، وگرنه مرورگر CSS قدیمی را
  * نگه می‌دارد و طراحی تازه دیده نمی‌شود.
  */
-const VERSION = 'v13';
+const VERSION = 'v14';
 const SHELL_CACHE = `reshen-shell-${VERSION}`;
 
 /*
  * مسیرها نسبی‌اند چون پروژه ممکن است در زیرپوشه نصب شود
  * (example.com/reshen/). مسیر مطلق آنجا به جای اشتباه می‌خورد.
+ * نسخهٔ دارایی‌ها باید با RESHEN_ASSET_VERSION در helpers.php یکی باشد.
  */
 const SHELL = [
   './offline.html',
-  './assets/css/app.css',
-  './assets/css/refined.css',
-  './assets/css/comfort.css',
-  './assets/js/comfort.js',
+  './assets/css/reshen.css',
+  './assets/js/app.js',
   './assets/fonts/IRANYekanX-Regular.woff2',
   './assets/fonts/IRANYekanX-Medium.woff2',
   './assets/fonts/IRANYekanX-DemiBold.woff2',
   './assets/fonts/IRANYekanX-Bold.woff2',
-  './assets/css/design-tokens.css',
-  './assets/js/service-discovery.js',
-  './assets/fonts/Vazirmatn-Regular.woff2',
-  './assets/fonts/Vazirmatn-Bold.woff2',
+  './assets/icons/icon.svg',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',
   './assets/icons/apple-touch-icon.png',

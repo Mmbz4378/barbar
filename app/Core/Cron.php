@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Core;
 
+use App\Domain\Booking\BookingService;
 use App\Domain\Messaging\QueueNotificationService;
 use Throwable;
 
@@ -88,6 +89,14 @@ final class Cron
                 $sent = (new QueueNotificationService())->sendUpcomingReminders();
 
                 return "{$sent} پیامک";
+            },
+
+            'لغو رزروهای بی‌بیعانه' => static function (): string {
+                // ساعتِ نگه‌داشته برای واریز بیعانه، پس از مهلت آزاد می‌شود
+                // تا مشتری دیگری بتواند رزروش کند.
+                $expired = (new BookingService())->expireHolds();
+
+                return "{$expired} نوبت";
             },
 
             'بستن نوبت‌های رهاشده' => static function (): string {
