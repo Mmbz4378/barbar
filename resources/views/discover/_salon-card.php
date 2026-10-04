@@ -8,7 +8,7 @@
       <h2 class="salon-card__name"><a href="<?= e(url('salons/view/' . $salon['slug'])) ?>" style="color:inherit"><?= e($salon['name']) ?></a></h2>
       <span class="badge"><?= e(term('audience_label', $salon['audience'] ?? null)) ?></span>
     </div>
-    <p class="text-sm muted truncate"><?= icon('map-pin', 'icon') ?> <?= e(trim(($salon['city'] ?? '') . ' · ' . ($salon['neighborhood'] ?: $salon['address']), ' ·')) ?></p>
+    <p class="text-sm muted truncate"><?= icon('map-pin', 'icon') ?> <?= e(join_parts([$salon['city'] ?? '', ($salon['neighborhood'] ?? '') ?: ($salon['address'] ?? '')], ' · ')) ?></p>
     <div class="spread text-sm">
       <span class="rating">
         <?php if ((int) $salon['rating_count'] > 0): ?>

@@ -16,6 +16,8 @@ use PDOStatement;
  */
 final class DB
 {
+    private static int $savepoints = 0;
+
     private static ?PDO $pdo = null;
 
     private static bool $profiling = false;
@@ -137,9 +139,35 @@ final class DB
         return $stmt->rowCount();
     }
 
+    /**
+     * تراکنش؛ تودرتو هم امن است.
+     *
+     * اگر تراکنشی باز باشد (مثلاً سرویسی که خودش تراکنش دارد از درون
+     * تراکنش دیگری صدا زده شود)، به‌جای beginTransaction دوم — که PDO با
+     * خطا ردش می‌کند — یک SAVEPOINT ساخته می‌شود تا شکستِ بخش درونی فقط
+     * همان بخش را برگرداند.
+     */
     public static function transaction(callable $callback): mixed
     {
         $pdo = self::connection();
+        if ($pdo->inTransaction()) {
+            $savepoint = 'sp_' . (++self::$savepoints);
+            $pdo->exec('SAVEPOINT ' . $savepoint);
+            try {
+                $result = $callback();
+                $pdo->exec('RELEASE SAVEPOINT ' . $savepoint);
+
+                return $result;
+            } catch (\Throwable $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->exec('ROLLBACK TO SAVEPOINT ' . $savepoint);
+                }
+                throw $e;
+            } finally {
+                self::$savepoints--;
+            }
+        }
+
         $pdo->beginTransaction();
         try {
             $result = $callback();

@@ -27,7 +27,7 @@ $serviceCount = array_sum(array_map(static fn ($g) => count($g['services']), $gr
     <header class="stack stack-sm">
       <div class="cluster"><span class="badge badge--accent"><?= e(term('salon_type')) ?></span><?php if (!empty($salon['neighborhood'])): ?><span class="badge"><?= e($salon['neighborhood']) ?></span><?php endif; ?></div>
       <h1 class="title-lg"><?= e($salon['name']) ?></h1>
-      <p class="muted"><?= icon('map-pin', 'icon') ?> <?= e(trim(($salon['city'] ?? '') . '، ' . ($salon['address'] ?? ''), '، ')) ?></p>
+      <p class="muted"><?= icon('map-pin', 'icon') ?> <?= e(join_parts([$salon['city'] ?? '', $salon['address'] ?? ''])) ?></p>
       <a class="rating" href="#reviews"><?= icon('star-solid') ?>
         <?php if ((int) $salon['rating_count'] > 0): ?>
           <?= e(fa_num(number_format((float) $salon['rating_avg'], 1))) ?> از ۵ <span class="muted">· <?= e(fa_num($salon['rating_count'])) ?> نظر</span>

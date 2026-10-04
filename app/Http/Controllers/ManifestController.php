@@ -39,25 +39,24 @@ final class ManifestController extends Controller
 
         $isSalon = $salon !== null;
 
-        // رنگ نوار بالای اپ. برای صفحهٔ سالن، سرصفحهٔ تیره؛ برای پنل،
-        // همان زغالی. هر دو با چیزی که واقعاً رندر می‌شود یکی است،
-        // وگرنه موقع باز شدن یک نوار بی‌ربط بالای صفحه می‌ماند.
-        $themeColor = '#1C1917';
+        // رنگ نوار بالای اپ و صفحهٔ آغاز: همان زمینهٔ روشن طراحی (--bg).
+        // حالت تیره را متای theme-color در خود صفحه به‌روز می‌کند.
+        $themeColor = '#f6f6f4';
 
         $manifest = [
             // id ثابت می‌ماند تا مرورگر نصبِ قبلی را همان اپ بشناسد،
             // نه یک اپ تازه کنار قبلی.
             'id' => $isSalon ? '/s/' . $salon['slug'] : '/panel',
-            'name' => $isSalon ? $salon['name'] : 'رشن — مدیریت آرایشگاه',
+            'name' => $isSalon ? $salon['name'] : 'رشن — مدیریت سالن',
             'short_name' => $isSalon ? $this->shortName($salon['name']) : 'رشن',
             'description' => $isSalon
                 ? 'رزرو نوبت در ' . $salon['name']
-                : 'نوبت‌دهی و مدیریت آرایشگاه مردانه',
+                : 'نوبت‌دهی و مدیریت آرایشگاه‌های مردانه و سالن‌های زیبایی بانوان',
             'start_url' => $isSalon ? url('s/' . $salon['slug']) : url('panel'),
             'scope' => url(''),
             'display' => 'standalone',
             'orientation' => 'portrait',
-            'background_color' => '#FAFAF9',
+            'background_color' => '#f6f6f4',
             'theme_color' => $themeColor,
             'dir' => 'rtl',
             'lang' => 'fa-IR',
@@ -107,7 +106,7 @@ final class ManifestController extends Controller
     {
         $name = trim($name);
 
-        foreach (['آرایشگاه', 'سالن', 'پیرایش', 'باربرشاپ'] as $prefix) {
+        foreach (['سالن زیبایی', 'آرایشگاه زنانه', 'آرایشگاه مردانه', 'آرایشگاه', 'سالن', 'پیرایش', 'باربرشاپ'] as $prefix) {
             if (str_starts_with($name, $prefix . ' ')) {
                 $name = trim(substr($name, strlen($prefix) + 1));
                 break;

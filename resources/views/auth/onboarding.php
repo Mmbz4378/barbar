@@ -46,14 +46,17 @@
       <input class="input" id="address" name="address" maxlength="255" autocomplete="street-address" value="<?= e((string) old('address', $draft['address'] ?? '')) ?>">
     </div>
 
+    <div class="field">
+      <label class="field__label" for="owner_name">نام شما</label>
+      <input class="input" id="owner_name" name="owner_name" maxlength="120" autocomplete="name" value="<?= e((string) old('owner_name', $draft['owner_name'] ?? (App\Core\Auth::user()['name'] ?? ''))) ?>" <?= field_error('owner_name') ? 'aria-invalid="true" aria-describedby="owner_name-error"' : '' ?>>
+      <p class="field__hint">در پنل نمایش داده می‌شود؛ اگر خودتان هم کار می‌کنید، مشتری همین نام را هنگام رزرو می‌بیند.</p>
+      <?= partial('field-error', ['key' => 'owner_name']) ?>
+    </div>
+
     <label class="check">
-      <input type="checkbox" name="owner_works" value="1" data-hides="#owner-name-field" data-hides-invert <?= old('owner_works', $draft['owner_works'] ?? '') ? 'checked' : '' ?>>
+      <input type="checkbox" name="owner_works" value="1" <?= old('owner_works', $draft['owner_works'] ?? '') ? 'checked' : '' ?>>
       <span class="check__text"><span class="strong">خودم هم خدمت ارائه می‌دهم</span><span class="check__hint">در فهرست افراد قابل رزرو قرار می‌گیرید.</span></span>
     </label>
-    <div class="field" id="owner-name-field">
-      <label class="field__label" for="owner_name">نامی که مشتری می‌بیند</label>
-      <input class="input" id="owner_name" name="owner_name" maxlength="120" value="<?= e((string) old('owner_name', $draft['owner_name'] ?? '')) ?>">
-    </div>
 
     <button type="submit" class="btn btn--primary btn--lg btn--block">ادامه: انتخاب خدمات <?= icon('chevron-end') ?></button>
   </form>

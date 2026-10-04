@@ -102,7 +102,7 @@ $tone = match ($status) {
         <div class="kv__row"><dt><?= e(term('staff')) ?></dt><dd><?= e($staffNames[(int) $appointment['staff_id']] ?? '') ?></dd></div>
       <?php endif; ?>
       <?php if (!empty($salon['address'])): ?>
-        <div class="kv__row"><dt>نشانی</dt><dd><?= e(trim(($salon['city'] ?? '') . '، ' . $salon['address'], '، ')) ?></dd></div>
+        <div class="kv__row"><dt>نشانی</dt><dd><?= e(join_parts([$salon['city'] ?? '', $salon['address']])) ?></dd></div>
       <?php endif; ?>
     </dl>
 

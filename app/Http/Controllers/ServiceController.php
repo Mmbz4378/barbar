@@ -200,6 +200,12 @@ final class ServiceController extends Controller
         $name = mb_substr(trim((string) $request->input('name', '')), 0, 120);
         if ($name === '') {
             $errors['name'] = 'نام خدمت را وارد کنید.';
+        } elseif (\App\Core\DB::selectOne(
+            'SELECT id FROM services WHERE salon_id = ? AND name = ? AND id <> ? LIMIT 1',
+            [$salonId, $name, (int) ($current['id'] ?? 0)]
+        ) !== null) {
+            // دو خدمت هم‌نام در منوی مشتری و گزارش‌ها از هم تشخیص داده نمی‌شوند
+            $errors['name'] = 'خدمتی با همین نام دارید. نام دیگری بنویسید یا همان را ویرایش کنید.';
         }
         $duration = int_input($request->input('duration_minutes'));
         if ($duration === null || $duration < 5 || $duration > 720) {

@@ -19,7 +19,7 @@ $settings = (new SlotFinder())->settings((int) $salon['id']);
         </div>
       </div>
       <?php if (!empty($salon['address'])): ?>
-        <p class="row row-start text-sm"><?= icon('map-pin', 'icon muted') ?><span><?= e(trim(($salon['city'] ?? '') . '، ' . $salon['address'], '، ')) ?></span></p>
+        <p class="row row-start text-sm"><?= icon('map-pin', 'icon muted') ?><span><?= e(join_parts([$salon['city'] ?? '', $salon['address']])) ?></span></p>
       <?php endif; ?>
       <?php if (!empty($salon['phone'])): ?>
         <p class="row text-sm"><?= icon('phone', 'icon muted') ?><a class="ltr num" href="tel:<?= e($salon['phone']) ?>"><?= e(fa_num($salon['phone'])) ?></a></p>

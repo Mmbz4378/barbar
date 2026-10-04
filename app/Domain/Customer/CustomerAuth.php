@@ -100,7 +100,7 @@ final class CustomerAuth
             $card = &$cards[$key];
             $card['part_count']++;
             $card['total_price'] += (int) $row['total_price'];
-            $card['service_names'] = trim($card['service_names'] . '، ' . $row['service_names'], '، ');
+            $card['service_names'] = join_parts([$card['service_names'], $row['service_names']]);
             if ($row['staff_name'] !== null) {
                 $card['staff_names'][] = $row['staff_name'];
             }

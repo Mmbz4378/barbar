@@ -14,6 +14,7 @@ $nav = PanelNavigation::build();
 $salon = SalonContext::get();
 $salonName = SalonContext::name();
 $logo = salon_logo_url($salon['logo_file'] ?? null);
+$mark = ($salon['audience'] ?? 'men') === 'women' ? 'sparkles' : 'scissors';
 $isActive = static fn (array $item): bool => is_path($item['href'], !empty($item['exact']));
 $moreActive = array_filter($nav['more'], $isActive) !== [];
 ?>
@@ -28,7 +29,7 @@ $moreActive = array_filter($nav['more'], $isActive) !== [];
 <div class="app">
   <aside class="app__sidebar" aria-label="ناوبری پنل">
     <div class="sidebar__brand">
-      <span class="brand-mark"><?= $logo ? '<img src="' . e($logo) . '" alt="">' : icon('scissors') ?></span>
+      <span class="brand-mark"><?= $logo ? '<img src="' . e($logo) . '" alt="">' : icon($mark) ?></span>
       <span class="brand-text">
         <strong><?= e($salonName) ?></strong>
         <span><?= e(PanelNavigation::roleLabel()) ?> · <?= e(PanelNavigation::audienceLabel()) ?></span>
@@ -61,7 +62,7 @@ $moreActive = array_filter($nav['more'], $isActive) !== [];
   <div class="app__main">
     <header class="appbar">
       <div class="appbar__title">
-        <span class="brand-mark brand-mark--sm only-mobile"><?= $logo ? '<img src="' . e($logo) . '" alt="">' : icon('scissors') ?></span>
+        <span class="brand-mark brand-mark--sm only-mobile"><?= $logo ? '<img src="' . e($logo) . '" alt="">' : icon($mark) ?></span>
         <span class="brand-text only-mobile"><strong><?= e($salonName) ?></strong><span><?= e(PanelNavigation::roleLabel()) ?></span></span>
       </div>
       <div class="appbar__actions">

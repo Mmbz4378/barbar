@@ -115,7 +115,8 @@
 
   doc.addEventListener('submit', function (e) {
     var form = e.target;
-    if (e.defaultPrevented || (form.method || '').toLowerCase() !== 'post') return;
+    // getAttribute، نه form.method: فیلدی به نام «method» (روش پرداخت) آن ویژگی را می‌پوشاند
+    if (e.defaultPrevented || (form.getAttribute('method') || 'get').toLowerCase() !== 'post') return;
     if (navigator.onLine === false) { e.preventDefault(); setOffline(true); return; }
     if (form.dataset.submitting === 'true') { e.preventDefault(); return; }
     // ارقام فارسی در فیلدهای عددی به لاتین تبدیل می‌شوند تا سرور درست بخواند

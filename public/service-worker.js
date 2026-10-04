@@ -11,7 +11,7 @@
  * نسخه را با هر تغییرِ دارایی‌ها بالا ببر، وگرنه مرورگر CSS قدیمی را
  * نگه می‌دارد و طراحی تازه دیده نمی‌شود.
  */
-const VERSION = 'v14';
+const VERSION = 'v14.1';
 const SHELL_CACHE = `reshen-shell-${VERSION}`;
 
 /*

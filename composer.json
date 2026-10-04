@@ -1,6 +1,6 @@
 {
     "name": "reshen/reshen",
-    "description": "رشن — سامانهٔ نوبت‌دهی و مدیریت آرایشگاه مردانه",
+    "description": "رشن — سامانهٔ نوبت‌دهی و مدیریت آرایشگاه‌های مردانه و سالن‌های زیبایی بانوان",
     "type": "project",
     "license": "proprietary",
     "require": {

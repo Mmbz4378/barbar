@@ -18,7 +18,7 @@ use App\Support\StaffColor;
  * می‌کند؛ وگرنه نصب PWA پوستهٔ قدیمی را نگه می‌دارد.
  */
 if (!defined('RESHEN_ASSET_VERSION')) {
-    define('RESHEN_ASSET_VERSION', 'v14');
+    define('RESHEN_ASSET_VERSION', 'v14.1');
 }
 
 if (!function_exists('e')) {
@@ -453,6 +453,30 @@ if (!function_exists('salon_cover')) {
         $symbol = ($salon['audience'] ?? 'men') === 'women' ? 'sparkles' : 'scissors';
 
         return '<span class="cover-fallback" data-theme="' . e(App\Support\Theme::resolve($salon['theme'] ?? null)) . '" aria-hidden="true">' . icon($symbol) . '</span>';
+    }
+}
+
+if (!function_exists('join_parts')) {
+    /**
+     * چسباندن بخش‌های غیرخالی با جداکننده.
+     *
+     * به‌جای trim($x, '، ') — trim روی بایت کار می‌کند و با جداکنندهٔ
+     * فارسی، بایت اول حروفی مثل «س» را هم می‌بُرد؛ متن خراب می‌شود و
+     * htmlspecialchars برای UTF-8 نامعتبر رشتهٔ خالی برمی‌گرداند.
+     *
+     * @param array<int,mixed> $parts
+     */
+    function join_parts(array $parts, string $separator = '، '): string
+    {
+        $clean = [];
+        foreach ($parts as $part) {
+            $part = trim((string) $part);
+            if ($part !== '') {
+                $clean[] = $part;
+            }
+        }
+
+        return implode($separator, $clean);
     }
 }
 

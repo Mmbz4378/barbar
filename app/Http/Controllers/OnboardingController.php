@@ -48,6 +48,9 @@ final class OnboardingController extends Controller
         if (!array_key_exists($audience, Audience::options())) {
             $errors['audience'] = 'نوع سالن را انتخاب کنید؛ خدمات پیشنهادی و واژه‌ها بر همین اساس تنظیم می‌شوند.';
         }
+        if (trim((string) $request->input('owner_name', '')) === '' && trim((string) (Auth::user()['name'] ?? '')) === '') {
+            $errors['owner_name'] = 'نام خودتان را بنویسید.';
+        }
         $phone = trim((string) $request->input('phone', ''));
         if ($errors !== []) {
             return $this->invalid($request, $errors, '/onboarding');
@@ -108,6 +111,11 @@ final class OnboardingController extends Controller
             ], (int) Auth::id(), $selected, $ownerName);
         } catch (RuntimeException $e) {
             return $this->withError($e->getMessage(), '/onboarding');
+        }
+
+        // کاربری که تازه با شماره وارد شده هنوز نامی ندارد
+        if ($draft['owner_name'] !== '' && trim((string) (Auth::user()['name'] ?? '')) === '') {
+            \App\Core\DB::update('users', ['name' => $draft['owner_name']], 'id = :id', ['id' => (int) Auth::id()]);
         }
 
         Session::forget(self::DRAFT);
