@@ -418,6 +418,41 @@ try {
     SalonRepository::forget($menId);
     $nextRequest();
     check('«نبودِ» اسلاگ کش نمی‌شود؛ سالن تازه بی‌درنگ پیدا می‌شود', $missBefore && (int) ($salons->findActiveBySlug($probe)['id'] ?? 0) === $menId);
+    // اسلاگ به سالن دیگری رسید: نگاشت کهنه خودش کنار گذاشته می‌شود
+    $salons->findActiveBySlug($probe);
+    DB::update('salons', ['slug' => 'rsh-renamed-men'], 'id = :id', ['id' => $menId]);
+    SalonRepository::forget($menId);
+    DB::update('salons', ['slug' => $probe, 'is_active' => 1], 'id = :id', ['id' => $womenId]);
+    SalonRepository::forget($womenId);
+    $nextRequest();
+    check('اسلاگِ واگذارشده به سالن تازه‌اش می‌رسد، نه کهنه', (int) ($salons->findActiveBySlug($probe)['id'] ?? 0) === $womenId && (int) ($salons->findActiveBySlug('rsh-renamed-men')['id'] ?? 0) === $menId);
+
+    // دیتابیس زیر فشار: نسخهٔ کهنه به‌جای خطا، فقط برای Overloaded
+    App\Core\Cache::remember('t:stale', 1, static fn () => 'نسخهٔ اول');
+    sleep(2);
+    $stale = App\Core\Cache::remember('t:stale', 1, static function (): string {
+        throw new App\Core\Overloaded('آزمون');
+    });
+    check('دیتابیسِ زیر فشار: نسخهٔ کمی کهنه داده می‌شود', $stale === 'نسخهٔ اول');
+    $other = null;
+    try {
+        App\Core\Cache::remember('t:stale', 1, static function (): string {
+            throw new RuntimeException('خطای دیگر');
+        });
+    } catch (RuntimeException $e) {
+        $other = $e->getMessage();
+    }
+    check('خطای دیگر پنهان نمی‌شود', $other === 'خطای دیگر');
+    check('پس از برگشت دیتابیس تازه می‌شود', App\Core\Cache::remember('t:stale', 60, static fn () => 'نسخهٔ دوم') === 'نسخهٔ دوم');
+    $noCopy = null;
+    try {
+        App\Core\Cache::remember('t:never-cached', 60, static function (): string {
+            throw new App\Core\Overloaded('آزمون');
+        });
+    } catch (App\Core\Overloaded) {
+        $noCopy = 'busy';
+    }
+    check('بی‌نسخه: همان صفحهٔ «شلوغ است»', $noCopy === 'busy');
 
     // کش نمایشِ وقت‌های آزاد: یک محاسبه در هر دقیقه، باطل با هر نوشتن روی نوبت‌ها
     $calls = 0;
@@ -471,6 +506,19 @@ try {
     }
     check('خطای غیرقفلی دست‌نخورده بالا می‌رود', $seen === $other);
     check('سقف انتظار قفل روی اتصال اعمال شده', (int) DB::selectOne('SELECT @@SESSION.innodb_lock_wait_timeout AS w')['w'] === (int) Config::get('database.lock_wait_timeout', 5));
+    $pdoError = static function (string $message, int $driverCode = 0, int|string $code = 0): PDOException {
+        $e = new PDOException($message, is_int($code) ? $code : 0);
+        if ($driverCode !== 0) {
+            $e->errorInfo = ['HY000', $driverCode, $message];
+        }
+
+        return $e;
+    };
+    check('سقف اتصال حساب cPanel ← «شلوغ است»', App\Core\Overloaded::isOverload($pdoError('max_user_connections', 1203)));
+    check('خطای اتصال با کد در متن ← «شلوغ است»', App\Core\Overloaded::isOverload($pdoError('SQLSTATE[HY000] [1040] Too many connections')));
+    check('اتصال قطع‌شده وسط کار ← «شلوغ است»', App\Core\Overloaded::isOverload($pdoError('gone away', 2006)));
+    check('جدول ناموجود «شلوغ است» نیست', !App\Core\Overloaded::isOverload($pdoError('missing table', 1146)));
+    check('بن‌بست «شلوغ است» نیست (تلاش دوباره دارد)', !App\Core\Overloaded::isOverload($pdoError('deadlock', 1213)));
 
     // ─── صندوق خروجی پیامک ────────────────────────────────────────────
     section('صندوق خروجی پیامک');

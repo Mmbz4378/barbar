@@ -52,6 +52,13 @@ if (Config::get('app.debug')) {
 }
 
 set_exception_handler(static function (Throwable $e): void {
+    // سرور زیر فشار: صفحهٔ سبکِ «شلوغ است» با تلاش دوبارهٔ خودکار، نه «خطایی رخ داد»
+    if ($e instanceof App\Core\Overloaded) {
+        error_log('[overloaded] ' . ($e->getPrevious()?->getMessage() ?? $e->getMessage()));
+        App\Core\Overloaded::respond();
+
+        return;
+    }
     if (!headers_sent()) {
         http_response_code(500);
         header('Cache-Control: no-store');

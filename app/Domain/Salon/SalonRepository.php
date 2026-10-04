@@ -26,23 +26,29 @@ final class SalonRepository
             return null;
         }
 
-        // اسلاگ تقریباً هرگز عوض نمی‌شود؛ نگاشت اسلاگ→شناسه با مهلت بلندتر.
-        // خودِ ردیف از find() می‌آید که دقیق باطل می‌شود، پس is_active و بقیهٔ
-        // فیلدها بی‌درنگ تازه‌اند.
-        // فقط «پیدا شد» کش می‌شود، نه «نبود»: سالنی که تازه ساخته می‌شود باید
-        // بی‌درنگ با اسلاگش در دسترس باشد.
+        /*
+         * نگاشت اسلاگ→شناسه با مهلت بلند (اسلاگ تقریباً هرگز عوض نمی‌شود)، ولی
+         * خودِ ردیف از find() می‌آید که دقیق باطل می‌شود؛ پس is_active و بقیه
+         * بی‌درنگ تازه‌اند. اگر اسلاگ عوض شده باشد، ردیف تازه دیگر همین اسلاگ را
+         * ندارد و نگاشت کهنه نادیده گرفته می‌شود — حتی اگر اسلاگ به سالن دیگری
+         * رسیده باشد. فقط «پیدا شد» کش می‌شود، نه «نبود»: سالن تازه بی‌درنگ پیدا
+         * می‌شود.
+         */
         $key = "salonslug:$slug";
         $id = Cache::get($key);
-        if ($id === null) {
-            $row = DB::selectOne('SELECT id FROM salons WHERE slug = ?', [$slug]);
-            if ($row === null) {
-                return null;
+        if ($id !== null) {
+            $salon = $this->find((int) $id);
+            if ($salon !== null && (string) $salon['slug'] === $slug) {
+                return (int) $salon['is_active'] === 1 ? $salon : null;
             }
-            $id = (int) $row['id'];
-            Cache::set($key, $id, 600);
         }
 
-        $salon = $this->find((int) $id);
+        $row = DB::selectOne('SELECT id FROM salons WHERE slug = ?', [$slug]);
+        if ($row === null) {
+            return null;
+        }
+        Cache::set($key, (int) $row['id'], 86400);
+        $salon = $this->find((int) $row['id']);
 
         return $salon !== null && (int) $salon['is_active'] === 1 ? $salon : null;
     }

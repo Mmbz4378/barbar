@@ -31,6 +31,9 @@ final class Cache
 
     private static string $prefix = '';
 
+    /** نسخهٔ کهنه تا این مدت پس از مهلت نگه داشته می‌شود، فقط برای وقت فشار (ثانیه). */
+    private const STALE_GRACE = 600;
+
     private static function enabled(): bool
     {
         if (self::$apcu === null) {
@@ -80,18 +83,44 @@ final class Cache
      * مقدار را از کش می‌دهد؛ اگر نبود، $producer را اجرا می‌کند، نتیجه را
      * کش و برمی‌گرداند. مقدارِ null هم کش می‌شود (تا «نبودن» را هم به‌خاطر
      * بسپارد و کوئریِ تکراریِ بی‌نتیجه نزند).
+     *
+     * کهنه به‌جای خطا: هر ورودی پس از مهلتش تا STALE_GRACE ثانیه نگه داشته
+     * می‌شود. اگر تازه‌کردنش دقیقاً با «دیتابیس زیر فشار است» (Overloaded)
+     * شکست بخورد، همان نسخهٔ کمی کهنه داده می‌شود — مرور سایت در هجوم با پر شدن
+     * اتصال‌های دیتابیس از کار نمی‌افتد. دادهٔ باطل‌شده هرگز داده نمی‌شود: bump
+     * کلید را عوض می‌کند و برای کلید تازه نسخهٔ کهنه‌ای نیست.
      */
     public static function remember(string $key, int $ttl, callable $producer): mixed
     {
-        $sentinel = "\0miss\0";
-        $hit = self::get($key, $sentinel);
-        if ($hit !== $sentinel) {
-            return $hit;
+        $entry = self::get($key);
+        if (is_array($entry) && array_key_exists('rv', $entry)) {
+            if ($entry['exp'] > time()) {
+                return $entry['rv'];
+            }
+            try {
+                $value = $producer();
+            } catch (Overloaded) {
+                return $entry['rv'];
+            }
+            self::store($key, $value, $ttl);
+
+            return $value;
         }
+
         $value = $producer();
-        self::set($key, $value, $ttl);
+        self::store($key, $value, $ttl);
 
         return $value;
+    }
+
+    /** ورودیِ remember: مقدار + زمان تازگی؛ در APCu تا مهلت + فرصت کهنگی می‌ماند. */
+    private static function store(string $key, mixed $value, int $ttl): void
+    {
+        $entry = ['rv' => $value, 'exp' => time() + max(1, $ttl)];
+        self::$local[$key] = $entry;
+        if (self::enabled()) {
+            apcu_store(self::$prefix . $key, $entry, max(1, $ttl) + self::STALE_GRACE);
+        }
     }
 
     /**

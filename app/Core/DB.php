@@ -36,11 +36,25 @@ final class DB
             $charset = Config::get('database.charset', 'utf8mb4');
 
             $dsn = "mysql:host={$host};port={$port};dbname={$name};charset={$charset}";
-            self::$pdo = new PDO($dsn, $user, $pass, [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES => false,
-            ]);
+            try {
+                self::$pdo = new PDO($dsn, $user, $pass, [
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    PDO::ATTR_EMULATE_PREPARES => false,
+                    // اتصالی که در چند ثانیه برقرار نشود، برقرار نمی‌شود؛ زودتر
+                    // صفحهٔ «شلوغ است» بهتر از معطلیِ پردازش است.
+                    PDO::ATTR_TIMEOUT => 5,
+                    // اتصال ماندگار فقط با تصمیم مدیر: روی cPanel با سقف
+                    // max_user_connections، هر پردازشِ بیکار یک اتصال نگه می‌دارد
+                    // و می‌تواند سقف را زودتر پر کند (docs/performance.md).
+                    PDO::ATTR_PERSISTENT => (bool) Config::get('database.persistent', false),
+                ]);
+            } catch (\PDOException $e) {
+                if (Overloaded::isOverload($e)) {
+                    throw new Overloaded('دیتابیس اتصال تازه نمی‌پذیرد.', 0, $e);
+                }
+                throw $e;
+            }
 
             /*
              * سقف انتظار برای قفل ردیف. پیش‌فرض MySQL پنجاه ثانیه است: زیر هجوم
@@ -57,6 +71,19 @@ final class DB
     }
 
     public static function statement(string $sql, array $bindings = []): PDOStatement
+    {
+        try {
+            return self::run($sql, $bindings);
+        } catch (\PDOException $e) {
+            // اتصالِ قطع‌شده وسط کار هم یعنی سرور زیر فشار است
+            if (Overloaded::isOverload($e)) {
+                throw new Overloaded('اتصال دیتابیس وسط کار قطع شد.', 0, $e);
+            }
+            throw $e;
+        }
+    }
+
+    private static function run(string $sql, array $bindings): PDOStatement
     {
         if (!self::$profiling) {
             $stmt = self::connection()->prepare($sql);
