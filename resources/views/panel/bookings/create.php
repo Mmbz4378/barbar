@@ -28,7 +28,7 @@ $oldTime = (string) old('time');
   </div>
 </div>
 
-<div class="grid grid-2" style="align-items:start">
+<div class="grid grid-2 items-start">
   <form method="get" action="<?= e(url('panel/bookings/new')) ?>" class="card" id="pick-form">
     <div class="card__header"><h2 class="card__title">۱. خدمت، فرد و روز</h2></div>
     <div class="card__body stack">

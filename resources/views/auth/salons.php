@@ -13,7 +13,7 @@
       </a></li>
     <?php endforeach; ?>
   </ul>
-  <div class="btn-row" style="justify-content:space-between">
+  <div class="btn-row justify-between">
     <a class="btn btn--ghost" href="<?= e(url('onboarding/new')) ?>"><?= icon('plus') ?> ساخت سالن تازه</a>
     <a class="btn btn--ghost" href="<?= e(url('logout')) ?>">خروج</a>
   </div>

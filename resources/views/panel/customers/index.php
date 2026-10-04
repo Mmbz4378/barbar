@@ -32,7 +32,7 @@
     <?php endforeach; ?>
   </ul>
   <?php if ($page > 1 || $hasNext): ?>
-    <nav class="btn-row mt-4" style="justify-content:center" aria-label="صفحه‌ها">
+    <nav class="btn-row mt-4 justify-center" aria-label="صفحه‌ها">
       <?php if ($page > 1): ?><a class="btn btn--secondary" href="<?= e(url('panel/customers?' . http_build_query(['q' => $q, 'page' => $page - 1]))) ?>"><?= icon('chevron-start') ?> قبلی</a><?php endif; ?>
       <?php if ($hasNext): ?><a class="btn btn--secondary" href="<?= e(url('panel/customers?' . http_build_query(['q' => $q, 'page' => $page + 1]))) ?>">بعدی <?= icon('chevron-end') ?></a><?php endif; ?>
     </nav>

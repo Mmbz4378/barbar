@@ -60,7 +60,7 @@ $actions = [
       <?php if ($auditLogs === []): ?>
         <div class="card__body"><p class="muted text-sm">رویدادی ثبت نشده.</p></div>
       <?php else: ?>
-        <div class="table-wrap" style="border:0;border-radius:0">
+        <div class="table-wrap table-wrap--flush">
           <table class="table table--stack">
             <thead><tr><th scope="col">زمان</th><th scope="col">اقدام</th><th scope="col">انجام‌دهنده</th><th scope="col">IP</th></tr></thead>
             <tbody>

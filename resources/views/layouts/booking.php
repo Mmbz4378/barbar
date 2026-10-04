@@ -26,7 +26,7 @@ $place = trim(implode('، ', array_filter([$salon['neighborhood'] ?? null, $salo
     <div class="topbar__inner <?= $wide ? 'topbar__inner--wizard' : 'topbar__inner--narrow' ?>">
       <a class="salon-identity" href="<?= e(url('s/' . $salon['slug'])) ?>">
         <span class="brand-mark"><?= $logo ? '<img src="' . e($logo) . '" alt="">' : icon(($salon['audience'] ?? 'men') === 'women' ? 'sparkles' : 'scissors') ?></span>
-        <span class="stack stack-xs" style="min-width:0">
+        <span class="stack stack-xs min-w-0">
           <span class="salon-identity__name"><?= e($salon['name']) ?></span>
           <span class="salon-identity__meta"><?= e(term('salon_type')) ?><?= $place !== '' ? ' · ' . e($place) : '' ?></span>
         </span>
@@ -44,7 +44,7 @@ $place = trim(implode('، ', array_filter([$salon['neighborhood'] ?? null, $salo
   </main>
 
   <footer class="public__footer">
-    <div class="cluster" style="justify-content:center;--gap:16px">
+    <div class="cluster justify-center" style="--gap:16px">
       <a href="<?= e(url('s/' . $salon['slug'] . '/menu')) ?>">خدمات و قیمت‌ها</a>
       <a href="<?= e(url('me')) ?>">نوبت‌های من</a>
       <?php if (($salon['publication_status'] ?? '') === 'published'): ?><a href="<?= e(url('salons/view/' . $salon['slug'])) ?>">معرفی سالن</a><?php endif; ?>

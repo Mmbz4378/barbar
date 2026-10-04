@@ -170,7 +170,7 @@ $tone = match ($status) {
   <?php elseif ($cancellation['reason'] !== null): ?>
     <p class="text-sm muted center"><?= e($cancellation['reason']) ?></p>
   <?php endif; ?>
-  <div class="btn-row" style="justify-content:center">
+  <div class="btn-row justify-center">
     <a class="btn btn--ghost" href="<?= e(url('me')) ?>"><?= icon('calendar-days') ?> همهٔ نوبت‌های من</a>
     <?php if (in_array($status, ['completed', 'cancelled', 'no_show'], true)): ?>
       <a class="btn btn--ghost" href="<?= e(url('s/' . $salon['slug'])) ?>"><?= icon('refresh') ?> رزرو دوباره</a>

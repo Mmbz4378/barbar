@@ -1,4 +1,4 @@
-<div class="stack stack-lg" style="max-width:440px;margin-inline:auto">
+<div class="stack stack-lg container-xs">
   <div class="step-head">
     <h1 class="step-head__title">نوبت‌های من</h1>
     <p class="step-head__sub">همان شماره‌ای را بزن که با آن نوبت گرفته‌ای؛ کد تأیید برایت پیامک می‌شود.</p>

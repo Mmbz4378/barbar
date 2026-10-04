@@ -56,7 +56,7 @@ $role = (string) $v('role', $account['role'] ?? 'staff');
       <input type="checkbox" name="accepts_online" value="1" <?= (string) $v('accepts_online', (string) ($s['accepts_online'] ?? 1)) === '1' ? 'checked' : '' ?>>
       <span class="check__text"><span class="strong">در رزرو آنلاین قابل انتخاب باشد</span><span class="check__hint">خاموش: فقط از پذیرش حضوری و رزرو پنل نوبت می‌گیرد.</span></span>
     </label>
-    <div class="field" style="max-width:220px">
+    <div class="field w-md">
       <label class="field__label" for="st-comm">درصد سهم <span class="field__optional">(اختیاری)</span></label>
       <div class="input-group"><input class="input num" id="st-comm" name="commission_percent" inputmode="decimal" value="<?= e((string) $v('commission_percent', $s['commission_percent'] ?? '')) ?>" data-numeric><span class="input-group__addon">٪</span></div>
       <?= partial('field-error', ['key' => 'commission_percent']) ?>
@@ -74,7 +74,7 @@ $role = (string) $v('role', $account['role'] ?? 'staff');
       <div class="field">
         <label class="field__label" for="st-role">نقش در پنل</label>
         <?php if (($account['role'] ?? '') === 'owner'): ?>
-          <input type="hidden" name="role" value="staff"><p class="input" style="display:flex;align-items:center">صاحب سالن</p>
+          <input type="hidden" name="role" value="staff"><p class="input input--static">صاحب سالن</p>
         <?php else: ?>
           <select class="select" id="st-role" name="role">
             <option value="staff" <?= $role === 'staff' ? 'selected' : '' ?>><?= e(term('staff')) ?> — فقط کار خودش</option>

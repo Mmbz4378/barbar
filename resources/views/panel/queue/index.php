@@ -101,7 +101,7 @@ $rowTime = static function (array $row): string {
   <section class="section mb-6" aria-labelledby="attention-title">
     <h2 class="section__title" id="attention-title">نیاز به اقدام</h2>
     <?php if ($pendingDeposits > 0): ?>
-      <a class="alert alert--warning" href="<?= e(url('panel/bookings?view=deposits')) ?>" style="text-decoration:none"><?= icon('wallet') ?><div class="alert__body"><strong><?= e(fa_num($pendingDeposits)) ?> رزرو منتظر تأیید بیعانه</strong> — پس از دیدن واریز، تأیید کنید تا نوبت قطعی شود.</div><?= icon('chevron-end', 'icon') ?></a>
+      <a class="alert alert--warning" href="<?= e(url('panel/bookings?view=deposits')) ?>"><?= icon('wallet') ?><div class="alert__body"><strong><?= e(fa_num($pendingDeposits)) ?> رزرو منتظر تأیید بیعانه</strong> — پس از دیدن واریز، تأیید کنید تا نوبت قطعی شود.</div><?= icon('chevron-end', 'icon') ?></a>
     <?php endif; ?>
     <?php if ($awaiting !== []): ?>
       <div class="card">
@@ -204,12 +204,12 @@ $rowTime = static function (array $row): string {
             <span class="badge <?= $n ? 'badge--accent' : '' ?>"><?= $n ? e(fa_num($n)) . ' نفر' : 'آزاد' ?></span>
           </header>
           <?php if ($n === 0): ?>
-            <p class="text-sm muted center" style="padding:24px 16px">کسی در صف نیست</p>
+            <p class="text-sm muted queue-empty">کسی در صف نیست</p>
           <?php endif; ?>
           <?php foreach ($group['queue'] as $row): $inChair = $row['status'] === 'in_chair'; ?>
             <div class="queue-row <?= $inChair ? 'queue-row--active' : '' ?>">
               <div class="queue-row__top">
-                <div class="stack stack-xs" style="min-width:0">
+                <div class="stack stack-xs min-w-0">
                   <span class="row" style="--gap:6px">
                     <?php if ($inChair): ?><span class="dot dot--live" aria-hidden="true"></span><?php endif; ?>
                     <strong class="truncate"><?= e($row['customer_name'] ?: 'مشتری') ?></strong>

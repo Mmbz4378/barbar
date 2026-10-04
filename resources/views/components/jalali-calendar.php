@@ -18,7 +18,7 @@ $atMin = $minMonth !== null
 <div class="calendar" role="group" aria-label="تقویم <?= e($cal['monthName'] . ' ' . fa_num($cal['year'])) ?>">
   <div class="calendar__head">
     <?php if ($atMin): ?>
-      <span class="btn btn--icon btn--ghost" aria-hidden="true" style="visibility:hidden"></span>
+      <span class="btn btn--icon btn--ghost is-placeholder" aria-hidden="true"></span>
     <?php else: ?>
       <a class="btn btn--icon btn--ghost" href="<?= e($navFor($cal['prev']['year'], $cal['prev']['month'])) ?>" aria-label="ماه قبل"><?= icon('chevron-start') ?></a>
     <?php endif; ?>

@@ -17,7 +17,7 @@ $card = static function (array $a, bool $upcoming): void {
     <li class="card" data-filter-item="<?= e($a['salon_name'] . ' ' . $a['service_names']) ?>" data-filter-cat="<?= $a['status'] === 'completed' ? 'completed' : ($upcoming ? 'upcoming' : 'other') ?>">
       <div class="card__body stack stack-sm">
         <div class="spread">
-          <a class="title-xs truncate" href="<?= e(url('q/' . $a['public_token'])) ?>" style="color:inherit"><?= e($a['salon_name']) ?></a>
+          <a class="title-xs truncate link-plain" href="<?= e(url('q/' . $a['public_token'])) ?>"><?= e($a['salon_name']) ?></a>
           <span class="badge badge--<?= e($tone) ?>"><?= e($label) ?></span>
         </div>
         <p class="row text-sm"><?= icon('calendar-days', 'icon muted') ?><span class="strong"><?= e(JalaliCalendar::relativeDate($date)) ?></span><span class="muted"><?= e(JalaliCalendar::humanDate($date)) ?> · ساعت <?= e(fa_time($date->format('H:i'))) ?></span></p>
@@ -43,7 +43,7 @@ $card = static function (array $a, bool $upcoming): void {
         <?php endif; ?>
         <?php if ($a['status'] === 'completed' && empty($a['review_id'])): ?>
           <details class="mt-2">
-            <summary class="btn btn--tonal btn--sm" style="list-style:none"><?= icon('star') ?> ثبت نظر دربارهٔ این مراجعه</summary>
+            <summary class="btn btn--tonal btn--sm"><?= icon('star') ?> ثبت نظر دربارهٔ این مراجعه</summary>
             <form method="post" action="<?= e(url('me/' . (int) $a['id'] . '/review')) ?>" class="stack stack-sm mt-3">
               <?= csrf_field() ?>
               <fieldset>
@@ -83,7 +83,7 @@ $card = static function (array $a, bool $upcoming): void {
   <?php if ($upcoming === []): ?>
     <div class="card"><?= partial('empty-state', ['icon' => 'calendar-days', 'title' => 'نوبتی در پیش نداری', 'text' => 'سالن مناسب را پیدا کن و وقت بعدی‌ات را بگیر.', 'actionHref' => url('discover'), 'actionLabel' => 'کشف سالن‌ها']) ?></div>
   <?php else: ?>
-    <ul class="stack stack-md" style="list-style:none"><?php foreach ($upcoming as $a) { $card($a, true); } ?></ul>
+    <ul class="stack stack-md list-reset"><?php foreach ($upcoming as $a) { $card($a, true); } ?></ul>
   <?php endif; ?>
 </section>
 
@@ -98,7 +98,7 @@ $card = static function (array $a, bool $upcoming): void {
       <button type="button" class="chip" data-filter-chip="other" aria-pressed="false">لغو و غیبت</button>
       <span class="sr-only" role="status" aria-live="polite" data-filter-status></span>
     </div>
-    <ul class="stack stack-md" style="list-style:none" id="past-list"><?php foreach ($past as $a) { $card($a, false); } ?></ul>
+    <ul class="stack stack-md list-reset" id="past-list"><?php foreach ($past as $a) { $card($a, false); } ?></ul>
     <div id="past-list-empty" hidden><p class="muted center">موردی در این بخش نیست.</p></div>
   </section>
 <?php endif; ?>

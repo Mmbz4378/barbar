@@ -1,5 +1,5 @@
 <?php /** @var string $phone @var ?string $debugLine */ ?>
-<div class="stack stack-lg" style="max-width:440px;margin-inline:auto">
+<div class="stack stack-lg container-xs">
   <div class="step-head">
     <h1 class="step-head__title">کد تأیید</h1>
     <p class="step-head__sub">کد پیامک‌شده به <span class="ltr num strong"><?= e(phone_local($phone)) ?></span> را بزن.</p>

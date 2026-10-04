@@ -46,7 +46,7 @@ $activeDays = count(array_filter($bars, static fn ($b) => $b['total'] > 0));
             <a class="bars__bar<?= $b['total'] === 0 ? ' bars__bar--empty' : '' ?>" style="--v:<?= $b['total'] === 0 ? 0 : max(2, (int) round($b['total'] / $max * 100)) ?>" href="<?= e(url('panel/reports?date=' . $b['date'])) ?>" title="<?= e(fa_num($b['day']) . ' — ' . toman($b['total'])) ?>" tabindex="-1"></a>
           <?php endforeach; ?>
         </div>
-        <div class="spread text-xs muted num" aria-hidden="true" style="margin-top:6px"><span>۱</span><span><?= e(fa_num(intdiv(count($bars), 2))) ?></span><span><?= e(fa_num(count($bars))) ?></span></div>
+        <div class="spread text-xs muted num mt-2" aria-hidden="true"><span>۱</span><span><?= e(fa_num(intdiv(count($bars), 2))) ?></span><span><?= e(fa_num(count($bars))) ?></span></div>
       <?php endif; ?>
     </div>
   </section>

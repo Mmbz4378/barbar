@@ -23,7 +23,7 @@ $serviceCount = array_sum(array_map(static fn ($g) => count($g['services']), $gr
 </div>
 
 <div class="grid grid-main-aside" style="--gap:24px">
-  <div class="stack stack-lg" style="min-width:0">
+  <div class="stack stack-lg min-w-0">
     <header class="stack stack-sm">
       <div class="cluster"><span class="badge badge--accent"><?= e(term('salon_type')) ?></span><?php if (!empty($salon['neighborhood'])): ?><span class="badge"><?= e($salon['neighborhood']) ?></span><?php endif; ?></div>
       <h1 class="title-lg"><?= e($salon['name']) ?></h1>
@@ -81,7 +81,7 @@ $serviceCount = array_sum(array_map(static fn ($g) => count($g['services']), $gr
         <?php foreach ($staff as $member): ?>
           <div class="card card--flat"><div class="card__body row">
             <span class="avatar" style="--avatar-bg:<?= e(staff_color($member['color'])) ?>" aria-hidden="true"><?= e(initial($member['name'])) ?></span>
-            <div class="stack stack-xs" style="min-width:0"><strong class="truncate"><?= e($member['name']) ?></strong><span class="text-sm muted truncate"><?= e($member['title'] ?: term('staff')) ?></span></div>
+            <div class="stack stack-xs min-w-0"><strong class="truncate"><?= e($member['name']) ?></strong><span class="text-sm muted truncate"><?= e($member['title'] ?: term('staff')) ?></span></div>
           </div></div>
         <?php endforeach; ?>
       </div>
@@ -105,7 +105,7 @@ $serviceCount = array_sum(array_map(static fn ($g) => count($g['services']), $gr
               </div>
               <?php if (!empty($review['comment'])): ?><p><?= e($review['comment']) ?></p><?php endif; ?>
               <details>
-                <summary class="btn btn--link btn--sm" style="list-style:none">گزارش این نظر</summary>
+                <summary class="btn btn--link btn--sm">گزارش این نظر</summary>
                 <form method="post" action="<?= e(url('reviews/' . $review['id'] . '/report')) ?>" class="stack stack-sm mt-2">
                   <?= csrf_field() ?>
                   <div class="field"><label class="field__label" for="rr-<?= (int) $review['id'] ?>">دلیل گزارش</label><input class="input" id="rr-<?= (int) $review['id'] ?>" name="reason" maxlength="300" required></div>

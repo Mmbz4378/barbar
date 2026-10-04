@@ -22,7 +22,7 @@ use App\Support\Audience;
         <?php foreach ($salons as $s): $ready = !in_array(false, $s['checks'], true); ?>
           <article class="card"><div class="card__body stack">
             <div class="spread">
-              <div class="stack" style="gap:0">
+              <div class="stack gap-0">
                 <a class="strong" href="<?= e(url('platform/' . $s['id'])) ?>"><?= e($s['name']) ?></a>
                 <span class="text-sm muted"><?= e(Audience::options()[$s['audience']] ?? '') ?> · <?= e(trim(($s['city'] ?? '') . ' ' . ($s['neighborhood'] ?? ''))) ?: 'بدون شهر' ?></span>
               </div>

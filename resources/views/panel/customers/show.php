@@ -29,7 +29,7 @@ $val = static fn (string $key, mixed $fallback) => old($key, $fallback ?? '');
   <div class="stat"><span class="stat__label">مجموع پرداخت</span><span class="stat__value stat__value--sm"><?= e(toman($spent)) ?></span></div>
 </div>
 
-<div class="grid grid-2" style="align-items:start">
+<div class="grid grid-2 items-start">
   <form method="post" action="<?= e(url('panel/customers/' . $customer['id'])) ?>" class="card" novalidate>
     <div class="card__header"><h2 class="card__title">مشخصات و یادداشت‌ها</h2></div>
     <div class="card__body stack">

@@ -37,12 +37,12 @@ $failedBefore = $available !== null && in_array($available['version'], (array) (
   <div class="stack stack-lg">
     <?php if ($available !== null): ?>
       <section class="card card--accent" aria-labelledby="up-new"><div class="card__body stack">
-        <div class="spread" style="flex-wrap:wrap">
+        <div class="spread wrap">
           <h2 class="card__title" id="up-new">نسخهٔ <span class="ltr"><?= e($available['version']) ?></span> آماده است</h2>
           <?php if (!empty($available['released_at'])): ?><span class="text-sm muted"><?= e(jdate(date('Y-m-d H:i:s', strtotime((string) $available['released_at'])), 'j M Y')) ?></span><?php endif; ?>
         </div>
         <?php if (trim((string) $available['notes']) !== ''): ?>
-          <div class="text-sm" style="white-space:pre-line;max-height:320px;overflow:auto;padding:12px;border-radius:var(--radius-md);background:var(--surface)"><?= e($available['notes']) ?></div>
+          <div class="code-block scroll-box text-sm"><?= e($available['notes']) ?></div>
         <?php endif; ?>
         <?php if ($failedBefore): ?>
           <div class="alert alert--warning"><?= icon('alert') ?><div class="alert__body text-sm">تلاش قبلی برای نصب این نسخه ناموفق بود و نصب خودکارش متوقف شده است. جزئیات در تاریخچهٔ پایین صفحه است؛ پس از رفع مشکل، دستی نصب کنید.</div></div>
@@ -107,14 +107,14 @@ $failedBefore = $available !== null && in_array($available['version'], (array) (
         <div class="stack stack-sm">
           <?php foreach ($history as $h): [$label, $class] = $statusMeta[$h['status']] ?? [$h['status'], '']; ?>
             <article class="card"><div class="card__body stack stack-sm">
-              <div class="spread" style="flex-wrap:wrap">
+              <div class="spread wrap">
                 <strong class="ltr"><?= e($h['from_version']) ?> → <?= e($h['to_version']) ?></strong>
                 <span class="cluster"><span class="badge <?= e($class) ?>"><?= e($label) ?></span><span class="badge badge--outline"><?= $h['trigger_type'] === 'auto' ? 'خودکار' : 'دستی' ?></span></span>
               </div>
               <p class="text-xs muted"><?= e(jdate((string) $h['started_at'], 'Y/m/d H:i')) ?><?= $h['finished_at'] ? ' تا ' . e(jdate((string) $h['finished_at'], 'H:i')) : '' ?></p>
               <?php if (!empty($h['message'])): ?><p class="text-sm"><?= e((string) $h['message']) ?></p><?php endif; ?>
               <?php if (!empty($h['log_text'])): ?>
-                <details><summary class="text-sm link" style="cursor:pointer">جزئیات فنی</summary><pre class="text-xs ltr" style="white-space:pre-wrap;margin-top:8px;padding:12px;border-radius:var(--radius-md);background:var(--surface-sunken);direction:rtl;text-align:right"><?= e((string) $h['log_text']) ?></pre></details>
+                <details><summary class="text-sm link">جزئیات فنی</summary><pre class="code-block text-xs mt-2"><?= e((string) $h['log_text']) ?></pre></details>
               <?php endif; ?>
               <?php if (!empty($h['db_backup_file']) && is_file(BASE_PATH . '/' . $h['db_backup_file']) && in_array($h['status'], ['failed', 'rolled_back'], true)): ?>
                 <form method="post" action="<?= e(url('system/updates/' . $h['id'] . '/restore-db')) ?>" data-confirm="دیتابیس به لحظهٔ پیش از این به‌روزرسانی برمی‌گردد و هرچه بعد از آن ثبت شده (نوبت، پرداخت) از بین می‌رود. فقط اگر سامانه خراب است این کار را بکنید. ادامه؟" data-confirm-ok="بازگردانی دیتابیس">
@@ -133,8 +133,8 @@ $failedBefore = $available !== null && in_array($available['version'], (array) (
       <ul class="stack stack-sm" role="list">
         <?php foreach ($readiness as $r): ?>
           <li class="row row-start" style="--gap:8px">
-            <span class="icon-tile <?= $r['ok'] ? 'icon-tile--success' : 'icon-tile--danger' ?>" style="width:28px;height:28px;flex:none"><?= icon($r['ok'] ? 'check' : 'x', 'icon', $r['ok'] ? 'آماده' : 'نیازمند رسیدگی') ?></span>
-            <span class="stack" style="gap:0"><span class="text-sm strong"><?= e($r['label']) ?></span><span class="text-xs muted"><?= e($r['value']) ?></span></span>
+            <span class="icon-tile icon-tile--sm <?= $r['ok'] ? 'icon-tile--success' : 'icon-tile--danger' ?>"><?= icon($r['ok'] ? 'check' : 'x', 'icon', $r['ok'] ? 'آماده' : 'نیازمند رسیدگی') ?></span>
+            <span class="stack gap-0"><span class="text-sm strong"><?= e($r['label']) ?></span><span class="text-xs muted"><?= e($r['value']) ?></span></span>
           </li>
         <?php endforeach; ?>
       </ul>
@@ -156,7 +156,7 @@ $failedBefore = $available !== null && in_array($available['version'], (array) (
 
     <section class="card card--sunken"><div class="card__body stack stack-sm text-sm">
       <strong>هنگام به‌روزرسانی چه می‌شود؟</strong>
-      <ol style="padding-inline-start:18px;margin:0" class="stack stack-xs">
+      <ol class="stack stack-xs list-bulleted">
         <li>بسته دانلود و چکیده (و امضا) بررسی می‌شود.</li>
         <li>از فایل‌هایی که عوض می‌شوند و در صورت وجود مهاجرت از دیتابیس پشتیبان گرفته می‌شود.</li>
         <li>سایت چند لحظه در حالت نگه‌داری می‌رود و فایل‌ها جایگزین می‌شوند.</li>

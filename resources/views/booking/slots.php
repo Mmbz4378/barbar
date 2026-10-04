@@ -63,7 +63,7 @@ $wide = true;
     <?= partial('day-strip', ['days' => $days, 'linkFor' => static fn (string $g): string => url($baseUrl . '?date=' . $g)]) ?>
 
     <details class="mt-2 mb-4">
-      <summary class="btn btn--link" style="list-style:none"><?= icon('calendar') ?> روز دیگری می‌خواهم</summary>
+      <summary class="btn btn--link"><?= icon('calendar') ?> روز دیگری می‌خواهم</summary>
       <div class="mt-3">
         <?= partial('jalali-calendar', [
             'cal' => $calendar,

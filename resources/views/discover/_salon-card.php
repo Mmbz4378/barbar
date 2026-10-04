@@ -5,7 +5,7 @@
   </a>
   <div class="salon-card__body">
     <div class="spread">
-      <h2 class="salon-card__name"><a href="<?= e(url('salons/view/' . $salon['slug'])) ?>" style="color:inherit"><?= e($salon['name']) ?></a></h2>
+      <h2 class="salon-card__name"><a class="link-plain" href="<?= e(url('salons/view/' . $salon['slug'])) ?>"><?= e($salon['name']) ?></a></h2>
       <span class="badge"><?= e(term('audience_label', $salon['audience'] ?? null)) ?></span>
     </div>
     <p class="text-sm muted truncate"><?= icon('map-pin', 'icon') ?> <?= e(join_parts([$salon['city'] ?? '', ($salon['neighborhood'] ?? '') ?: ($salon['address'] ?? '')], ' · ')) ?></p>

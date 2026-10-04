@@ -39,8 +39,8 @@ $page = max(1, (int) ($filters['page'] ?: 1));
   </div>
   <button class="btn btn--primary btn--lg" type="submit"><?= icon('search') ?> جست‌وجو</button>
   <?php foreach (['audience', 'cat'] as $keep): if ($filters[$keep] !== ''): ?><input type="hidden" name="<?= $keep ?>" value="<?= e($filters[$keep]) ?>"><?php endif; endforeach; ?>
-  <details class="span-2" style="grid-column:1/-1" <?= $advanced ? 'open' : '' ?>>
-    <summary class="btn btn--link" style="list-style:none"><?= icon('sliders') ?> فیلترهای بیشتر</summary>
+  <details class="span-full" <?= $advanced ? 'open' : '' ?>>
+    <summary class="btn btn--link"><?= icon('sliders') ?> فیلترهای بیشتر</summary>
     <div class="form-grid form-grid--3 mt-3">
       <div class="field"><label class="field__label" for="d-n">محله</label><input class="input" id="d-n" name="neighborhood" value="<?= e($filters['neighborhood']) ?>" maxlength="100" placeholder="همهٔ محله‌ها"></div>
       <div class="field"><label class="field__label" for="d-p">حداکثر قیمت پایه</label><div class="input-group"><input class="input num" id="d-p" name="max_price" value="<?= e($filters['max_price']) ?>" inputmode="numeric" data-numeric placeholder="بدون محدودیت"><span class="input-group__addon">تومان</span></div></div>
@@ -87,7 +87,7 @@ $page = max(1, (int) ($filters['page'] ?: 1));
     <?php foreach ($salons as $salon) { include __DIR__ . '/_salon-card.php'; } ?>
   </div>
   <?php if ($page > 1 || $hasNext): ?>
-    <nav class="btn-row mt-6" style="justify-content:center" aria-label="صفحه‌های نتایج">
+    <nav class="btn-row mt-6 justify-center" aria-label="صفحه‌های نتایج">
       <?php if ($page > 1): ?><a class="btn btn--secondary" href="<?= e(url($isFavorites ? 'me/favorites' : 'discover') . $query(['page' => $page - 1])) ?>"><?= icon('chevron-start') ?> قبلی</a><?php endif; ?>
       <span class="btn btn--ghost" aria-current="page">صفحهٔ <?= e(fa_num($page)) ?></span>
       <?php if ($hasNext): ?><a class="btn btn--secondary" href="<?= e(url($isFavorites ? 'me/favorites' : 'discover') . $query(['page' => $page + 1])) ?>">بعدی <?= icon('chevron-end') ?></a><?php endif; ?>

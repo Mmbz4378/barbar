@@ -81,7 +81,7 @@ $bySystem = (int) ($counts['cancelled_by']['system'] ?? 0);
   <nav class="chips mb-4" aria-label="فیلتر بر اساس فرد">
     <a class="chip" href="<?= e(url('panel/bookings?from=' . $from->format('Y-m-d'))) ?>" <?= $staffFilter === null ? 'aria-current="page"' : '' ?>>همه</a>
     <?php foreach ($staffList as $st): ?>
-      <a class="chip" href="<?= e(url('panel/bookings?from=' . $from->format('Y-m-d') . '&staff=' . $st['id'])) ?>" <?= $staffFilter === (int) $st['id'] ? 'aria-current="page"' : '' ?>><span class="dot" style="background:<?= e(staff_color($st['color'])) ?>"></span><?= e($st['name']) ?></a>
+      <a class="chip" href="<?= e(url('panel/bookings?from=' . $from->format('Y-m-d') . '&staff=' . $st['id'])) ?>" <?= $staffFilter === (int) $st['id'] ? 'aria-current="page"' : '' ?>><span class="dot" style="--c:<?= e(staff_color($st['color'])) ?>"></span><?= e($st['name']) ?></a>
     <?php endforeach; ?>
   </nav>
 <?php endif; ?>
@@ -104,9 +104,9 @@ $bySystem = (int) ($counts['cancelled_by']['system'] ?? 0);
         </div>
         <ul class="list">
           <?php foreach ($day['rows'] as $r): $off = in_array($r['status'], ['cancelled', 'no_show'], true); [$label, $tone] = status_meta((string) $r['status']); ?>
-            <li class="list-row" style="<?= $off ? 'opacity:.62' : '' ?>">
-              <time class="num strong" datetime="<?= e((string) $r['scheduled_at']) ?>" style="min-width:48px;<?= $off ? 'text-decoration:line-through' : '' ?>"><?= e(fa_time(substr((string) $r['scheduled_at'], 11, 5))) ?></time>
-              <span aria-hidden="true" style="width:4px;align-self:stretch;border-radius:4px;background:<?= e(staff_color($r['staff_color'] ?? null)) ?>"></span>
+            <li class="list-row<?= $off ? ' is-inactive' : '' ?>">
+              <time class="num strong time-col<?= $off ? ' is-struck' : '' ?>" datetime="<?= e((string) $r['scheduled_at']) ?>"><?= e(fa_time(substr((string) $r['scheduled_at'], 11, 5))) ?></time>
+              <span class="color-bar" aria-hidden="true" style="--c:<?= e(staff_color($r['staff_color'] ?? null)) ?>"></span>
               <span class="list-row__body">
                 <span class="list-row__title truncate"><?= e($r['customer_name'] ?: 'مشتری') ?><?= $r['group_token'] ? ' <span class="badge badge--outline">چندبخشی</span>' : '' ?></span>
                 <span class="list-row__meta truncate"><?= e($r['service_names'] ?? '') ?> · <?= e($r['staff_name'] ?? '') ?><?php if ($desk && !empty($r['customer_phone'])): ?> · <a class="ltr num" href="tel:<?= e($r['customer_phone']) ?>"><?= e(phone_local($r['customer_phone'])) ?></a><?php endif; ?></span>

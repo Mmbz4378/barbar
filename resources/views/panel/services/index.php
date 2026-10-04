@@ -23,7 +23,7 @@ $visualOptions = ServiceVisual::options();
 </div>
 
 <form method="post" action="<?= e(url('panel/categories')) ?>" class="card mb-6" id="new-category" hidden>
-  <div class="card__body form-grid form-grid--3" style="align-items:end">
+  <div class="card__body form-grid form-grid--3 items-end">
     <?= csrf_field() ?>
     <div class="field"><label class="field__label" for="nc-name">نام دسته</label><input class="input" id="nc-name" name="name" maxlength="80" required placeholder="مثلاً ناخن، ریش و صورت"></div>
     <div class="field"><label class="field__label" for="nc-visual">نماد</label><select class="select" id="nc-visual" name="visual"><?php foreach ($visualOptions as $key => $label): ?><option value="<?= e($key) ?>"><?= e($label) ?></option><?php endforeach; ?></select></div>
@@ -39,12 +39,12 @@ $visualOptions = ServiceVisual::options();
   <?php foreach ($groups as $gi => $group): $cat = $group['id'] !== null ? ($catById[$group['id']] ?? null) : null; ?>
     <section class="card" aria-labelledby="cat-<?= (int) ($group['id'] ?? 0) ?>">
       <div class="card__header card__header--divided">
-        <h2 class="card__title row" id="cat-<?= (int) ($group['id'] ?? 0) ?>"><span class="icon-tile" style="width:36px;height:36px"><?= icon(ServiceVisual::icon($group['visual'] ?? 'haircut')) ?></span><?= e($group['name']) ?> <span class="badge"><?= e(fa_num(count($group['services']))) ?></span></h2>
+        <h2 class="card__title row" id="cat-<?= (int) ($group['id'] ?? 0) ?>"><span class="icon-tile icon-tile--md"><?= icon(ServiceVisual::icon($group['visual'] ?? 'haircut')) ?></span><?= e($group['name']) ?> <span class="badge"><?= e(fa_num(count($group['services']))) ?></span></h2>
         <?php if ($cat !== null): ?>
           <details class="more-menu">
             <summary class="btn btn--ghost btn--icon btn--sm" aria-label="مدیریت دستهٔ <?= e($group['name']) ?>"><?= icon('more') ?></summary>
-            <div class="more-menu__panel" style="min-width:260px">
-              <form method="post" action="<?= e(url('panel/categories/' . $cat['id'])) ?>" class="stack stack-sm" style="padding:8px">
+            <div class="more-menu__panel more-menu__panel--wide">
+              <form method="post" action="<?= e(url('panel/categories/' . $cat['id'])) ?>" class="stack stack-sm more-menu__form">
                 <?= csrf_field() ?>
                 <label class="field__label" for="cn-<?= (int) $cat['id'] ?>">نام دسته</label>
                 <input class="input" id="cn-<?= (int) $cat['id'] ?>" name="name" value="<?= e($cat['name']) ?>" maxlength="80">
@@ -65,9 +65,9 @@ $visualOptions = ServiceVisual::options();
       </div>
       <ul class="list">
         <?php foreach ($group['services'] as $s): $active = (bool) $s['is_active']; $offers = $offerCounts[(int) $s['id']] ?? 0; ?>
-          <li class="list-row" style="<?= $active ? '' : 'opacity:.7' ?>">
+          <li class="list-row<?= $active ? '' : ' is-inactive' ?>">
             <?= service_media($s, 'service-thumb service-thumb--sm') ?>
-            <a class="list-row__body" href="<?= e(url('panel/services/' . $s['id'] . '/edit')) ?>" style="color:inherit;text-decoration:none">
+            <a class="list-row__body link-plain" href="<?= e(url('panel/services/' . $s['id'] . '/edit')) ?>">
               <span class="list-row__title"><?= e($s['name']) ?></span>
               <span class="list-row__meta"><?= e(duration_text((int) $s['duration_minutes'])) ?><?= (int) $s['buffer_minutes'] > 0 ? ' + ' . e(fa_num($s['buffer_minutes'])) . ' آماده‌سازی' : '' ?> · <span class="num"><?= e(price_text((int) $s['price'], (string) $s['price_type'])) ?></span></span>
               <span class="cluster" style="--gap:4px">

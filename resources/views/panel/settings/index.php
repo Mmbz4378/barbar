@@ -54,7 +54,7 @@ $durations = [0 => 'بدون محدودیت', 30 => 'نیم ساعت', 60 => '۱
       </div>
       <div class="field">
         <label class="field__label" for="sp-slug">نشانی صفحهٔ رزرو</label>
-        <div class="input-group" dir="ltr"><span class="input-group__addon" style="border-inline-start:1px solid var(--border-input);border-inline-end:0;border-radius:0 var(--radius-md) var(--radius-md) 0"><?= e(rtrim(absolute_url('s'), '/')) ?>/</span><input class="input input--ltr" id="sp-slug" name="slug" placeholder="<?= e($salon['slug']) ?>" value="<?= e((string) $v('slug', '')) ?>" style="border-radius:var(--radius-md) 0 0 var(--radius-md)"></div>
+        <div class="input-group" dir="ltr"><span class="input-group__addon"><?= e(rtrim(absolute_url('s'), '/')) ?>/</span><input class="input input--ltr" id="sp-slug" name="slug" placeholder="<?= e($salon['slug']) ?>" value="<?= e((string) $v('slug', '')) ?>"></div>
         <p class="field__hint">خالی بماند تغییر نمی‌کند. با تغییر، QRهای چاپ‌شدهٔ قبلی دیگر کار نمی‌کنند.</p>
         <?= partial('field-error', ['key' => 'slug']) ?>
       </div>
@@ -75,8 +75,8 @@ $durations = [0 => 'بدون محدودیت', 30 => 'نیم ساعت', 60 => '۱
       </fieldset>
     </div></div>
 
-    <div class="card"><div class="card__header"><h2 class="card__title">لوگو</h2></div><div class="card__body row" style="flex-wrap:wrap">
-      <span class="brand-mark" style="width:64px;height:64px;border-radius:16px"><?= $logoUrl ? '<img src="' . e($logoUrl) . '" alt="لوگوی فعلی">' : icon(($salon['audience'] ?? 'men') === 'women' ? 'sparkles' : 'scissors') ?></span>
+    <div class="card"><div class="card__header"><h2 class="card__title">لوگو</h2></div><div class="card__body row wrap">
+      <span class="brand-mark brand-mark--xl"><?= $logoUrl ? '<img src="' . e($logoUrl) . '" alt="لوگوی فعلی">' : icon(($salon['audience'] ?? 'men') === 'women' ? 'sparkles' : 'scissors') ?></span>
       <div class="stack stack-sm grow">
         <label class="field__label" for="sp-logo">انتخاب تصویر (PNG، JPG یا WebP)</label>
         <input class="input" id="sp-logo" type="file" name="logo" accept="image/png,image/jpeg,image/webp">
@@ -95,7 +95,7 @@ $durations = [0 => 'بدون محدودیت', 30 => 'نیم ساعت', 60 => '۱
         <?php foreach (JalaliCalendar::WEEKDAY_NAMES as $w => $dayName): $h = $hours[$w] ?? null; $closed = $h ? (bool) $h['is_closed'] : false; ?>
           <div class="hours__row">
             <span class="hours__day"><?= e($dayName) ?></span>
-            <label class="check" style="min-height:auto"><input type="checkbox" name="closed_<?= $w ?>" id="closed_<?= $w ?>" value="1" <?= $closed ? 'checked' : '' ?> data-hides="#times-<?= $w ?>"><span>تعطیل</span></label>
+            <label class="check check--compact"><input type="checkbox" name="closed_<?= $w ?>" id="closed_<?= $w ?>" value="1" <?= $closed ? 'checked' : '' ?> data-hides="#times-<?= $w ?>"><span>تعطیل</span></label>
             <div class="hours__times" id="times-<?= $w ?>">
               <label>از <?= partial('time-input', ['name' => 'opens_' . $w, 'value' => $h['opens_at'] ?? '09:00', 'label' => 'شروع ' . $dayName]) ?></label>
               <label>تا <?= partial('time-input', ['name' => 'closes_' . $w, 'value' => $h['closes_at'] ?? '21:00', 'label' => 'پایان ' . $dayName]) ?></label>
@@ -106,7 +106,7 @@ $durations = [0 => 'بدون محدودیت', 30 => 'نیم ساعت', 60 => '۱
         <?php endforeach; ?>
       </div>
     </div></div>
-    <div class="card"><div class="card__body field" style="max-width:360px">
+    <div class="card"><div class="card__body field w-lg">
       <label class="field__label" for="slot-step">فاصلهٔ ساعت‌های شروع نوبت</label>
       <select class="select" id="slot-step" name="slot_step_minutes">
         <?php foreach ([5, 10, 15, 20, 30, 45, 60] as $m): ?><option value="<?= $m ?>" <?= (int) $salon['slot_step_minutes'] === $m ? 'selected' : '' ?>>هر <?= e(fa_num($m)) ?> دقیقه</option><?php endforeach; ?>
@@ -166,7 +166,7 @@ $durations = [0 => 'بدون محدودیت', 30 => 'نیم ساعت', 60 => '۱
 </section>
 
 <section id="panel-closures" role="tabpanel" aria-labelledby="tab-closures" tabindex="0" hidden>
-  <div class="grid grid-2" style="align-items:start">
+  <div class="grid grid-2 items-start">
     <form method="post" action="<?= e(url('panel/settings/timeoff')) ?>" class="card"><div class="card__header"><h2 class="card__title">بستن یک بازه</h2></div><div class="card__body stack">
       <?= csrf_field() ?>
       <div class="field">

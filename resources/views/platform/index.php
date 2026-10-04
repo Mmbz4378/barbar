@@ -48,7 +48,7 @@ $qs = static fn (array $over) => http_build_query(array_filter(array_merge($filt
   </div>
 
   <form method="get" action="<?= e(url('platform')) ?>" class="card card--flat"><div class="card__body cluster" style="--gap:12px">
-    <div class="field grow" style="min-width:200px">
+    <div class="field grow-200">
       <label class="sr-only" for="pf-q">جست‌وجو</label>
       <input class="input input-search" id="pf-q" type="search" name="q" value="<?= e($filters['q']) ?>" placeholder="نام، نشانی صفحه، شهر یا تلفن">
     </div>
@@ -78,9 +78,9 @@ $qs = static fn (array $over) => http_build_query(array_filter(array_merge($filt
           <?php foreach ($salons as $s): [$pubText, $pubClass] = $pubLabels[$s['publication_status']] ?? ['—', '']; ?>
             <tr>
               <td data-label="سالن">
-                <a class="row" style="--gap:10px;color:inherit" href="<?= e(url('platform/' . $s['id'])) ?>">
+                <a class="row link-plain" style="--gap:10px" href="<?= e(url('platform/' . $s['id'])) ?>">
                   <span class="avatar avatar--sm avatar--square" data-theme="<?= e(App\Support\Theme::resolve($s['theme'])) ?>" aria-hidden="true"><?= e(initial($s['name'])) ?></span>
-                  <span class="stack" style="gap:0"><strong><?= e($s['name']) ?></strong><span class="text-xs muted"><?= e(Audience::options()[$s['audience']] ?? '') ?><?= $s['city'] ? ' · ' . e($s['city']) : '' ?></span></span>
+                  <span class="stack gap-0"><strong><?= e($s['name']) ?></strong><span class="text-xs muted"><?= e(Audience::options()[$s['audience']] ?? '') ?><?= $s['city'] ? ' · ' . e($s['city']) : '' ?></span></span>
                 </a>
               </td>
               <td data-label="وضعیت">

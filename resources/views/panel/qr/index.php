@@ -16,18 +16,18 @@ $menuLink = rtrim($link, '/') . '/menu';
   </div>
 </div>
 
-<div class="grid grid-2" style="align-items:start">
+<div class="grid grid-2 items-start">
   <section class="card" id="qr-sheet" aria-labelledby="qr-title">
-    <div class="card__body stack center" style="align-items:center">
+    <div class="card__body stack center items-center">
       <span class="eyebrow">رزرو آنلاین نوبت</span>
       <h2 class="title-md" id="qr-title"><?= e($salon['name']) ?></h2>
       <?php if ($qrDataUri !== null): ?>
-        <img src="<?= e($qrDataUri) ?>" alt="کد QR صفحهٔ رزرو <?= e($salon['name']) ?>" width="240" height="240" style="width:min(100%,240px);border-radius:12px;background:#fff;padding:10px">
+        <img src="<?= e($qrDataUri) ?>" alt="کد QR صفحهٔ رزرو <?= e($salon['name']) ?>" width="240" height="240" class="qr-frame">
         <p class="strong">دوربین موبایل را روی این کد بگیرید</p>
       <?php else: ?>
         <div class="alert alert--warning"><?= icon('alert') ?><div class="alert__body">ساخت QR روی این سرور در دسترس نیست (کتابخانهٔ لازم نصب نشده). لینک زیر همچنان کار می‌کند.</div></div>
       <?php endif; ?>
-      <p class="ltr text-sm muted" style="overflow-wrap:anywhere"><?= e($link) ?></p>
+      <p class="ltr text-sm muted break-anywhere"><?= e($link) ?></p>
     </div>
   </section>
 

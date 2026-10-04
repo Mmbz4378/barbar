@@ -89,7 +89,7 @@ $priceType = (string) $v('price_type', $s['price_type'] ?? 'fixed');
       </label>
       <div class="field">
         <label class="field__label" for="s-dep">بیعانهٔ رزرو آنلاین <span class="field__optional">(اختیاری)</span></label>
-        <div class="input-group" style="max-width:320px"><input class="input num" id="s-dep" name="deposit_toman" inputmode="numeric" value="<?= e((string) $v('deposit_toman', !empty($s['deposit_amount']) ? intdiv((int) $s['deposit_amount'], 10) : '')) ?>" data-numeric><span class="input-group__addon">تومان</span></div>
+        <div class="input-group w-lg"><input class="input num" id="s-dep" name="deposit_toman" inputmode="numeric" value="<?= e((string) $v('deposit_toman', !empty($s['deposit_amount']) ? intdiv((int) $s['deposit_amount'], 10) : '')) ?>" data-numeric><span class="input-group__addon">تومان</span></div>
         <p class="field__hint">نوبت تا تأیید واریز نگه داشته می‌شود. شمارهٔ کارت و مهلت پرداخت در <a class="link" href="<?= e(url('panel/settings#rules')) ?>">تنظیمات ← قوانین رزرو</a>.</p>
       </div>
     </div></section>
@@ -105,8 +105,8 @@ $priceType = (string) $v('price_type', $s['price_type'] ?? 'fixed');
             <tr>
               <td data-label="نام"><span class="row" style="--gap:8px"><span class="avatar avatar--sm" style="--avatar-bg:<?= e(staff_color($st['color'])) ?>" aria-hidden="true"><?= e(initial($st['name'])) ?></span><?= e($st['name']) ?></span></td>
               <td data-label="انجام می‌دهد"><input type="hidden" name="staff[<?= (int) $st['id'] ?>][offered]" value="0"><label class="switch"><input type="checkbox" name="staff[<?= (int) $st['id'] ?>][offered]" value="1" <?= $offered ? 'checked' : '' ?> aria-label="<?= e($st['name']) ?> این خدمت را انجام می‌دهد"><span class="switch__track"></span></label></td>
-              <td data-label="مدت اختصاصی"><input class="input num" style="max-width:110px" name="staff[<?= (int) $st['id'] ?>][duration]" inputmode="numeric" placeholder="<?= e(fa_num($s['duration_minutes'] ?? '')) ?>" value="<?= e($o && $o['duration_minutes'] !== null ? (string) $o['duration_minutes'] : '') ?>" aria-label="مدت اختصاصی <?= e($st['name']) ?> به دقیقه" data-numeric></td>
-              <td data-label="قیمت اختصاصی"><input class="input num" style="max-width:150px" name="staff[<?= (int) $st['id'] ?>][price]" inputmode="numeric" placeholder="<?= isset($s['price']) ? e(fa_num(intdiv((int) $s['price'], 10))) : '' ?>" value="<?= e($o && $o['price'] !== null ? (string) intdiv((int) $o['price'], 10) : '') ?>" aria-label="قیمت اختصاصی <?= e($st['name']) ?> به تومان" data-numeric></td>
+              <td data-label="مدت اختصاصی"><input class="input num w-xs" name="staff[<?= (int) $st['id'] ?>][duration]" inputmode="numeric" placeholder="<?= e(fa_num($s['duration_minutes'] ?? '')) ?>" value="<?= e($o && $o['duration_minutes'] !== null ? (string) $o['duration_minutes'] : '') ?>" aria-label="مدت اختصاصی <?= e($st['name']) ?> به دقیقه" data-numeric></td>
+              <td data-label="قیمت اختصاصی"><input class="input num w-sm" name="staff[<?= (int) $st['id'] ?>][price]" inputmode="numeric" placeholder="<?= isset($s['price']) ? e(fa_num(intdiv((int) $s['price'], 10))) : '' ?>" value="<?= e($o && $o['price'] !== null ? (string) intdiv((int) $o['price'], 10) : '') ?>" aria-label="قیمت اختصاصی <?= e($st['name']) ?> به تومان" data-numeric></td>
             </tr>
           <?php endforeach; ?>
           </tbody>

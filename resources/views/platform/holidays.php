@@ -32,7 +32,7 @@ $today = Now::today()->format('Y-m-d');
       <div class="card">
         <ul class="list" role="list">
           <?php foreach ($holidays as $h): $d = new DateTimeImmutable((string) $h['gregorian_date']); $past = $h['gregorian_date'] < $today; ?>
-            <li class="list-row" style="<?= $past ? 'opacity:.6' : '' ?>">
+            <li class="list-row<?= $past ? ' is-inactive' : '' ?>">
               <span class="icon-tile <?= (int) $h['is_official'] ? '' : 'icon-tile--neutral' ?>" aria-hidden="true"><?= icon('calendar-x') ?></span>
               <span class="list-row__body">
                 <span class="list-row__title"><?= e($h['jalali_label']) ?></span>

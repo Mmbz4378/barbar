@@ -14,7 +14,7 @@ $withInstall = $withInstall ?? true;
 </dialog>
 <?php if ($withInstall): ?>
 <div class="install" id="install-card" hidden role="region" aria-label="نصب روی گوشی">
-  <img src="<?= e(asset('icons/icon-192.png')) ?>" alt="" width="44" height="44" style="border-radius:12px">
+  <img src="<?= e(asset('icons/icon-192.png')) ?>" alt="" width="44" height="44" class="install__icon">
   <div class="grow stack stack-xs">
     <strong>نصب روی گوشی</strong>
     <p class="text-sm muted" id="install-text-android" hidden>مثل یک برنامه باز می‌شود، بدون نوار مرورگر.</p>

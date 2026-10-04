@@ -51,7 +51,7 @@ $hasCover = preg_match('/^[a-zA-Z0-9-]+\.webp$/', (string) ($salon['cover_path']
     </div></section>
 
     <section class="card" aria-labelledby="pub-cover"><div class="card__header"><h2 class="card__title" id="pub-cover">عکس سالن</h2></div><div class="card__body stack">
-      <div class="salon-cover" style="border-radius:var(--radius-lg);overflow:hidden" data-theme="<?= e(App\Support\Theme::resolve($salon['theme'] ?? null)) ?>"><?= salon_cover($salon) ?></div>
+      <div class="salon-cover salon-cover--card" data-theme="<?= e(App\Support\Theme::resolve($salon['theme'] ?? null)) ?>"><?= salon_cover($salon) ?></div>
       <?php if (!$hasCover): ?><p class="text-sm muted">هنوز عکسی بارگذاری نشده. عکس واقعی از فضای سالن، بیشترین اثر را روی انتخاب مشتری دارد.</p><?php endif; ?>
       <div class="field">
         <label class="field__label" for="pub-file"><?= $hasCover ? 'جایگزینی عکس' : 'انتخاب عکس' ?> <span class="field__optional">(JPG، PNG یا WebP؛ حداکثر ۳ مگابایت؛ افقی)</span></label>
@@ -98,7 +98,7 @@ $hasCover = preg_match('/^[a-zA-Z0-9-]+\.webp$/', (string) ($salon['cover_path']
       <ul class="stack stack-sm" role="list">
         <?php foreach ($checklist as $label => $ok): ?>
           <li class="row" style="--gap:8px">
-            <span class="icon-tile <?= $ok ? 'icon-tile--success' : 'icon-tile--neutral' ?>" style="width:28px;height:28px"><?= icon($ok ? 'check' : 'x', 'icon', $ok ? 'کامل' : 'ناقص') ?></span>
+            <span class="icon-tile icon-tile--sm <?= $ok ? 'icon-tile--success' : 'icon-tile--neutral' ?>"><?= icon($ok ? 'check' : 'x', 'icon', $ok ? 'کامل' : 'ناقص') ?></span>
             <span class="<?= $ok ? '' : 'muted' ?>"><?= e($label) ?></span>
           </li>
         <?php endforeach; ?>

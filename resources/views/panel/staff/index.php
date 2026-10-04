@@ -24,9 +24,9 @@
   <?php else: ?>
     <ul class="card list">
       <?php foreach ($staff as $st): $active = (bool) $st['is_active']; ?>
-        <li class="list-row" style="<?= $active ? '' : 'opacity:.65' ?>">
+        <li class="list-row<?= $active ? '' : ' is-inactive' ?>">
           <span class="avatar" style="--avatar-bg:<?= e(staff_color($st['color'])) ?>" aria-hidden="true"><?= e(initial($st['name'])) ?></span>
-          <a class="list-row__body" href="<?= e(url('panel/staff/' . $st['id'] . '/edit')) ?>" style="color:inherit;text-decoration:none">
+          <a class="list-row__body link-plain" href="<?= e(url('panel/staff/' . $st['id'] . '/edit')) ?>">
             <span class="list-row__title"><?= e($st['name']) ?><?= $st['title'] ? ' <span class="muted text-sm">· ' . e($st['title']) . '</span>' : '' ?></span>
             <span class="cluster" style="--gap:4px">
               <?php if (!$active): ?><span class="badge badge--warning">غیرفعال</span><?php endif; ?>
@@ -61,7 +61,7 @@
   <div class="card">
     <ul class="list">
       <?php foreach ($accessOnly as $m): $isSelf = (int) $m['user_id'] === (int) App\Core\Auth::id(); $locked = $m['role'] === 'owner' || $isSelf || ($m['role'] === 'manager' && !$isOwner); ?>
-        <li class="list-row" style="<?= (int) $m['is_active'] === 1 ? '' : 'opacity:.6' ?>">
+        <li class="list-row<?= (int) $m['is_active'] === 1 ? '' : ' is-inactive' ?>">
           <span class="avatar avatar--sm avatar--any" aria-hidden="true"><?= e(initial($m['name'] ?: '؟')) ?></span>
           <span class="list-row__body">
             <span class="list-row__title"><?= e($m['name'] ?: 'بدون نام') ?><?= $isSelf ? ' <span class="muted text-sm">(شما)</span>' : '' ?></span>
@@ -90,7 +90,7 @@
 
 <div class="card card--sunken mt-6"><div class="card__body stack stack-sm text-sm">
   <strong>چه کسی چه چیزی را می‌بیند؟</strong>
-  <ul class="stack stack-xs muted" style="padding-inline-start:18px">
+  <ul class="stack stack-xs muted list-bulleted">
     <li><strong>صاحب سالن و مدیر:</strong> همه‌چیز؛ فقط صاحب سالن می‌تواند مدیر تعیین کند.</li>
     <li><strong>پذیرش:</strong> صف امروز، رزروها، مشتریان، تسویه و تأیید بیعانه؛ بدون گزارش درآمد و تنظیمات.</li>
     <li><strong><?= e(term('staff')) ?>:</strong> فقط صف و نوبت‌های خودش و فروش خودش.</li>
@@ -100,7 +100,7 @@
 <dialog class="sheet" id="member-sheet" aria-labelledby="member-sheet-title">
   <div class="sheet__handle" aria-hidden="true"></div>
   <div class="sheet__head"><h2 class="sheet__title" id="member-sheet-title">دسترسی پذیرش یا مدیر</h2><button type="button" class="btn btn--ghost btn--icon" data-close aria-label="بستن"><?= icon('x') ?></button></div>
-  <form method="post" action="<?= e(url('panel/team/members')) ?>" class="sheet__body stack" style="padding-inline:20px">
+  <form method="post" action="<?= e(url('panel/team/members')) ?>" class="sheet__body sheet__body--roomy stack">
     <?= csrf_field() ?>
     <div class="field"><label class="field__label" for="m-name">نام</label><input class="input" id="m-name" name="name" maxlength="120"></div>
     <div class="field"><label class="field__label" for="m-phone">موبایل</label><input class="input input--ltr num" id="m-phone" name="phone" type="tel" dir="ltr" required data-numeric><?= partial('field-error', ['key' => 'member_phone']) ?></div>

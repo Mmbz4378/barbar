@@ -55,10 +55,10 @@ $customers = $mix['new'] + $mix['returning'];
             <?php $share = (int) round(((int) $row['revenue'] - (int) $row['tips']) * ((float) ($row['commission_percent'] ?? 0)) / 100); ?>
             <li class="stack stack-xs">
               <div class="spread">
-                <span class="row" style="--gap:8px"><span class="dot" style="background:<?= e(staff_color($row['color'] ?? null)) ?>;width:10px;height:10px" aria-hidden="true"></span><strong><?= e($row['name']) ?></strong> <span class="text-xs muted"><?= e(fa_num((int) $row['visits'])) ?> مراجعه</span></span>
+                <span class="row" style="--gap:8px"><span class="dot dot--md" style="--c:<?= e(staff_color($row['color'] ?? null)) ?>" aria-hidden="true"></span><strong><?= e($row['name']) ?></strong> <span class="text-xs muted"><?= e(fa_num((int) $row['visits'])) ?> مراجعه</span></span>
                 <span class="num bold"><?= e(toman((int) $row['revenue'])) ?></span>
               </div>
-              <div class="meter" role="presentation"><div class="meter__fill" style="--v:<?= (int) round((int) $row['revenue'] / $maxStaff * 100) ?>;background:<?= e(staff_color($row['color'] ?? null)) ?>"></div></div>
+              <div class="meter" role="presentation"><div class="meter__fill" style="--v:<?= (int) round((int) $row['revenue'] / $maxStaff * 100) ?>;--c:<?= e(staff_color($row['color'] ?? null)) ?>"></div></div>
               <?php if ((float) ($row['commission_percent'] ?? 0) > 0): ?>
                 <span class="text-xs muted">سهم تخمینی (<?= e(fa_num((float) $row['commission_percent'])) ?>٪ بدون انعام): <?= e(toman($share)) ?><?= (int) $row['tips'] > 0 ? ' · انعام ' . e(toman((int) $row['tips'])) : '' ?></span>
               <?php elseif ((int) $row['tips'] > 0): ?>

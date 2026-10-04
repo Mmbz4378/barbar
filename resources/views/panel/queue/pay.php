@@ -15,7 +15,7 @@ use App\Domain\Payment\PaymentRepository;
 $dueToman = max(0, intdiv($subtotal - $deposit, 10));
 $method = (string) old('method', 'cash');
 ?>
-<div style="max-width:560px;margin-inline:auto">
+<div class="container-sm">
   <a class="back-link" href="<?= e(url('panel')) ?>"><?= icon('chevron-start') ?> امروز</a>
   <div class="page-head">
     <div class="page-head__text">

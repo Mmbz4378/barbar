@@ -20,7 +20,7 @@
         <?php foreach ([['men', 'آرایشگاه مردانه', 'scissors', 'کوتاهی، ریش، صورت'], ['women', 'سالن زیبایی بانوان', 'sparkles', 'مو، رنگ، ناخن، مژه، میکاپ'], ['unisex', 'هر دو', 'users', 'خدمات آقایان و بانوان']] as [$key, $label, $symbol, $hint]): ?>
           <label class="choice">
             <input class="choice__input" type="radio" name="audience" value="<?= $key ?>" required <?= $current === $key ? 'checked' : '' ?>>
-            <span class="choice__card" style="flex-direction:column;align-items:flex-start;gap:8px">
+            <span class="choice__card choice__card--stacked">
               <span class="icon-tile"><?= icon($symbol) ?></span>
               <span class="choice__title"><?= e($label) ?></span>
               <span class="choice__meta"><?= e($hint) ?></span>

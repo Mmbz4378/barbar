@@ -43,7 +43,7 @@ $total = count($rows);
         <p class="text-sm muted"><?= e($r['note']) ?></p>
         <div class="stack stack-xs">
           <div class="spread"><span class="field__label">متن الگو (متغیرهای <?= e($provider === 'kavenegar' ? 'کاوه‌نگار' : 'ملی‌پیامک') ?>)</span><button type="button" class="btn btn--ghost btn--sm" data-copy="<?= e($r['providerPattern']) ?>"><?= icon('copy') ?> کپی</button></div>
-          <pre class="card card--sunken text-sm" style="margin:0;padding:12px;white-space:pre-wrap;font-family:inherit"><?= e($r['providerPattern']) ?></pre>
+          <pre class="code-block text-sm"><?= e($r['providerPattern']) ?></pre>
         </div>
         <div class="cluster text-sm"><span class="muted">ترتیب متغیرها:</span><?php foreach ($r['vars'] as $i => $v): ?><span class="badge badge--outline"><?= e(fa_num($i + 1)) ?>. <span class="ltr"><?= e($v) ?></span></span><?php endforeach; ?></div>
         <?php if ($r['registered'] !== null): ?>
@@ -52,7 +52,7 @@ $total = count($rows);
             <div class="copy-field"><code><?= e($r['envKey']) ?>=<?= e($r['registered']['body_id']) ?></code><button type="button" class="btn btn--secondary btn--sm" data-copy="<?= e($r['envKey'] . '=' . $r['registered']['body_id']) ?>">کپی</button></div>
           </div></div>
         <?php else: ?>
-          <p class="text-sm muted">شناسهٔ الگو را اینجا بگذارید: <span class="ltr strong" style="overflow-wrap:anywhere"><?= e($r['envKey']) ?>=…</span></p>
+          <p class="text-sm muted">شناسهٔ الگو را اینجا بگذارید: <span class="ltr strong break-anywhere"><?= e($r['envKey']) ?>=…</span></p>
         <?php endif; ?>
         <?php if ($canRegister): ?>
           <form method="post" action="<?= e(url('panel/sms/register')) ?>">

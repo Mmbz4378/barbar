@@ -12,11 +12,11 @@
 </head>
 <body>
 <?php include BASE_PATH . '/resources/views/components/body-start.php'; ?>
-<div style="position:fixed;inset-block-start:12px;inset-inline-end:12px"><?php include BASE_PATH . '/resources/views/components/mode-toggle.php'; ?></div>
+<div class="auth__corner"><?php include BASE_PATH . '/resources/views/components/mode-toggle.php'; ?></div>
 <main id="main" class="auth" tabindex="-1">
-  <div class="auth__card" <?= !empty($wideCard) ? 'style="max-width:640px"' : '' ?>>
+  <div class="auth__card<?= !empty($wideCard) ? ' auth__card--wide' : '' ?>">
     <div class="auth__brand">
-      <span class="brand-mark" style="width:56px;height:56px;border-radius:16px"><?= icon('scissors') ?></span>
+      <span class="brand-mark brand-mark--lg"><?= icon('scissors') ?></span>
       <div><p class="title-md">رشن</p><p class="text-sm muted">مدیریت نوبت آرایشگاه و سالن زیبایی</p></div>
     </div>
     <?php include BASE_PATH . '/resources/views/components/flash.php'; ?>
