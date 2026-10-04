@@ -74,13 +74,19 @@ final class Migrator
     /** آیا چیزی برای اجرا مانده است؟ */
     public function pendingCount(): int
     {
+        return count($this->pendingFiles());
+    }
+
+    /** @return string[] نام فایل مهاجرت‌های اجرانشده، به ترتیب */
+    public function pendingFiles(): array
+    {
         $this->ensureLedger();
         $applied = $this->appliedFiles();
 
-        $pending = 0;
+        $pending = [];
         foreach ($this->files() as $file) {
             if (!in_array(basename($file), $applied, true)) {
-                $pending++;
+                $pending[] = basename($file);
             }
         }
 

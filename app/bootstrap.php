@@ -50,7 +50,10 @@ set_exception_handler(static function (Throwable $e): void {
         http_response_code(500);
     }
     error_log($e->getMessage() . "\n" . $e->getTraceAsString());
-    if (Config::get('app.debug')) {
+    // ستون یا جدولِ ناموجود تقریباً همیشه یعنی فایل‌های نسخهٔ تازه بالا رفته
+    // ولی مهاجرت دیتابیس هنوز اجرا نشده (رایج‌ترین اشتباه ارتقا در cPanel)
+    $schemaOutdated = $e instanceof PDOException && in_array((string) $e->getCode(), ['42S22', '42S02'], true);
+    if (Config::get('app.debug') && !$schemaOutdated) {
         echo '<pre style="direction:ltr;text-align:left;padding:2rem;background:#1e1e1e;color:#f66;white-space:pre-wrap">';
         echo htmlspecialchars($e->getMessage() . "\n\n" . $e->getTraceAsString());
         echo '</pre>';
@@ -58,7 +61,7 @@ set_exception_handler(static function (Throwable $e): void {
         return;
     }
     try {
-        echo View::renderWithLayout('layouts.minimal', 'errors.500', ['title' => 'خطا']);
+        echo View::renderWithLayout('layouts.minimal', 'errors.500', ['title' => 'خطا', 'schemaOutdated' => $schemaOutdated]);
     } catch (Throwable) {
         echo '<!doctype html><html lang="fa" dir="rtl"><meta charset="utf-8"><body style="font-family:sans-serif;text-align:center;padding:4rem"><h1>خطایی رخ داد. لطفاً دوباره تلاش کنید.</h1></body></html>';
     }

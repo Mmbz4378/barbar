@@ -4,6 +4,8 @@
 /storage/logs/*.log
 /storage/cache/
 /public/uploads/media/*.webp
-/public/uploads/logos/
+/public/uploads/logos/*
+!/public/uploads/logos/.htaccess
+!/public/uploads/logos/.gitkeep
 /node_modules/
 /.phpunit.cache

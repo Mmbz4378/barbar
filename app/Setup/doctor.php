@@ -38,6 +38,49 @@ if ($installed && !in_array(Auth::role(), ['owner', 'manager'], true) && !Auth::
     exit;
 }
 
+/*
+ * اجرای مهاجرت‌های اجرانشده از وب — برای هاستی که Terminal ندارد.
+ *
+ * نصاب برای این کار مناسب نیست: .env و کلید برنامه را بازنویسی می‌کند.
+ * این‌جا فقط فایل‌های ثبت‌نشده اجرا می‌شوند (همان کار tools/migrate.php).
+ * مجاز برای مدیر پلتفرم؛ و اگر هنوز هیچ مدیر پلتفرمی تعریف نشده (نصب
+ * تک‌سالنی)، برای صاحب/مدیر سالن.
+ */
+$migrator = new App\Core\Migrator(BASE_PATH . '/database/migrations');
+$pendingMigrations = [];
+$migrationReport = null;
+$canMigrate = false;
+try {
+    $pendingMigrations = $migrator->pendingFiles();
+    $hasPlatformAdmin = App\Core\DB::selectOne('SELECT id FROM users WHERE is_platform_admin = 1 LIMIT 1') !== null;
+    $canMigrate = Auth::isPlatformAdmin() || (!$hasPlatformAdmin && in_array(Auth::role(), ['owner', 'manager'], true));
+} catch (Throwable $e) {
+    // بدون دیتابیس، فهرست سلامت خودش خطا را توضیح می‌دهد
+}
+if ($installed && $canMigrate && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '') === 'migrate') {
+    if (!hash_equals(csrf_token(), (string) ($_POST['_csrf'] ?? ''))) {
+        http_response_code(419);
+        $migrationReport = [['file' => '—', 'ok' => false, 'error' => 'نشست منقضی شده؛ صفحه را تازه کنید و دوباره بزنید.']];
+    } else {
+        @set_time_limit(300);
+        $migrationReport = $migrator->run();
+        if (Auth::id() !== null) {
+            try {
+                App\Core\DB::insert('audit_logs', [
+                    'actor_user_id' => Auth::id(),
+                    'action' => 'migrations_run',
+                    'subject_type' => 'system',
+                    'meta_json' => json_encode(array_column($migrationReport, 'ok', 'file'), JSON_UNESCAPED_UNICODE),
+                    'ip_address' => $_SERVER['REMOTE_ADDR'] ?? null,
+                ]);
+            } catch (Throwable $e) {
+                // ثبت رویداد نباید نتیجهٔ مهاجرت را پنهان کند
+            }
+        }
+        $pendingMigrations = $migrator->pendingFiles();
+    }
+}
+
 $groups = (new HealthCheck())->run();
 
 $counts = ['ok' => 0, 'warn' => 0, 'fail' => 0];
@@ -75,6 +118,37 @@ foreach ($groups as $rows) {
       <?php endif; ?>
     </p></div>
   </div>
+
+  <?php if ($migrationReport !== null): ?>
+    <?php $allOk = !in_array(false, array_column($migrationReport, 'ok'), true); ?>
+    <div class="alert alert--<?= $allOk ? 'success' : 'danger' ?> mb-6" role="status">
+      <?= icon($allOk ? 'circle-check' : 'alert') ?>
+      <div class="alert__body">
+        <p class="alert__title"><?= $migrationReport === [] ? 'مهاجرتی برای اجرا نبود.' : ($allOk ? 'مهاجرت‌ها با موفقیت اجرا شدند.' : 'اجرای مهاجرت متوقف شد.') ?></p>
+        <?php foreach ($migrationReport as $row): ?>
+          <p class="text-sm"><span class="ltr"><?= e($row['file']) ?></span> — <?= $row['ok'] ? 'انجام شد' : e((string) $row['error']) ?></p>
+        <?php endforeach; ?>
+        <?php if (!$allOk): ?><p class="text-sm">اجرای دوباره را ادامه ندهید؛ پیام خطا را به پشتیبانی بدهید یا از پشتیبان دیتابیس برگردید.</p><?php endif; ?>
+      </div>
+    </div>
+  <?php endif; ?>
+
+  <?php if ($installed && $pendingMigrations !== []): ?>
+    <section class="card card--accent mb-6" aria-labelledby="mig-title"><div class="card__body stack stack-sm">
+      <h2 class="card__title" id="mig-title">به‌روزرسانی دیتابیس لازم است</h2>
+      <p class="text-sm">فایل‌های نسخهٔ تازه روی هاست هستند ولی این مهاجرت‌ها هنوز اجرا نشده‌اند؛ تا اجرا نشوند، بخش‌هایی از برنامه خطا می‌دهد:</p>
+      <ul class="text-sm ltr" style="padding-inline-start:20px;margin:0"><?php foreach ($pendingMigrations as $file): ?><li><?= e($file) ?></li><?php endforeach; ?></ul>
+      <?php if ($canMigrate): ?>
+        <p class="text-sm"><strong>پیش از اجرا از دیتابیس پشتیبان بگیرید</strong> (cPanel ← Backup یا phpMyAdmin ← Export).</p>
+        <form method="post" action="" data-confirm="از دیتابیس پشتیبان گرفته‌اید؟ مهاجرت‌ها ساختار جدول‌ها را تغییر می‌دهند." data-confirm-tone="neutral" data-confirm-ok="بله، اجرا شود">
+          <?= csrf_field() ?><input type="hidden" name="action" value="migrate">
+          <button class="btn btn--primary" type="submit"><?= icon('refresh') ?> اجرای مهاجرت‌ها</button>
+        </form>
+      <?php else: ?>
+        <p class="text-sm muted">فقط مدیر پلتفرم می‌تواند مهاجرت‌ها را از این‌جا اجرا کند؛ یا در Terminal: <span class="ltr">php tools/migrate.php</span></p>
+      <?php endif; ?>
+    </div></section>
+  <?php endif; ?>
 
   <div class="stack stack-lg">
   <?php foreach ($groups as $group => $rows): ?>

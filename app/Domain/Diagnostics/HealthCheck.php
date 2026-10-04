@@ -132,9 +132,9 @@ final class HealthCheck
             ],
             [
                 'label' => 'upload_max_filesize',
-                'status' => self::toBytes($upload) >= 2 * 1024 * 1024 ? self::OK : self::WARN,
+                'status' => self::toBytes($upload) >= 3 * 1024 * 1024 ? self::OK : self::WARN,
                 'value' => $upload,
-                'hint' => 'عکس مشتری تا ۴ مگابایت است.',
+                'hint' => 'عکس سالن، خدمت و لوگو تا ۳ مگابایت پذیرفته می‌شود؛ کمتر از 3M یعنی عکس‌های بزرگ‌تر رد می‌شوند.',
             ],
             [
                 'label' => 'post_max_size',
@@ -159,6 +159,7 @@ final class HealthCheck
             'storage/logs' => 'لاگ خطا و پیامک',
             'storage/uploads/customer_photos' => 'عکس مشتری',
             'public/uploads/logos' => 'لوگوی سالن',
+            'public/uploads/media' => 'عکس سالن و خدمات',
         ] as $relative => $why) {
             $path = BASE_PATH . '/' . $relative;
             $exists = is_dir($path);
@@ -206,7 +207,7 @@ final class HealthCheck
                 'label' => 'مهاجرت‌های اجرانشده',
                 'status' => $pending === 0 ? self::OK : self::WARN,
                 'value' => $pending === 0 ? 'هیچ' : (string) $pending,
-                'hint' => $pending === 0 ? '' : 'نصاب را باز کنید یا `php tools/migrate.php` را اجرا کنید.',
+                'hint' => $pending === 0 ? '' : 'از دکمهٔ «اجرای مهاجرت‌ها» بالای همین صفحه، یا با `php tools/migrate.php` اجرا کنید. پیش از آن از دیتابیس پشتیبان بگیرید.',
             ];
 
             return $rows;
