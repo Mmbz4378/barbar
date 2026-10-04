@@ -588,7 +588,8 @@ final class Updater
         usort($write, static fn ($a, $b) => (int) in_array($a, ['VERSION', self::MANIFEST_FILE], true) <=> (int) in_array($b, ['VERSION', self::MANIFEST_FILE], true));
 
         $delete = [];
-        $candidates = $installed !== [] ? array_keys($installed) : self::LEGACY_REMOVED;
+        // فایل‌های بستهٔ قبلی + فایل‌های قدیمیِ شناخته‌شده (نصب‌هایی که از نسخه‌های پیش از فهرست فایل آمده‌اند)
+        $candidates = array_unique(array_merge(array_keys($installed), self::LEGACY_REMOVED));
         foreach ($candidates as $rel) {
             if (!isset($packageFiles[$rel]) && self::safeRelativePath($rel) && $this->mayWrite($rel) && !str_ends_with($rel, '.htaccess') && is_file(BASE_PATH . '/' . $rel)) {
                 $delete[] = $rel;
