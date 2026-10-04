@@ -519,6 +519,12 @@ final class Updater
             }
             $write[] = $rel;
         }
+        // فهرست فایل‌های خود بسته (در فهرست خودش نیست) — مبنای حذف‌های به‌روزرسانی بعدی
+        $newList = $staging . '/' . self::MANIFEST_FILE;
+        $oldList = BASE_PATH . '/' . self::MANIFEST_FILE;
+        if (!is_file($oldList) || !hash_equals(hash_file('sha256', $newList), (string) hash_file('sha256', $oldList))) {
+            $write[] = self::MANIFEST_FILE;
+        }
         // VERSION و فهرست فایل‌ها آخر از همه: اگر وسط کار قطع شود، شمارهٔ نسخه هنوز قبلی است
         usort($write, static fn ($a, $b) => (int) in_array($a, ['VERSION', self::MANIFEST_FILE], true) <=> (int) in_array($b, ['VERSION', self::MANIFEST_FILE], true));
 
