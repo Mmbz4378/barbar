@@ -66,7 +66,10 @@ final class KavenegarGateway implements SmsGatewayInterface
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => http_build_query($params),
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 20,
+            // اتصال کوتاه، کل درخواست کوتاه: اپراتورِ سالم زیر ۲ ثانیه جواب می‌دهد؛
+            // بیشتر از این یعنی گیر کرده و نباید پردازشی را معطل نگه دارد.
+            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_TIMEOUT => 10,
         ]);
         $raw = curl_exec($ch);
         $error = curl_error($ch);

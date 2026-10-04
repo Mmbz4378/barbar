@@ -31,9 +31,15 @@ if (App\Core\Maintenance::active() && parse_url((string) ($_SERVER['REQUEST_URI'
     exit;
 }
 
+// کارهای «پس از پاسخ» (مثل پیامک) فقط در درخواستِ وب عقب می‌افتند.
+App\Core\Deferred::enable();
+
 $router = new Router();
 require dirname(__DIR__) . '/routes/web.php';
 
 $request = new Request();
 $response = $router->dispatch($request);
 $response->send();
+
+// پاسخ رفت؛ حالا پیامک‌ها و دیگر کارهای عقب‌افتاده، بی‌آنکه کاربر منتظر بماند.
+App\Core\Deferred::run();

@@ -123,6 +123,10 @@ return [
     'sms' => [
         'driver' => Env::get('SMS_DRIVER', 'log'),
 
+        // فقط برای درایور log (توسعه و آزمون بار): تأخیر ساختگی هر ارسال، تا
+        // رفتارِ اپراتورِ کند شبیه‌سازی شود. در تولید درایور log به کار نمی‌رود.
+        'log_delay_ms' => (int) Env::get('SMS_LOG_DELAY_MS', '0'),
+
         /**
          * Approved-template ids, per provider. Iranian carriers will not
          * deliver a free-text OTP over a shared service line, so without a

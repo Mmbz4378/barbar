@@ -17,6 +17,7 @@ require dirname(__DIR__) . '/app/bootstrap.php';
 
 use App\Core\Config;
 use App\Core\DB;
+use App\Core\Deferred;
 use App\Core\Migrator;
 use App\Domain\Appointment\AppointmentRepository;
 use App\Domain\Booking\AvailabilityCache;
@@ -33,7 +34,13 @@ use App\Domain\Salon\HolidayRepository;
 use App\Domain\Salon\SalonRepository;
 use App\Domain\Salon\SalonSetupService;
 use App\Domain\Staff\TimeOffRepository;
+use App\Domain\Identity\OtpService;
 use App\Domain\Identity\UserRepository;
+use App\Domain\Messaging\SmsBreaker;
+use App\Domain\Messaging\SmsGatewayInterface;
+use App\Domain\Messaging\SmsManager;
+use App\Domain\Messaging\SmsNotifier;
+use App\Domain\Messaging\SmsOutbox;
 use App\Support\Audience;
 use App\Support\IranMobile;
 use App\Support\Now;
@@ -436,6 +443,121 @@ try {
     AvailabilityCache::remember($menId, 'probe', $compute);
     Now::freeze($was);
     check('پس از یک دقیقه دوباره حساب می‌شود (سقف کهنگی)', $calls === 5, (string) $calls);
+
+    // ─── صندوق خروجی پیامک ────────────────────────────────────────────
+    section('صندوق خروجی پیامک');
+    $gw = new class implements SmsGatewayInterface {
+        /** @var string[] */
+        public array $sent = [];
+        public bool $fail = false;
+
+        public function send(string $e164Phone, string $message): array
+        {
+            return $this->go($e164Phone);
+        }
+
+        public function sendPattern(string $e164Phone, string $patternId, array $args): array
+        {
+            return $this->go($e164Phone);
+        }
+
+        public function name(): string
+        {
+            return 'fake';
+        }
+
+        private function go(string $phone): array
+        {
+            if ($this->fail) {
+                return ['ok' => false, 'ref' => null, 'error' => 'اپراتور آزمایشی از کار افتاده'];
+            }
+            $this->sent[] = $phone;
+
+            return ['ok' => true, 'ref' => 'r' . count($this->sent), 'error' => null];
+        }
+    };
+    SmsManager::fake($gw);
+    SmsBreaker::reset();
+    DB::delete('sms_messages', 'appointment_id = ?', [(int) $a1['id']]);
+    $notifier = new SmsNotifier();
+    $vars = ['name' => 'آزمون', 'salon' => 'سالن', 'date' => 'امروز', 'time' => '۱۰:۰۰'];
+    $smsRow = static fn (int $id): array => DB::selectOne('SELECT * FROM sms_messages WHERE id = ?', [$id]) ?? [];
+    $lastSms = static fn (): array => DB::selectOne('SELECT * FROM sms_messages WHERE appointment_id = ? ORDER BY id DESC LIMIT 1', [(int) $a1['id']]) ?? [];
+
+    Deferred::enable();
+    $notifier->notify($menId, $a1, 'booking_confirmed', $vars, true);
+    $m = $lastSms();
+    check('پیامک تا پس از پاسخ در صف می‌ماند', ($m['status'] ?? '') === 'queued' && Deferred::pending() === 1 && $gw->sent === []);
+    check('همان اعلانِ در صف دوباره صف نمی‌شود', $notifier->alreadySent((int) $a1['id'], 'booking_confirmed'));
+    Deferred::run();
+    $m = $smsRow((int) $m['id']);
+    check('پس از پاسخ فرستاده می‌شود', ($m['status'] ?? '') === 'sent' && count($gw->sent) === 1 && (int) $m['attempts'] === 1);
+    check('یک پیامک دو بار فرستاده نمی‌شود', SmsOutbox::deliver([(int) $m['id']]) === 0 && count($gw->sent) === 1);
+
+    $foreign = (int) DB::insert('sms_messages', ['salon_id' => $menId, 'appointment_id' => null, 'to_phone' => '+989120000000', 'template_code' => 'booking_confirmed', 'body' => 'x', 'args_json' => '[]', 'is_critical' => 1, 'status' => 'sending', 'claim_token' => 'otherprocess0001', 'claimed_at' => date('Y-m-d H:i:s')]);
+    check('پیامکی که پردازش دیگری گرفته دست نمی‌خورد', SmsOutbox::deliver([$foreign]) === 0 && count($gw->sent) === 1);
+
+    $rowsBefore = (int) DB::selectOne('SELECT COUNT(*) AS c FROM sms_messages')['c'];
+    try {
+        DB::transaction(static function () use ($notifier, $menId, $a1, $vars): void {
+            $notifier->notify($menId, $a1, 'booking_cancelled', $vars, true);
+            throw new RuntimeException('برگشت تراکنش');
+        });
+    } catch (RuntimeException) {
+    }
+    Deferred::run();
+    check('پیامکِ تراکنشِ برگشته فرستاده نمی‌شود', count($gw->sent) === 1 && (int) DB::selectOne('SELECT COUNT(*) AS c FROM sms_messages')['c'] === $rowsBefore);
+    Deferred::enable(false);
+
+    $gw->fail = true;
+    $notifier->notify($menId, $a1, 'booking_cancelled', $vars, true);
+    $f = $lastSms();
+    check('خطای اپراتور ← تلاش دوباره با فاصله', ($f['status'] ?? '') === 'failed' && (int) $f['attempts'] === 1 && $f['next_attempt_at'] !== null);
+    SmsOutbox::drain();
+    check('پیش از سررسید دوباره تلاش نمی‌شود', (int) $smsRow((int) $f['id'])['attempts'] === 1);
+    foreach ([2, 3] as $attempt) {
+        DB::update('sms_messages', ['next_attempt_at' => date('Y-m-d H:i:s', time() - 5)], 'id = :id', ['id' => $f['id']]);
+        SmsOutbox::drain();
+    }
+    $f = $smsRow((int) $f['id']);
+    check('پس از ۳ تلاش نهایی می‌ماند', ($f['status'] ?? '') === 'failed' && (int) $f['attempts'] === 3 && $f['next_attempt_at'] === null, json_encode([$f['status'] ?? '', $f['attempts'] ?? '']));
+    $gw->fail = false;
+    SmsOutbox::drain();
+    check('خطای نهایی دیگر تلاش نمی‌شود', ($smsRow((int) $f['id'])['status'] ?? '') === 'failed');
+
+    $stuck = (int) DB::insert('sms_messages', ['salon_id' => $menId, 'appointment_id' => null, 'to_phone' => '+989120000000', 'template_code' => 'booking_confirmed', 'body' => 'x', 'args_json' => '[]', 'is_critical' => 1, 'status' => 'sending', 'claim_token' => 'deadprocess00001', 'claimed_at' => date('Y-m-d H:i:s', time() - 700)]);
+    $drained = SmsOutbox::drain();
+    check('پیامکِ پردازشِ مُرده دوباره فرستاده می‌شود', ($smsRow($stuck)['status'] ?? '') === 'sent' && $drained['requeued'] >= 1);
+
+    // دو پردازش دیگر همین حالا مشغول فرستادن‌اند: پیامک تازه برای cron می‌ماند
+    App\Core\Cache::add('sms:slot:0', 1, 30);
+    App\Core\Cache::add('sms:slot:1', 1, 30);
+    $sentBefore = count($gw->sent);
+    $notifier->notify($menId, $a1, 'booking_confirmed', $vars, true);
+    $waiting = $lastSms();
+    check('سقفِ فرستادنِ هم‌زمان: پیامک اضافه برای cron می‌ماند', ($waiting['status'] ?? '') === 'queued' && count($gw->sent) === $sentBefore);
+    App\Core\Cache::forget('sms:slot:0');
+    App\Core\Cache::forget('sms:slot:1');
+    SmsOutbox::drain();
+    check('cron همان پیامک را می‌فرستد', ($smsRow((int) $waiting['id'])['status'] ?? '') === 'sent');
+
+    SmsBreaker::reset();
+    for ($i = 0; $i < 5; $i++) {
+        SmsBreaker::record(false, 0.1);
+    }
+    check('خطای سریع مدار را باز نمی‌کند', !SmsBreaker::isOpen());
+    for ($i = 0; $i < 3; $i++) {
+        SmsBreaker::record(false, 5.0);
+    }
+    check('چند خطای کُند مدار را باز می‌کند', SmsBreaker::isOpen());
+    $sentBefore = count($gw->sent);
+    $notifier->notify($menId, $a1, 'booking_confirmed', $vars, true);
+    check('مدارِ باز: پیامک برای cron در صف می‌ماند', ($lastSms()['status'] ?? '') === 'queued' && count($gw->sent) === $sentBefore);
+    $t0 = microtime(true);
+    $otp = (new OtpService())->request(IranMobile::parse('09127770001'));
+    check('مدارِ باز: OTP بی‌درنگ پیام روشن می‌دهد', !$otp['ok'] && (microtime(true) - $t0) < 1.0 && count($gw->sent) === $sentBefore, (string) ($otp['error'] ?? ''));
+    SmsBreaker::reset();
+    SmsManager::fake(null);
 } catch (Throwable $e) {
     $failed[] = 'خطای پیش‌بینی‌نشده: ' . $e->getMessage() . ' @ ' . basename($e->getFile()) . ':' . $e->getLine();
     echo "\n  ✗ " . end($failed) . "\n" . $e->getTraceAsString() . "\n";

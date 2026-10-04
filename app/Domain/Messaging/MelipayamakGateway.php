@@ -294,7 +294,9 @@ final class MelipayamakGateway implements SmsGatewayInterface
             CURLOPT_POSTFIELDS => http_build_query($body),
             CURLOPT_HTTPHEADER => ['Content-Type: application/x-www-form-urlencoded; charset=utf-8'],
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 20,
+            // اتصال کوتاه، کل درخواست کوتاه؛ اپراتورِ گیرکرده نباید پردازشی را معطل کند.
+            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_TIMEOUT => 10,
         ]);
         $raw = curl_exec($ch);
         $curlError = curl_error($ch);

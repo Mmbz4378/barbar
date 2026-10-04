@@ -94,6 +94,29 @@ final class Cache
         return $value;
     }
 
+    /**
+     * فقط اگر کلید نباشد می‌گذارد (اتمی در APCu). برای «جا گرفتن» بین چند
+     * پردازش — مثل سقف ارسال‌های هم‌زمانِ پیامک. با مهلت، تا اگر پردازشی بمیرد
+     * جایش خودبه‌خود آزاد شود.
+     */
+    public static function add(string $key, mixed $value, int $ttl): bool
+    {
+        if (self::enabled()) {
+            if (!apcu_add(self::$prefix . $key, $value, max(1, $ttl))) {
+                return false;
+            }
+            self::$local[$key] = $value;
+
+            return true;
+        }
+        if (array_key_exists($key, self::$local)) {
+            return false;
+        }
+        self::$local[$key] = $value;
+
+        return true;
+    }
+
     public static function forget(string $key): void
     {
         unset(self::$local[$key]);

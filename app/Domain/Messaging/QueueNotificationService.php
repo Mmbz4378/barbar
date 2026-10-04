@@ -130,8 +130,11 @@ final class QueueNotificationService
         foreach ($hoursList as $hours) {
             $templateCode = "reminder_{$hours}h";
             $target = (new DateTimeImmutable())->modify("+{$hours} hours");
-            $windowStart = $target->modify('-2 minutes')->format('Y-m-d H:i:s');
-            $windowEnd = $target->modify('+2 minutes')->format('Y-m-d H:i:s');
+            // cron هر ۵ دقیقه اجرا می‌شود. پنجرهٔ ±۲ دقیقه یک دقیقه فاصله بین
+            // دورها جا می‌گذاشت و حدود یک‌پنجم یادآورها هرگز نمی‌رفت. پنجره حالا
+            // بازهٔ cron را با هم‌پوشانی می‌پوشاند؛ alreadySent تکرار را می‌گیرد.
+            $windowStart = $target->modify('-4 minutes')->format('Y-m-d H:i:s');
+            $windowEnd = $target->modify('+4 minutes')->format('Y-m-d H:i:s');
 
             $rows = DB::select(
                 "SELECT a.*, s.name AS salon_name FROM appointments a JOIN salons s ON s.id = a.salon_id

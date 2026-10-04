@@ -56,6 +56,16 @@ final class SmsManager
     }
 
     /** @param callable(SmsGatewayInterface):array $send */
+    /**
+     * درایور را جایگزین می‌کند — فقط برای آزمون (اپراتورِ کند یا از کارافتاده را
+     * شبیه‌سازی می‌کند). null یعنی برگشت به پیکربندی.
+     */
+    public static function fake(?SmsGatewayInterface $gateway): void
+    {
+        self::$primary = $gateway;
+        self::$fallback = null;
+    }
+
     private static function attempt(callable $send): array
     {
         $primary = self::primary();

@@ -6,6 +6,7 @@ namespace App\Domain\Identity;
 
 use App\Core\Config;
 use App\Core\DB;
+use App\Domain\Messaging\SmsBreaker;
 use App\Domain\Messaging\SmsManager;
 use App\Support\IranMobile;
 use App\Support\Jalali;
@@ -72,12 +73,19 @@ final class OtpService
         // اول الگوی تأییدشده. متن آزاد فقط وقتی استفاده می‌شود که هیچ
         // الگویی تنظیم نشده باشد — که در عمل یعنی سالن خط اختصاصی دارد،
         // تنها حالتی که متن آزاد واقعاً تحویل داده می‌شود.
-        $result = SmsManager::sendPattern(
-            $phone->e164,
-            'otp',
-            [$code],
-            "کد ورود شما به رشن: {$code}\nتا ۲ دقیقه معتبر است."
-        );
+        /*
+         * OTP همزمان می‌ماند — کاربر باید بداند کد رفت یا نه. ولی اگر اپراتور
+         * همین الان گیر کرده (مدار باز است)، به‌جای معطلی تا سقف مهلت، بی‌درنگ
+         * پیام روشن می‌دهیم؛ زیر هجوم این معطلی‌ها همهٔ پردازش‌ها را می‌گرفت.
+         */
+        $result = SmsBreaker::isOpen()
+            ? ['ok' => false, 'error' => 'سامانهٔ پیامک لحظاتی در دسترس نیست. یک دقیقهٔ دیگر دوباره تلاش کن.']
+            : SmsBreaker::send(static fn (): array => SmsManager::sendPattern(
+                $phone->e164,
+                'otp',
+                [$code],
+                "کد ورود شما به رشن: {$code}\nتا ۲ دقیقه معتبر است."
+            ));
 
         if (!$result['ok']) {
             // کد را بسوزان تا کاربر بتواند فوری دوباره تلاش کند و پشت

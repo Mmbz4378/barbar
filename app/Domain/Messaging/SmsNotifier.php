@@ -42,7 +42,9 @@ final class SmsNotifier
 
         $maxPerAppointment = (int) Config::get('reshen.sms.max_per_appointment', 4);
         $sentCount = (int) (DB::selectOne(
-            "SELECT COUNT(*) AS c FROM sms_messages WHERE appointment_id = ? AND status = 'sent'",
+            // در صف و در حال فرستادن هم شمرده می‌شوند، وگرنه چند اعلانِ پشت‌سرهم
+            // پیش از تحویلِ اولی همه از سقف رد می‌شدند.
+            "SELECT COUNT(*) AS c FROM sms_messages WHERE appointment_id = ? AND status IN ('queued','sending','sent')",
             [$appointment['id']]
         )['c'] ?? 0);
 
@@ -52,7 +54,7 @@ final class SmsNotifier
             return false;
         }
 
-        if (!$critical && $this->inQuietHours()) {
+        if (!$critical && self::inQuietHours()) {
             $this->log($salonId, $appointment, $toPhone, $templateCode, $body, $critical, 'skipped_quiet_hours');
 
             return false;
@@ -60,7 +62,7 @@ final class SmsNotifier
 
         if ($templateCode === 'queue_delayed') {
             $already = DB::selectOne(
-                "SELECT id FROM sms_messages WHERE appointment_id = ? AND template_code = 'queue_delayed' AND status = 'sent'",
+                "SELECT id FROM sms_messages WHERE appointment_id = ? AND template_code = 'queue_delayed' AND status IN ('queued','sending','sent')",
                 [$appointment['id']]
             );
             if ($already !== null) {
@@ -91,25 +93,22 @@ final class SmsNotifier
             }
         }
 
-        $result = SmsManager::sendPattern(
-            $toPhone,
-            $templateCode,
-            SmsTemplates::orderedArgs($templateCode, $vars),
-            self::plainTextAllowed() ? $body : ''
-        );
-        $this->log($salonId, $appointment, $toPhone, $templateCode, $body, $critical, $result['ok'] ? 'sent' : 'failed', $result);
+        /*
+         * به‌جای فرستادن همین‌جا، در صندوق خروجی ثبت و پس از رسیدن پاسخ به کاربر
+         * فرستاده می‌شود (SmsOutbox). کاربر منتظر اپراتور نمی‌ماند، و اگر این
+         * فراخوانی داخل تراکنشی باشد که برگردد، پیامک هم با آن برمی‌گردد — پیش‌تر
+         * پیامکِ نوبتی که ثبت نشده بود هم می‌رفت. کم‌کردن اعتبار پس از تحویل است.
+         */
+        $id = $this->log($salonId, $appointment, $toPhone, $templateCode, $body, $critical, 'queued', null, SmsTemplates::orderedArgs($templateCode, $vars));
+        SmsOutbox::dispatch($id);
 
-        if ($result['ok']) {
-            DB::update('salons', ['sms_credit' => (int) ($salon['sms_credit'] ?? 0) - 1], 'id = :id', ['id' => $salonId]);
-        }
-
-        return $result['ok'];
+        return true;
     }
 
     public function alreadySent(int $appointmentId, string $templateCode): bool
     {
         return DB::selectOne(
-            "SELECT id FROM sms_messages WHERE appointment_id = ? AND template_code = ? AND status = 'sent'",
+            "SELECT id FROM sms_messages WHERE appointment_id = ? AND template_code = ? AND status IN ('queued','sending','sent')",
             [$appointmentId, $templateCode]
         ) !== null;
     }
@@ -127,7 +126,7 @@ final class SmsNotifier
      *   الگو معنا ندارد؛ بدون این، کل جریان رزرو در محیط توسعه با
      *   «الگو تنظیم نشده» می‌خورد زمین و آزمودنش ممکن نیست.
      */
-    private static function plainTextAllowed(): bool
+    public static function plainTextAllowed(): bool
     {
         if (Config::get('reshen.sms.driver', 'log') === 'log') {
             return true;
@@ -136,7 +135,7 @@ final class SmsNotifier
         return (bool) Config::get('reshen.sms.dedicated_line', false);
     }
 
-    private function inQuietHours(): bool
+    public static function inQuietHours(): bool
     {
         $hour = (int) date('G');
         $start = (int) Config::get('reshen.sms.quiet_hours_start', 23);
@@ -145,14 +144,15 @@ final class SmsNotifier
         return $hour >= $start || $hour < $end;
     }
 
-    private function log(int $salonId, array $appointment, string $phone, string $template, string $body, bool $critical, string $status, ?array $result = null): void
+    private function log(int $salonId, array $appointment, string $phone, string $template, string $body, bool $critical, string $status, ?array $result = null, ?array $args = null): int
     {
-        DB::insert('sms_messages', [
+        return (int) DB::insert('sms_messages', [
             'salon_id' => $salonId,
             'appointment_id' => $appointment['id'],
             'to_phone' => $phone,
             'template_code' => $template,
             'body' => $body,
+            'args_json' => $args !== null ? json_encode(array_values($args), JSON_UNESCAPED_UNICODE) : null,
             'is_critical' => $critical ? 1 : 0,
             'provider' => $result['provider'] ?? Config::get('reshen.sms.driver', 'log'),
             'provider_ref' => $result['ref'] ?? null,
