@@ -166,6 +166,8 @@ button,input,select,textarea{font:inherit;color:inherit;letter-spacing:normal}
 button{cursor:pointer}
 a{color:var(--accent-text);text-decoration:none}
 a:hover{text-decoration:underline;text-underline-offset:3px}
+/* پیوند وسط متن نباید فقط با رنگ از متن جدا شود (WCAG 1.4.1) */
+:where(p,dd,.public__footer,.field__hint,.alert__body) a:not([class]){text-decoration:underline;text-decoration-color:var(--accent-border);text-underline-offset:3px}
 table{border-collapse:collapse;width:100%}
 fieldset{border:0;margin:0;padding:0;min-width:0}
 legend{padding:0}
@@ -785,7 +787,9 @@ a.calendar__day:hover{background:var(--surface-hover);text-decoration:none}
 .service-meta svg{width:15px;height:15px}
 .menu-item{display:flex;gap:var(--space-3);padding:var(--space-3);border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--surface)}
 .menu-item__body{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:4px}
-.menu-item__row{display:flex;justify-content:space-between;gap:var(--space-3);align-items:baseline}
+.menu-item__row{display:flex;justify-content:space-between;gap:var(--space-2) var(--space-3);align-items:baseline;flex-wrap:wrap;min-width:0}
+.menu-item__row>:first-child{min-width:0;overflow-wrap:anywhere}
+.menu-item__row .service-price{flex:none}
 .search-tools{display:flex;flex-direction:column;gap:var(--space-3);margin-block-end:var(--space-5)}
 
 /* Plan / segments */

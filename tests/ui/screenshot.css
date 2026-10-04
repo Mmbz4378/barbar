@@ -1,0 +1,2 @@
+/* فقط هنگام عکس آزمون تصویری: نوارهای ثابت روی بخش‌ها نیفتند */
+.appbar,.tabbar,.app__sidebar,.tooltip{visibility:hidden!important}

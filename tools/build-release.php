@@ -49,7 +49,7 @@ if ($code !== 0 || $lines === []) {
 }
 $files = array_filter(explode("\0", implode("\n", $lines)));
 $exclude = [
-    '#^\.github/#', '#^\.gitignore$#', '#^dist/#',
+    '#^\.github/#', '#^\.gitignore$#', '#^dist/#', '#^tests/#',
     '#^tools/seed-demo[^/]*\.php$#',     // دادهٔ نمونه فقط برای توسعه
     '#^release-files\.json$#',
 ];

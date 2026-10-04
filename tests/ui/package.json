@@ -1,0 +1,14 @@
+{
+  "name": "reshen-ui-tests",
+  "private": true,
+  "description": "آزمون خودکار ظاهر و دسترس‌پذیری رشن (docs/design-system.md)",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "update": "playwright test visual.spec.mjs --update-snapshots"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "axe-core": "4.11.0"
+  }
+}

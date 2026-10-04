@@ -11,9 +11,11 @@
 | `public/assets/js/discovery.js` | فقط صفحهٔ کشف: فاصله و مرتب‌سازی بر اساس موقعیت |
 | `resources/views/components/icons.svg` | اسپرایت آیکون‌های Lucide (ISC)؛ با `icon('name')` |
 | `tools/check-contrast.mjs` | سنجش کنتراست همهٔ تم‌ها در حالت روشن و تیره |
+| `tools/check-inline-styles.php` | نگهبان: در نماها فقط پارامتر `--x` درون‌خطی مجاز است |
+| `/system/design` | **گالری زنده**: همهٔ اجزا با همهٔ حالت‌ها، پیش‌نمایش ۱۳ رنگ برند و حالت تیره |
+| `tests/ui/` | آزمون خودکار دسترس‌پذیری، چیدمان و تصویری (CI) |
 
-نسخهٔ دارایی‌ها در `RESHEN_ASSET_VERSION` (helpers.php) و `VERSION` در
-`public/service-worker.js` باید با هم بالا بروند.
+نسخهٔ CSS/JS و سرویس‌ورکر از فایل `VERSION` خوانده می‌شود؛ با هر انتشار خودش عوض می‌شود.
 
 ## اصول
 
@@ -97,6 +99,9 @@
 | پنجره | `dialog`، `sheet` (شیت پایین موبایل) | `data-open`/`data-close`؛ تأیید عمومی با `data-confirm` |
 | خالی | `components/empty-state.php` | |
 | مراحل رزرو | `stepper`، `context-chips`، `day-strip`، `slot-grid`، `action-bar` | |
+| بارگذاری | `skeleton` (`--text`، `--circle`، `--block`، `--pill`)، `components/skeleton.php` | ناحیهٔ `data-skeleton-region` با `<template data-skeleton-tpl>`؛ لینک با `data-skeleton-for` |
+| صفحه‌بندی | `components/pagination.php` | `page` + `pages` یا `hasNext`، `url`، `skeletonFor` |
+| tooltip | `.btn--icon[aria-label]` خودکار، `[data-tooltip]` | hover و فوکوس صفحه‌کلید؛ Escape می‌بندد |
 
 ## پوسته‌ها (قالب‌ها)
 
@@ -128,9 +133,52 @@
 | `data-auto-refresh`، `data-refresh-*` | به‌روزرسانی سبک صف امروز |
 | `data-mode-toggle` | حالت روشن/تیره |
 | `data-dismiss` | بستن پیام |
+| `data-skeleton-for` | نمایش skeleton ناحیهٔ هدف تا رسیدن صفحهٔ بعد |
+| `data-tooltip` | tooltip با توضیح جدا از برچسب |
+| `data-theme-preview` | عوض‌کردن رنگ برند یک ظرف (گالری) |
 
 > فیلدی به نام `method`، `action` یا `submit` ویژگی هم‌نام فرم را
 > می‌پوشاند؛ در JS همیشه از `getAttribute` استفاده کنید.
+
+## ابزارها و قاعدهٔ «بدون استایل درون‌خطی»
+
+در نماها `style="…"` فقط برای **پارامترِ** یک جزء مجاز است: `--v` (درصد
+نمودار)، `--c` (رنگ کارکنان)، `--gap`، `--cols`، `--min`، `--avatar-bg`.
+هر چیز دیگری (margin، width، color…) با یک کلاس انجام می‌شود؛ اگر کلاسش
+نیست، به `reshen.css` اضافه‌اش کنید. `php tools/check-inline-styles.php`
+در CI این را می‌سنجد.
+
+| گروه | کلاس‌ها |
+|---|---|
+| چیدمان | `.wrap` `.justify-center` `.justify-between` `.items-start` `.items-center` `.items-end` `.gap-0` `.grow` `.grow-200` `.basis-200` `.shrink-0` `.span-full` `.min-w-0` |
+| اندازه | `.w-full` `.w-xs` (۱۱۰) `.w-sm` (۱۶۰) `.w-md` (۲۴۰) `.w-lg` (۳۶۰) `.container-xs` (۴۴۰) `.container-sm` (۵۶۰) `.container-md` (۶۴۰) |
+| متن | `.link-plain` `.break-anywhere` `.truncate` `.clamp-2` `.nowrap` |
+| حالت | `.is-inactive` `.is-struck` `.is-placeholder` `.sr-only` `.only-mobile` `.only-desktop` |
+| بلوک | `.list-reset` `.list-bulleted` `.code-block` `.scroll-box` `.divider` |
+| نسخه‌های اندازه | `.icon-tile--sm/--md/--lg` `.brand-mark--sm/--lg/--xl` `.avatar--sm/--lg` `.table-wrap--flush` `.check--compact` `.input--static` |
+
+## آزمون خودکار (tests/ui)
+
+در CI روی هر push اجرا می‌شود و **پیش‌شرط انتشار** است؛ نسخه‌ای که ظاهر یا
+دسترس‌پذیری را خراب کند به هاست‌ها نمی‌رسد.
+
+| آزمون | چه می‌سنجد |
+|---|---|
+| `a11y.spec.mjs` | axe با WCAG 2.2 AA روی ۲۹ صفحهٔ همهٔ نقش‌ها، روشن و تیره؛ خطای serious/critical آزمون را می‌شکند |
+| `layout.spec.mjs` | همان صفحه‌ها در ۳۲۰ و ۱۲۸۰ پیکسل: بدون اسکرول افقی، بدون خطای JS |
+| `visual.spec.mjs` | عکس هر بخش گالری در دسکتاپ روشن/تیره، موبایل و تم `rose`، مقایسه با `__screenshots__` |
+
+اجرای محلی (سرور روی `127.0.0.1:8080` و دادهٔ `tools/seed-demo.php`):
+
+```text
+cd tests/ui && npm ci
+npx playwright test               # همه
+npm run update                    # پس از تغییر عمدی ظاهر: عکس‌های مبنای تازه
+```
+
+اگر عکس‌های ساخته‌شده روی رایانهٔ شما با محیط CI اندکی فرق داشت، از
+Actions ← CI ← Run workflow با گزینهٔ `update_snapshots` عکس‌های مبنا را
+روی خود CI بسازید و از artifact جایگزین کنید.
 
 ## افزودن صفحهٔ تازه
 
@@ -141,5 +189,6 @@
    `duration_text()`، تاریخ با `jdate()` یا `JalaliCalendar::humanDate()`.
 4. چسباندن بخش‌های متن با `join_parts()` — هرگز `trim($x, '، ')` (روی بایت
    کار می‌کند و حروف فارسی را می‌بُرد).
-5. در عرض ۳۲۰، ۳۹۰، ۷۶۸ و ۱۴۴۰ و در حالت تیره بررسی کنید: بدون اسکرول
-   افقی، بدون خطای کنسول.
+5. نشانی صفحه را به `tests/ui/pages.mjs` اضافه کنید تا دسترس‌پذیری و چیدمانش
+   خودکار آزموده شود. جزء تازه را در گالری (`resources/views/system/design.php`)
+   بگذارید و عکس مبنا بسازید.

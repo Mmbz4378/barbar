@@ -1,11 +1,25 @@
-# آزمون هر push و Pull Request: سینتکس PHP، کنتراست رنگ‌ها، مهاجرت روی
-# دیتابیس خالی و آزمون جریان‌ها (tools/test-flows.php).
+# آزمون هر push و Pull Request — و پیش‌شرط انتشار (release.yml آن را صدا می‌زند)
+#
+#   test  سینتکس PHP، نگهبان استایل درون‌خطی، کنتراست رنگ‌ها، مهاجرت روی
+#         دیتابیس خالی و آزمون جریان‌ها (tools/test-flows.php)
+#   ui    دسترس‌پذیری (axe، WCAG 2.2 AA، روشن و تیره)، چیدمان ۳۲۰ و ۱۲۸۰
+#         پیکسل، و آزمون تصویری گالری سیستم طراحی (tests/ui)
+#
+# به‌روزکردن عکس‌های مبنا روی همین محیط: Actions ← CI ← Run workflow ←
+# «update_snapshots» را روشن کنید؛ عکس‌های تازه به‌صورت artifact می‌آیند.
 name: CI
 
 on:
   push:
     branches: ['**']
   pull_request:
+  workflow_call:
+  workflow_dispatch:
+    inputs:
+      update_snapshots:
+        description: 'ساخت دوبارهٔ عکس‌های مبنای آزمون تصویری'
+        type: boolean
+        default: false
 
 jobs:
   test:
@@ -38,6 +52,9 @@ jobs:
       - name: PHP lint
         run: find app config routes resources tools public database -name '*.php' -print0 | xargs -0 -n1 -P4 php -l > /dev/null
 
+      - name: Inline style guard
+        run: php tools/check-inline-styles.php
+
       - name: Colour contrast
         run: node tools/check-contrast.mjs
 
@@ -57,3 +74,92 @@ jobs:
           ENV
           php tools/migrate.php
           php tools/test-flows.php
+
+  ui:
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_DATABASE: reshen
+          MARIADB_USER: reshen
+          MARIADB_PASSWORD: reshen
+          MARIADB_ROOT_PASSWORD: root
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          extensions: pdo_mysql, mbstring, curl, zip, sodium, gd
+          coverage: none
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: tests/ui/package-lock.json
+
+      - name: Prepare app with demo data
+        run: |
+          cat > .env <<'ENV'
+          APP_ENV=testing
+          APP_DEBUG=false
+          APP_URL=http://127.0.0.1:8080
+          APP_KEY=ci-only-key-not-secret-0123456789abcdef
+          DB_HOST=127.0.0.1
+          DB_PORT=3306
+          DB_DATABASE=reshen
+          DB_USERNAME=reshen
+          DB_PASSWORD=reshen
+          SMS_DRIVER=log
+          ENV
+          php tools/migrate.php
+          php tools/seed-demo.php
+
+      - name: Start PHP server
+        run: |
+          PHP_CLI_SERVER_WORKERS=4 nohup php -S 127.0.0.1:8080 -t public public/index.php > /tmp/php-server.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8080/health > /dev/null && break; sleep 1; done
+          curl -sf http://127.0.0.1:8080/health
+
+      - name: Install Playwright
+        working-directory: tests/ui
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Update visual baselines
+        if: inputs.update_snapshots == true
+        working-directory: tests/ui
+        env:
+          CI: 'true'
+        run: npx playwright test visual.spec.mjs --update-snapshots
+
+      - name: UI tests
+        if: inputs.update_snapshots != true
+        working-directory: tests/ui
+        env:
+          CI: 'true'
+        run: npx playwright test
+
+      - name: Upload new baselines
+        if: inputs.update_snapshots == true
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-baselines
+          path: tests/ui/__screenshots__
+
+      - name: Upload report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-report
+          path: |
+            tests/ui/playwright-report
+            tests/ui/test-results
+            /tmp/php-server.log

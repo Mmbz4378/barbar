@@ -55,7 +55,11 @@ php tools/login-link.php 09120000001   # لینک ورود صاحب سالن ن�
 ```text
 php tools/test-flows.php          # ۷۴ آزمون (داخل تراکنش؛ چیزی ذخیره نمی‌شود)
 node tools/check-contrast.mjs     # کنتراست همهٔ تم‌ها در حالت روشن و تیره
+php tools/check-inline-styles.php # نگهبان سیستم طراحی
+cd tests/ui && npm ci && npx playwright test   # دسترس‌پذیری، چیدمان، تصویری
 ```
+
+گالری زندهٔ اجزا: `/system/design` (پنل پلتفرم).
 
 ## مستندات
 

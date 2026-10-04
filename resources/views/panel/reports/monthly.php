@@ -42,7 +42,8 @@ $activeDays = count(array_filter($bars, static fn ($b) => $b['total'] > 0));
       <?php if ($activeDays === 0): ?>
         <?= partial('empty-state', ['icon' => 'chart', 'title' => 'در این ماه پرداختی ثبت نشده']) ?>
       <?php else: ?>
-        <div class="bars" role="img" aria-label="نمودار فروش روزانهٔ <?= e($label) ?>؛ <?= e(fa_num($activeDays)) ?> روز با فروش">
+        <p class="sr-only">نمودار فروش روزانهٔ <?= e($label) ?>: <?= e(fa_num($activeDays)) ?> روز با فروش<?= $best !== null && $best['total'] > 0 ? '؛ بهترین روز ' . e(fa_num($best['day'])) . 'ام با ' . e(toman($best['total'])) : '' ?>. گزارش هر روز از انتخاب تاریخ در «روزانه» در دسترس است.</p>
+        <div class="bars" aria-hidden="true">
           <?php foreach ($bars as $b): ?>
             <a class="bars__bar<?= $b['total'] === 0 ? ' bars__bar--empty' : '' ?>" style="--v:<?= $b['total'] === 0 ? 0 : max(2, (int) round($b['total'] / $max * 100)) ?>" href="<?= e(url('panel/reports?date=' . $b['date'])) ?>" title="<?= e(fa_num($b['day']) . ' — ' . toman($b['total'])) ?>" tabindex="-1"></a>
           <?php endforeach; ?>
