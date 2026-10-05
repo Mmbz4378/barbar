@@ -32,6 +32,9 @@ final class Session
     /** در این درخواست چیزی روی نشست نوشته شد؟ */
     private static bool $wrote = false;
 
+    /** نشست را کد دیگری (مثل نصاب) پیش از ما باز کرده و صاحبش است؟ */
+    private static bool $external = false;
+
     public static function start(): void
     {
         if (self::$booted) {
@@ -45,6 +48,15 @@ final class Session
 
         // در CLI (تست، کرون، مهاجرت) نشست معنی ندارد؛ فقط آرایهٔ حافظه‌ای کار می‌کند.
         if (PHP_SAPI === 'cli') {
+            return;
+        }
+
+        // نصاب نشست خودش را باز کرده و بعد برنامه را بالا می‌آورد. نام و کوکیِ
+        // نشستِ باز را نمی‌شود عوض کرد (هشدار PHP، و روی هاستی که خطا نمایش
+        // داده می‌شود، هدایت پایان نصب را می‌شکند)؛ همان را به کار بگیر.
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            self::$external = true;
+
             return;
         }
 
@@ -207,6 +219,13 @@ final class Session
         }
         if (PHP_SAPI === 'cli') {
             $fn();
+
+            return;
+        }
+        // نشستِ صاحب‌دار باز است؛ فقط بنویس، بستنش با صاحبش است.
+        if (self::$external) {
+            $fn();
+            self::$wrote = true;
 
             return;
         }
