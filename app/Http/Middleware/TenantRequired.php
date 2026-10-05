@@ -7,6 +7,8 @@ namespace App\Http\Middleware;
 use App\Core\Auth;
 use App\Core\Request;
 use App\Core\Response;
+use App\Core\View;
+use App\Domain\System\SiteSettings;
 use App\Domain\Salon\SalonRepository;
 use App\Support\SalonContext;
 
@@ -30,6 +32,14 @@ final class TenantRequired implements Middleware
         $memberships = Auth::memberships();
 
         if (empty($memberships)) {
+            if (Auth::isPlatformAdmin()) {
+                return Response::redirect('/platform');
+            }
+            // ثبت‌نام بسته: کاربرِ بی‌سالن خودش سالن نمی‌سازد
+            if (SiteSettings::registrationMode() === SiteSettings::REG_CLOSED) {
+                return self::noAccess('no_salon');
+            }
+
             return Response::redirect('/onboarding');
         }
 
@@ -55,8 +65,24 @@ final class TenantRequired implements Middleware
 
             return Response::redirect('/login');
         }
+        // سالنِ غیرفعال (تعلیق مدیر، یا در انتظار تأیید): پنل بسته است، جز برای
+        // مدیر کل که برای پشتیبانی وارد شده
+        if ((int) ($salon['is_active'] ?? 1) !== 1 && !Auth::isImpersonating()) {
+            return self::noAccess('salon_inactive', $salon);
+        }
         SalonContext::set($salon);
 
         return $next($request);
+    }
+
+    /** صفحهٔ «دسترسی ندارید» با توضیح و راه بعدی. */
+    private static function noAccess(string $reason, ?array $salon = null): Response
+    {
+        return Response::html(View::renderWithLayout('layouts.auth', 'auth.no-access', [
+            'title' => 'دسترسی به پنل',
+            'reason' => $reason,
+            'salon' => $salon,
+            'otherSalons' => count(Auth::memberships()) > 1,
+        ]), 403);
     }
 }

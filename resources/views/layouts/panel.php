@@ -55,6 +55,7 @@ $moreActive = array_filter($nav['more'], $isActive) !== [];
       <?php if (count(Auth::memberships()) > 1): ?>
         <a class="nav-item" href="<?= e(url('salons')) ?>"><?= icon('store') ?><span>تغییر سالن</span></a>
       <?php endif; ?>
+      <a class="nav-item" href="<?= e(url('account')) ?>" <?= is_path('/account', false) ? 'aria-current="page"' : '' ?>><?= icon('user') ?><span>حساب من</span></a>
       <a class="nav-item" href="<?= e(url('logout')) ?>"><?= icon('logout') ?><span>خروج</span></a>
     </div>
   </aside>
@@ -120,6 +121,7 @@ $moreActive = array_filter($nav['more'], $isActive) !== [];
       <?php if (Auth::isPlatformAdmin()): ?>
         <a href="<?= e(url('platform')) ?>"><?= icon('shield') ?><span>پنل پلتفرم</span></a>
       <?php endif; ?>
+      <a href="<?= e(url('account')) ?>"><?= icon('user') ?><span>حساب من</span></a>
     </nav>
   </div>
 </dialog>

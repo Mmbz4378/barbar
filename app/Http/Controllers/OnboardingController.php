@@ -8,6 +8,8 @@ use App\Core\Auth;
 use App\Core\Request;
 use App\Core\Response;
 use App\Core\Session;
+use App\Domain\System\AuditLog;
+use App\Domain\System\SiteSettings;
 use App\Domain\Catalog\CatalogTemplates;
 use App\Domain\Salon\SalonSetupService;
 use App\Support\Audience;
@@ -24,8 +26,29 @@ final class OnboardingController extends Controller
 {
     private const DRAFT = 'onboarding_draft';
 
+    /**
+     * ثبت‌نام بسته: فقط مدیر کل سالن می‌سازد (از پنل مدیریت). بقیه صفحهٔ
+     * توضیح می‌بینند، حتی اگر نشانی را دستی باز کنند.
+     */
+    private function closed(): ?Response
+    {
+        if (Auth::isPlatformAdmin() || SiteSettings::registrationMode() !== SiteSettings::REG_CLOSED) {
+            return null;
+        }
+
+        return Response::html(\App\Core\View::renderWithLayout('layouts.auth', 'auth.no-access', [
+            'title' => 'ساخت سالن',
+            'reason' => 'no_salon',
+            'salon' => null,
+            'otherSalons' => count(Auth::memberships()) > 0,
+        ]), 403);
+    }
+
     public function show(Request $request): Response
     {
+        if (($closed = $this->closed()) !== null) {
+            return $closed;
+        }
         if (!empty(Auth::memberships()) && $request->path !== '/onboarding/new') {
             return $this->redirect('/salons');
         }
@@ -39,6 +62,9 @@ final class OnboardingController extends Controller
 
     public function store(Request $request): Response
     {
+        if (($closed = $this->closed()) !== null) {
+            return $closed;
+        }
         $name = trim((string) $request->input('name', ''));
         $audience = (string) $request->input('audience', '');
         $errors = [];
@@ -71,6 +97,9 @@ final class OnboardingController extends Controller
 
     public function services(Request $request): Response
     {
+        if (($closed = $this->closed()) !== null) {
+            return $closed;
+        }
         $draft = Session::get(self::DRAFT);
         if (!is_array($draft) || empty($draft['name'])) {
             return $this->redirect('/onboarding');
@@ -120,6 +149,16 @@ final class OnboardingController extends Controller
 
         Session::forget(self::DRAFT);
         Auth::setSalon($salonId);
+
+        // ثبت‌نام با تأیید: سالن ساخته می‌شود ولی تا مدیر کل فعالش نکند بسته است
+        if (SiteSettings::registrationMode() === SiteSettings::REG_APPROVAL && !Auth::isPlatformAdmin()) {
+            \App\Core\DB::update('salons', ['is_active' => 0], 'id = :id', ['id' => $salonId]);
+            \App\Domain\Salon\SalonRepository::forget($salonId);
+            AuditLog::record($salonId, 'salon.registered_pending', 'salon', $salonId);
+
+            return $this->withSuccess('سالن ثبت شد و پس از تأیید مدیر سامانه فعال می‌شود.', '/panel');
+        }
+        AuditLog::record($salonId, 'salon.registered', 'salon', $salonId);
         $inactive = count(array_filter($selected, static fn ($s) => $s['price'] === null));
 
         return $this->withSuccess(

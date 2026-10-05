@@ -79,6 +79,12 @@ abstract class Controller
     {
         $old = $request->all();
         unset($old['_csrf']);
+        // رمز هرگز در نشست نمی‌نشیند (فایل نشست روی دیسک است)
+        foreach (array_keys($old) as $key) {
+            if (str_contains((string) $key, 'password') || in_array($key, ['code', 'secret', 'api_key'], true)) {
+                unset($old[$key]);
+            }
+        }
         Session::flash('_old', $old);
         Session::flash('field_errors', $fieldErrors);
         Session::flash('error', $message ?? 'لطفاً موارد مشخص‌شده را اصلاح کنید.');

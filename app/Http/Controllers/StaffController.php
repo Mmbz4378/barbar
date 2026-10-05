@@ -9,7 +9,9 @@ use App\Core\DB;
 use App\Core\Request;
 use App\Core\Response;
 use App\Domain\Catalog\ServiceRepository;
+use App\Domain\Identity\PasswordAuth;
 use App\Domain\Identity\UserRepository;
+use App\Domain\System\AuditLog;
 use App\Domain\Salon\WorkingHoursRepository;
 use App\Domain\Staff\StaffRepository;
 use App\Support\Clock;
@@ -248,13 +250,42 @@ final class StaffController extends Controller
         if (!in_array($role, ['reception', 'manager'], true)) {
             $role = 'reception';
         }
+        // نام کاربری و رمز اولیه (اختیاری) — فقط برای کسی که هنوز حساب پنل ندارد
+        $username = PasswordAuth::normalizeUsername((string) $request->input('username', ''));
+        $initial = (string) $request->input('initial_password', '');
+        $existing = (new UserRepository())->findByPhone($phone);
+        $credentials = $username !== '' || $initial !== '';
+        if ($credentials) {
+            $fieldErrors = [];
+            if ($existing !== null && (!empty($existing['password_hash']) || UserRepository::hasPanelAccess((int) $existing['id']))) {
+                $fieldErrors['member_username'] = 'این شماره از قبل حساب پنل دارد و با نام کاربری و رمز خودش وارد می‌شود؛ این دو را خالی بگذارید.';
+            } else {
+                if ($username !== '') {
+                    $fieldErrors['member_username'] = PasswordAuth::usernameError($username)
+                        ?? (PasswordAuth::usernameTaken($username, $existing !== null ? (int) $existing['id'] : null) ? 'این نام کاربری مال کس دیگری است.' : null);
+                }
+                $fieldErrors['member_password'] = $initial === '' ? 'رمز اولیه را هم بنویسید.' : PasswordAuth::policyError($initial, $phone->e164, $username ?: null);
+            }
+            $fieldErrors = array_filter($fieldErrors);
+            if ($fieldErrors !== []) {
+                return $this->invalid($request, $fieldErrors, '/panel/staff#members');
+            }
+        }
+
         $user = (new UserRepository())->findOrCreate($phone, mb_substr(trim((string) $request->input('name', '')), 0, 120) ?: null);
         $error = $this->grantAccess($salonId, (int) $user['id'], $role);
         if ($error !== null) {
             return $this->withError($error, '/panel/staff#members');
         }
+        if ($credentials) {
+            DB::update('users', ['username' => $username !== '' ? $username : null], 'id = :id', ['id' => $user['id']]);
+            PasswordAuth::setPassword((int) $user['id'], $initial, true);
+            AuditLog::record($salonId, 'member.credentials_set', 'user', (int) $user['id']);
 
-        return $this->withSuccess('دسترسی داده شد. با همین شماره از صفحهٔ ورود وارد شود.', '/panel/staff#members');
+            return $this->withSuccess('دسترسی داده شد. با ' . ($username !== '' ? 'نام کاربری «' . $username . '»' : 'شمارهٔ موبایل') . ' و رمز اولیه وارد شود؛ در اولین ورود رمز خودش را می‌گذارد.', '/panel/staff#members');
+        }
+
+        return $this->withSuccess('دسترسی داده شد. با همین شماره و کد پیامکی وارد شود.', '/panel/staff#members');
     }
 
     /** تغییر نقش یا برداشتن دسترسی. */

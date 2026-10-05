@@ -35,6 +35,7 @@ use App\Domain\Salon\SalonRepository;
 use App\Domain\Salon\SalonSetupService;
 use App\Domain\Staff\TimeOffRepository;
 use App\Domain\Identity\OtpService;
+use App\Domain\Identity\PasswordAuth;
 use App\Domain\Identity\UserRepository;
 use App\Domain\Messaging\SmsBreaker;
 use App\Domain\Messaging\SmsGatewayInterface;
@@ -683,6 +684,49 @@ try {
     check('مدارِ باز: OTP بی‌درنگ پیام روشن می‌دهد', !$otp['ok'] && (microtime(true) - $t0) < 1.0 && count($gw->sent) === $sentBefore, (string) ($otp['error'] ?? ''));
     SmsBreaker::reset();
     SmsManager::fake(null);
+
+    // ─── حساب‌ها و ورود با رمز (نسخهٔ ۱۵) ─────────────────────────────
+    section('حساب‌ها و ورود با رمز');
+    $pa = PasswordAuth::class;
+    check('رمز کوتاه رد می‌شود', $pa::policyError('abc12', null, null, 8) !== null);
+    check('رمز رایج رد می‌شود', $pa::policyError('12345678', null, null, 8) !== null && $pa::policyError('Password123', null, null, 8) !== null);
+    check('رمز برابر موبایل رد می‌شود', $pa::policyError('09121112233', '+989121112233', null, 8) !== null);
+    check('رمز برابر نام کاربری رد می‌شود', $pa::policyError('manager.ali', null, 'manager.ali', 8) !== null);
+    check('رمز فقط‌عددی کوتاه رد می‌شود', $pa::policyError('48151623', null, null, 8) !== null);
+    check('رمز خوب پذیرفته می‌شود', $pa::policyError('Sh4rp-Blade', null, null, 8) === null);
+    check('نام کاربری عادی‌سازی می‌شود', $pa::normalizeUsername(' Ali.Barber۱ ') === 'ali.barber1');
+    check('نام کاربری نامعتبر رد می‌شود', $pa::usernameError('1abc') !== null && $pa::usernameError('ab') !== null && $pa::usernameError('ali.barber1') === null);
+
+    $pwUser = (int) DB::insert('users', ['phone' => '+989127770100', 'name' => 'آزمون رمز', 'username' => 'pwtest']);
+    $pa::setPassword($pwUser, 'Good-pass-123');
+    $pwAuth = new PasswordAuth();
+    check('ورود با نام کاربری، بی‌حساسیت به حروف', $pwAuth->attempt('PWTest', 'Good-pass-123')['ok']);
+    check('ورود با موبایل و ارقام فارسی', $pwAuth->attempt('۰۹۱۲۷۷۷۰۱۰۰', 'Good-pass-123')['ok']);
+    $badPw = $pwAuth->attempt('pwtest', 'wrong-pass');
+    $ghostPw = $pwAuth->attempt('nobody-here', 'wrong-pass');
+    check('پیام خطا برای کاربر ناموجود و رمز غلط یکی است', !$badPw['ok'] && $badPw['error'] === $ghostPw['error']);
+    for ($i = 0; $i < 6; $i++) {
+        $pwAuth->attempt('pwtest', 'wrong-' . $i);
+    }
+    $lockedPw = $pwAuth->attempt('pwtest', 'Good-pass-123');
+    check('پس از چند تلاش ناموفق، رمز درست هم تا پایان قفل رد می‌شود', !$lockedPw['ok'] && str_contains((string) $lockedPw['error'], 'دقیقه'), (string) $lockedPw['error']);
+    DB::update('users', ['locked_until' => null, 'failed_logins' => 0], 'id = :id', ['id' => $pwUser]);
+    $v1 = (int) DB::selectOne('SELECT auth_version FROM users WHERE id = ?', [$pwUser])['auth_version'];
+    $pa::setPassword($pwUser, 'Newer-pass-456', true);
+    $pwRow = DB::selectOne('SELECT auth_version, password_hash, must_change_password FROM users WHERE id = ?', [$pwUser]);
+    check('رمز تازه نسخهٔ نشست را بالا می‌برد (نشست‌های دیگر بسته می‌شوند)', (int) $pwRow['auth_version'] === $v1 + 1);
+    check('رمز هش می‌شود، نه متن ساده', str_starts_with((string) $pwRow['password_hash'], '$') && !str_contains((string) $pwRow['password_hash'], 'Newer'));
+    check('رمز موقتِ مدیر «باید عوض شود» می‌خورد', (int) $pwRow['must_change_password'] === 1);
+    DB::update('users', ['is_active' => 0], 'id = :id', ['id' => $pwUser]);
+    $blockedPw = $pwAuth->attempt('pwtest', 'Newer-pass-456');
+    check('حساب مسدود با رمز درست هم وارد نمی‌شود', !$blockedPw['ok'] && str_contains((string) $blockedPw['error'], 'غیرفعال'));
+    DB::update('users', ['is_active' => 1], 'id = :id', ['id' => $pwUser]);
+    check('کاربرِ بی‌سالن (مثل مشتری) دسترسی پنل ندارد', !UserRepository::hasPanelAccess($pwUser));
+    DB::insert('salon_user', ['salon_id' => $menId, 'user_id' => $pwUser, 'role' => 'reception']);
+    check('با عضویت فعال، دسترسی پنل دارد', UserRepository::hasPanelAccess($pwUser));
+    check('ثبت‌نام سالن به‌طور پیش‌فرض بسته است', App\Domain\System\SiteSettings::registrationMode() === 'closed');
+    $pwEvents = (int) DB::selectOne('SELECT COUNT(*) AS c FROM login_events WHERE user_id = ?', [$pwUser])['c'];
+    check('همهٔ تلاش‌های ورود ثبت می‌شوند', $pwEvents >= 10, (string) $pwEvents);
 } catch (Throwable $e) {
     $failed[] = 'خطای پیش‌بینی‌نشده: ' . $e->getMessage() . ' @ ' . basename($e->getFile()) . ':' . $e->getLine();
     echo "\n  ✗ " . end($failed) . "\n" . $e->getTraceAsString() . "\n";

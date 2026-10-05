@@ -55,6 +55,11 @@ set_exception_handler(static function (Throwable $e): void {
     // سرور زیر فشار: صفحهٔ سبکِ «شلوغ است» با تلاش دوبارهٔ خودکار، نه «خطایی رخ داد»
     if ($e instanceof App\Core\Overloaded) {
         error_log('[overloaded] ' . ($e->getPrevious()?->getMessage() ?? $e->getMessage()));
+        if (PHP_SAPI === 'cli') {
+            // ابزار خط فرمان و کرون: متن ساده، نه صفحهٔ HTML
+            fwrite(STDERR, 'دیتابیس در دسترس نیست: ' . ($e->getPrevious()?->getMessage() ?? $e->getMessage()) . "\n");
+            exit(1);
+        }
         App\Core\Overloaded::respond();
 
         return;

@@ -111,6 +111,14 @@
         <?php if ($isOwner): ?><label class="choice"><input class="choice__input" type="radio" name="role" value="manager"><span class="choice__card"><span class="choice__body"><span class="choice__title">مدیر</span><span class="choice__meta">همهٔ بخش‌ها، از جمله تنظیمات و گزارش</span></span><span class="choice__mark"><?= icon('check') ?></span></span></label><?php endif; ?>
       </div>
     </fieldset>
+    <details class="disclosure">
+      <summary>نام کاربری و رمز اولیه <span class="field__optional">(اختیاری)</span></summary>
+      <div class="stack mt-3">
+        <p class="field__hint">برای کسی که هنوز حساب ندارد. با این‌ها بدون پیامک وارد می‌شود و در اولین ورود رمز خودش را می‌گذارد. اگر خالی بماند، با کد پیامکی وارد می‌شود.</p>
+        <div class="field"><label class="field__label" for="m-username">نام کاربری</label><input class="input input--ltr" id="m-username" name="username" maxlength="40" dir="ltr" autocapitalize="none" spellcheck="false" autocomplete="off"><?= partial('field-error', ['key' => 'member_username']) ?></div>
+        <div class="field"><label class="field__label" for="m-password">رمز اولیه</label><input class="input input--ltr" id="m-password" name="initial_password" type="password" dir="ltr" autocomplete="new-password"><?= partial('field-error', ['key' => 'member_password']) ?></div>
+      </div>
+    </details>
     <button type="submit" class="btn btn--primary btn--block">دادن دسترسی</button>
   </form>
 </dialog>

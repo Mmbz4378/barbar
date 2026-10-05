@@ -30,6 +30,20 @@ if (!defined('RESHEN_INSTALLER')) {
 const RESHEN_ROOT = __DIR__ . '/../..';
 const LOCK_FILE = RESHEN_ROOT . '/storage/installed.lock';
 
+/*
+ * بارگذار کلاس‌ها برای اعتبارسنجی حساب مدیر پیش از bootstrap (قواعد رمز و
+ * شماره همان قواعد برنامه‌اند، نه نسخهٔ دوم). عمداً Autoloader.php را require
+ * نمی‌کند، چون bootstrap بعداً همان فایل را require می‌کند.
+ */
+spl_autoload_register(static function (string $class): void {
+    if (str_starts_with($class, 'App\\')) {
+        $file = RESHEN_ROOT . '/app/' . str_replace('\\', '/', substr($class, 4)) . '.php';
+        if (is_file($file)) {
+            require $file;
+        }
+    }
+});
+
 session_start();
 
 // فایل قفل همان لحظه‌ای نوشته می‌شود که مهاجرت‌ها تمام می‌شوند، یعنی
@@ -81,6 +95,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['_step'] ?? '') === 'config
             $errors[] = 'نام دیتابیس و نام کاربری را پر کنید.';
         }
 
+        // حساب مدیر کل — پیش از هر نوشتنی سنجیده می‌شود
+        $admin = admin_from_post($errors);
+
         if ($errors === []) {
             try {
                 $pdo = new PDO(
@@ -116,6 +133,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['_step'] ?? '') === 'config
             }
 
             if ($errors === []) {
+                $adminError = create_platform_admin($admin);
+                if ($adminError !== null) {
+                    $errors[] = $adminError;
+                }
+            }
+
+            if ($errors === []) {
                 @file_put_contents(LOCK_FILE, date('c') . "\n");
                 $_SESSION['install_done'] = true;
                 header('Location: ?step=done');
@@ -146,7 +170,7 @@ foreach ($checks as $rows) {
 }
 
 if ($step === 'config' && !$blocked) {
-    render_config_form($errors, $_SESSION['install_csrf']);
+    render_config_form($errors, $_SESSION['install_csrf'], $_POST);
     exit;
 }
 
@@ -407,14 +431,97 @@ function detected_url(): string
     return $scheme . '://' . $host . $dir;
 }
 
+/**
+ * فیلدهای حساب مدیر کل و نام سامانه از فرم.
+ *
+ * @param string[] $errors
+ * @return array{name:string,phone:string,username:string,password:string,site:string}
+ */
+function admin_from_post(array &$errors): array
+{
+    $admin = [
+        'site' => mb_substr(trim((string) ($_POST['site_name'] ?? '')), 0, 60),
+        'name' => mb_substr(trim((string) ($_POST['admin_name'] ?? '')), 0, 120),
+        'phone' => '',
+        'username' => App\Domain\Identity\PasswordAuth::normalizeUsername((string) ($_POST['admin_username'] ?? '')),
+        'password' => (string) ($_POST['admin_password'] ?? ''),
+    ];
+    if ($admin['name'] === '') {
+        $errors[] = 'نام مدیر کل را بنویسید.';
+    }
+    $phone = App\Support\IranMobile::tryParse((string) ($_POST['admin_phone'] ?? ''));
+    if ($phone === null) {
+        $errors[] = 'شمارهٔ موبایل مدیر کل معتبر نیست؛ مثل ۰۹۱۲۳۴۵۶۷۸۹.';
+    } else {
+        $admin['phone'] = $phone->e164;
+    }
+    if ($admin['username'] === '') {
+        $errors[] = 'برای مدیر کل نام کاربری بگذارید.';
+    } elseif (($e = App\Domain\Identity\PasswordAuth::usernameError($admin['username'])) !== null) {
+        $errors[] = $e;
+    }
+    $policy = App\Domain\Identity\PasswordAuth::policyError($admin['password'], $admin['phone'] ?: null, $admin['username'], 8);
+    if ($policy !== null) {
+        $errors[] = 'رمز مدیر کل: ' . $policy;
+    } elseif ($admin['password'] !== (string) ($_POST['admin_password_confirm'] ?? '')) {
+        $errors[] = 'تکرار رمز مدیر کل با خودِ رمز یکی نیست.';
+    }
+
+    return $admin;
+}
+
+/**
+ * پس از مهاجرت‌ها: حساب مدیر کل (یا ارتقای کاربرِ هم‌شماره در نصب دوباره).
+ *
+ * @param array{name:string,phone:string,username:string,password:string,site:string} $admin
+ */
+function create_platform_admin(array $admin): ?string
+{
+    $taken = App\Core\DB::selectOne('SELECT id, phone FROM users WHERE username = ?', [$admin['username']]);
+    if ($taken !== null && $taken['phone'] !== $admin['phone']) {
+        return 'نام کاربری «' . $admin['username'] . '» در این دیتابیس مال کاربر دیگری است؛ نام دیگری انتخاب کنید.';
+    }
+
+    $data = [
+        'name' => $admin['name'],
+        'username' => $admin['username'],
+        'password_hash' => App\Domain\Identity\PasswordAuth::hash($admin['password']),
+        'password_changed_at' => date('Y-m-d H:i:s'),
+        'must_change_password' => 0,
+        'is_platform_admin' => 1,
+        'is_active' => 1,
+    ];
+    $existing = App\Core\DB::selectOne('SELECT id FROM users WHERE phone = ?', [$admin['phone']]);
+    if ($existing !== null) {
+        App\Core\DB::update('users', $data, 'id = :id', ['id' => $existing['id']]);
+        $userId = (int) $existing['id'];
+    } else {
+        $userId = (int) App\Core\DB::insert('users', $data + ['phone' => $admin['phone']]);
+    }
+
+    if ($admin['site'] !== '') {
+        App\Domain\System\SiteSettings::set('brand.name', $admin['site']);
+    }
+    App\Core\DB::insert('audit_logs', [
+        'actor_user_id' => $userId,
+        'action' => 'install.completed',
+        'subject_type' => 'user',
+        'subject_id' => $userId,
+        'ip_address' => $_SERVER['REMOTE_ADDR'] ?? null,
+    ]);
+
+    return null;
+}
+
 function h(?string $value): string
 {
     return htmlspecialchars($value ?? '', ENT_QUOTES, 'UTF-8');
 }
 
-function render_config_form(array $errors, string $csrf): void
+function render_config_form(array $errors, string $csrf, array $old = []): void
 {
     $guess = detected_url();
+    $v = static fn (string $key, string $default = ''): string => h((string) ($old[$key] ?? $default));
     ?>
     <?php render_head('نصب رشن — اتصال دیتابیس'); ?>
     <div class="wrap">
@@ -436,21 +543,23 @@ function render_config_form(array $errors, string $csrf): void
           <input type="hidden" name="_step" value="config">
           <input type="hidden" name="_csrf" value="<?= h($csrf) ?>">
 
+          <h2>۱. دیتابیس</h2>
+
           <label>میزبان دیتابیس
-            <input name="db_host" value="localhost" dir="ltr" required>
+            <input name="db_host" value="<?= $v('db_host', 'localhost') ?>" dir="ltr" required>
             <small>در اکثر هاست‌های cPanel همان <code>localhost</code> است.</small>
           </label>
 
           <label>پورت
-            <input name="db_port" value="3306" dir="ltr" required>
+            <input name="db_port" value="<?= $v('db_port', '3306') ?>" dir="ltr" required>
           </label>
 
           <label>نام دیتابیس
-            <input name="db_name" dir="ltr" required placeholder="myuser_reshen">
+            <input name="db_name" value="<?= $v('db_name') ?>" dir="ltr" required placeholder="myuser_reshen">
           </label>
 
           <label>نام کاربری دیتابیس
-            <input name="db_user" dir="ltr" required placeholder="myuser_reshen">
+            <input name="db_user" value="<?= $v('db_user') ?>" dir="ltr" required placeholder="myuser_reshen">
           </label>
 
           <label>رمز عبور دیتابیس
@@ -458,11 +567,45 @@ function render_config_form(array $errors, string $csrf): void
           </label>
 
           <label>آدرس سایت
-            <input name="app_url" value="<?= h($guess) ?>" dir="ltr">
+            <input name="app_url" value="<?= $v('app_url', $guess) ?>" dir="ltr">
             <small>اگر درست حدس زده شده، دست نزنید.</small>
           </label>
 
-          <button type="submit">ساخت جدول‌ها و پایان نصب</button>
+          <h2>۲. سامانه و مدیر کل</h2>
+          <p class="note">
+            مدیر کل همه‌چیز را از «پنل مدیریت» اداره می‌کند: سالن‌ها و صاحبانشان، کاربران،
+            برند و لوگو، تنظیمات پیامک و گزارش‌ها. با نام کاربری (یا موبایل) و همین رمز وارد می‌شوید.
+          </p>
+
+          <label>نام سامانه (برند)
+            <input name="site_name" value="<?= $v('site_name', 'رشن') ?>" maxlength="60">
+            <small>در عنوان صفحه‌ها و پیامک‌ها؛ بعداً از تنظیمات هم عوض می‌شود.</small>
+          </label>
+
+          <label>نام و نام خانوادگی مدیر
+            <input name="admin_name" value="<?= $v('admin_name') ?>" maxlength="120" required autocomplete="name">
+          </label>
+
+          <label>شمارهٔ موبایل مدیر
+            <input name="admin_phone" value="<?= $v('admin_phone') ?>" dir="ltr" required inputmode="tel" placeholder="09123456789" autocomplete="tel">
+            <small>برای بازیابی رمز با پیامک.</small>
+          </label>
+
+          <label>نام کاربری مدیر
+            <input name="admin_username" value="<?= $v('admin_username', 'admin') ?>" dir="ltr" required maxlength="40" autocapitalize="none" spellcheck="false" autocomplete="username">
+            <small>حروف لاتین، عدد، نقطه یا خط تیره؛ با حرف شروع شود.</small>
+          </label>
+
+          <label>رمز مدیر
+            <input name="admin_password" type="password" dir="ltr" required minlength="8" autocomplete="new-password">
+            <small>دست‌کم ۸ نویسه؛ ترکیب حرف و عدد. جایی امن یادداشتش کنید.</small>
+          </label>
+
+          <label>تکرار رمز مدیر
+            <input name="admin_password_confirm" type="password" dir="ltr" required minlength="8" autocomplete="new-password">
+          </label>
+
+          <button type="submit">ساخت جدول‌ها، حساب مدیر و پایان نصب</button>
         </form>
       </div>
     </div>
@@ -482,8 +625,11 @@ function render_done(): void
       <div class="card">
         <h2>حالا چه کنید</h2>
         <ol>
-          <li><strong>وارد شوید.</strong> صفحهٔ ورود را باز کنید و شمارهٔ موبایل خودتان را بزنید.
-              اولین کاربری که ثبت‌نام کند، صاحب سالن می‌شود.</li>
+          <li><strong>وارد شوید.</strong> صفحهٔ <code>/login</code> را باز کنید و با نام کاربری
+              (یا موبایل) و رمز مدیر وارد شوید. به «پنل مدیریت» می‌روید.</li>
+          <li><strong>سالن‌ها را بسازید.</strong> در پنل مدیریت ← سالن‌ها ← «سالن تازه»، سالن و
+              صاحبش را با نام کاربری و رمز بسازید. ثبت‌نام عمومی سالن بسته است و از
+              «تنظیمات ← ورود و ثبت‌نام» باز می‌شود.</li>
           <li><strong>پیامک را تنظیم کنید.</strong> تا وقتی <code>SMS_DRIVER</code> در فایل
               <code>.env</code> روی <code>log</code> باشد، هیچ پیامکی ارسال نمی‌شود و کد ورود
               فقط در <code>storage/logs/sms.log</code> نوشته می‌شود. برای سالن واقعی باید
@@ -498,7 +644,7 @@ function render_done(): void
           برای اطمینان از سلامت همه‌چیز، صفحهٔ <code>doctor.php</code> را باز کنید.
         </p>
 
-        <a class="btn" href="./">ورود به رشن</a>
+        <a class="btn" href="./login">ورود به پنل مدیریت</a>
       </div>
 
       <footer>

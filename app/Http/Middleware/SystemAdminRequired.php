@@ -20,6 +20,6 @@ final class SystemAdminRequired implements Middleware
             return Response::redirect('/panel');
         }
 
-        return $next($request);
+        return Auth::passwordChangeGate($request) ?? $next($request);
     }
 }

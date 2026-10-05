@@ -16,6 +16,6 @@ final class AuthRequired implements Middleware
             return Response::redirect('/login');
         }
 
-        return $next($request);
+        return Auth::passwordChangeGate($request) ?? $next($request);
     }
 }
