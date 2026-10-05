@@ -19,6 +19,11 @@ $router->get('/', function () {
 // شروعِ خودش را بدهد (ت-۳۲).
 $router->get('/manifest.webmanifest', [ManifestController::class, 'show']);
 
+// سئو و صفحه‌های محتوایی (از پنل مدیر کل)
+$router->get('/robots.txt', [App\Http\Controllers\SiteController::class, 'robots']);
+$router->get('/sitemap.xml', [App\Http\Controllers\SiteController::class, 'sitemap']);
+$router->get('/p/{slug}', [App\Http\Controllers\SiteController::class, 'showPage']);
+
 // سلامت — برای بررسی پس از به‌روزرسانی خودکار و پایش بیرونی
 $router->get('/health', [App\Http\Controllers\HealthController::class, 'show']);
 

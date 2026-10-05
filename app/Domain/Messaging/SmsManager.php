@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Domain\Messaging;
 
 use App\Core\Config;
-use App\Core\Env;
 
 final class SmsManager
 {
@@ -55,7 +54,13 @@ final class SmsManager
         });
     }
 
-    /** @param callable(SmsGatewayInterface):array $send */
+    /** پس از تغییر تنظیمات پیامک در همین درخواست (ارسال آزمایشی). */
+    public static function reset(): void
+    {
+        self::$primary = null;
+        self::$fallback = null;
+    }
+
     /**
      * درایور را جایگزین می‌کند — فقط برای آزمون (اپراتورِ کند یا از کارافتاده را
      * شبیه‌سازی می‌کند). null یعنی برگشت به پیکربندی.
@@ -66,6 +71,7 @@ final class SmsManager
         self::$fallback = null;
     }
 
+    /** @param callable(SmsGatewayInterface):array $send */
     private static function attempt(callable $send): array
     {
         $primary = self::primary();
@@ -114,11 +120,11 @@ final class SmsManager
     {
         return match ($driver) {
             'melipayamak' => new MelipayamakGateway(
-                (string) Env::get('SMS_MELIPAYAMAK_USERNAME', ''),
-                (string) Env::get('SMS_MELIPAYAMAK_PASSWORD', ''),
-                (string) Env::get('SMS_MELIPAYAMAK_SENDER', ''),
+                (string) Config::get('reshen.sms.credentials.melipayamak.username', ''),
+                (string) Config::get('reshen.sms.credentials.melipayamak.password', ''),
+                (string) Config::get('reshen.sms.credentials.melipayamak.sender', ''),
             ),
-            'kavenegar' => new KavenegarGateway((string) Env::get('SMS_KAVENEGAR_API_KEY', '')),
+            'kavenegar' => new KavenegarGateway((string) Config::get('reshen.sms.credentials.kavenegar.api_key', '')),
             default => new LogSmsGateway(),
         };
     }

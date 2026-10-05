@@ -49,7 +49,7 @@ $place = trim(implode('، ', array_filter([$salon['neighborhood'] ?? null, $salo
       <a href="<?= e(url('me')) ?>">نوبت‌های من</a>
       <?php if (($salon['publication_status'] ?? '') === 'published'): ?><a href="<?= e(url('salons/view/' . $salon['slug'])) ?>">معرفی سالن</a><?php endif; ?>
     </div>
-    <p class="mt-2">رزرو با رشن</p>
+    <p class="mt-2">رزرو با <?= e(brand()) ?></p>
   </footer>
 </div>
 <?php include BASE_PATH . '/resources/views/components/body-end.php'; ?>

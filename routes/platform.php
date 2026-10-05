@@ -26,6 +26,10 @@ $router->group(['middleware' => [PlatformAdminRequired::class]], function ($rout
     $router->get('/platform/users/new', [PlatformUserController::class, 'create']);
     $router->get('/platform/users/{id}', [PlatformUserController::class, 'show']);
 
+    $router->get('/platform/settings', [App\Http\Controllers\PlatformSettingsController::class, 'show']);
+    $router->get('/platform/pages', [App\Http\Controllers\PlatformPageController::class, 'index']);
+    $router->get('/platform/pages/new', [App\Http\Controllers\PlatformPageController::class, 'create']);
+    $router->get('/platform/pages/{id}/edit', [App\Http\Controllers\PlatformPageController::class, 'edit']);
     $router->get('/platform/moderation', [SalonPublicationController::class, 'moderation']);
     $router->get('/platform/holidays', [PlatformController::class, 'holidays']);
     $router->get('/platform/impersonate/stop', [PlatformController::class, 'stopImpersonating']);
@@ -46,6 +50,10 @@ $router->group(['middleware' => [PlatformAdminRequired::class]], function ($rout
         $router->post('/platform/users/{id}/status', [PlatformUserController::class, 'status']);
         $router->post('/platform/users/{id}/memberships', [PlatformUserController::class, 'addMembership']);
 
+        $router->post('/platform/settings/{tab}', [App\Http\Controllers\PlatformSettingsController::class, 'save']);
+        $router->post('/platform/pages', [App\Http\Controllers\PlatformPageController::class, 'store']);
+        $router->post('/platform/pages/{id}', [App\Http\Controllers\PlatformPageController::class, 'update']);
+        $router->post('/platform/pages/{id}/delete', [App\Http\Controllers\PlatformPageController::class, 'delete']);
         $router->post('/platform/moderation', [SalonPublicationController::class, 'moderate']);
         $router->post('/platform/holidays', [PlatformController::class, 'addHoliday']);
         $router->post('/platform/holidays/seed', [PlatformController::class, 'seedHolidays']);

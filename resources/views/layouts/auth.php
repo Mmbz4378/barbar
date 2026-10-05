@@ -16,8 +16,8 @@
 <main id="main" class="auth" tabindex="-1">
   <div class="auth__card<?= !empty($wideCard) ? ' auth__card--wide' : '' ?>">
     <div class="auth__brand">
-      <span class="brand-mark brand-mark--lg"><?= icon('scissors') ?></span>
-      <div><p class="title-md">رشن</p><p class="text-sm muted">مدیریت نوبت آرایشگاه و سالن زیبایی</p></div>
+      <span class="brand-mark brand-mark--lg"><?php if ($brandLogo = App\Domain\System\SiteSettings::logoPath()): ?><img src="<?= e(url($brandLogo)) ?>" alt=""><?php else: ?><?= icon('scissors') ?><?php endif; ?></span>
+      <div><p class="title-md"><?= e(brand()) ?></p><p class="text-sm muted"><?= e(App\Domain\System\SiteSettings::tagline()) ?></p></div>
     </div>
     <?php include BASE_PATH . '/resources/views/components/flash.php'; ?>
     <div class="card"><div class="card__body"><?= $content ?></div></div>

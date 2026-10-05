@@ -49,15 +49,31 @@ final class Security
      */
     public static function csp(): string
     {
+        // دامنه‌های بیرونیِ اختیاری، فقط وقتی مدیر در تنظیمات فعالشان کرده
+        $script = $img = $connect = '';
+        try {
+            if (\App\Domain\System\SiteSettings::gaId() !== '') {
+                $script .= ' https://www.googletagmanager.com';
+                $img .= ' https://*.google-analytics.com https://www.googletagmanager.com';
+                $connect .= ' https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com';
+            }
+            if (\App\Domain\System\SiteSettings::enamad() !== null) {
+                $img .= ' https://trustseal.enamad.ir';
+            }
+        } catch (\Throwable) {
+            // تنظیمات در دسترس نیست (پیش از نصب): سیاست سخت پیش‌فرض
+        }
+
         return implode('; ', [
             "default-src 'self'",
             "base-uri 'self'",
             "object-src 'none'",
             "frame-ancestors 'none'",
             "form-action 'self'",
-            "img-src 'self' data:",
+            "img-src 'self' data:" . $img,
+            "connect-src 'self'" . $connect,
             "style-src 'self' 'unsafe-inline'",
-            "script-src 'self' 'nonce-" . self::nonce() . "'",
+            "script-src 'self' 'nonce-" . self::nonce() . "'" . $script,
         ]);
     }
 

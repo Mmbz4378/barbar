@@ -90,7 +90,7 @@ final class OtpService
                 $phone->e164,
                 'otp',
                 [$code],
-                "کد ورود شما به رشن: {$code}\nتا ۲ دقیقه معتبر است."
+                "کد ورود شما به " . App\Domain\System\SiteSettings::brandName() . ": {$code}\nتا ۲ دقیقه معتبر است."
             ));
 
         if (!$result['ok']) {

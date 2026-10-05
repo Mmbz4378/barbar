@@ -25,8 +25,8 @@ $customerNav = [
   <header class="topbar">
     <div class="topbar__inner <?= $wide ? '' : 'topbar__inner--narrow' ?>">
       <a class="salon-identity" href="<?= e(url('discover')) ?>">
-        <span class="brand-mark"><?= icon('scissors') ?></span>
-        <span class="salon-identity__name">رشن</span>
+        <span class="brand-mark"><?php if ($brandLogo = App\Domain\System\SiteSettings::logoPath()): ?><img src="<?= e(url($brandLogo)) ?>" alt=""><?php else: ?><?= icon('scissors') ?><?php endif; ?></span>
+        <span class="salon-identity__name"><?= e(brand()) ?></span>
       </a>
       <nav class="topbar__nav" aria-label="منوی مشتری">
         <?php foreach ($customerNav as [$path, $label, $symbol, $active]): ?>
@@ -48,10 +48,7 @@ $customerNav = [
     <?= $content ?>
   </main>
 
-  <footer class="public__footer">
-    رشن · نوبت‌دهی آرایشگاه‌ها و سالن‌های زیبایی ·
-    <a href="<?= e(url('login')) ?>">ورود مدیران سالن</a>
-  </footer>
+  <?php include BASE_PATH . '/resources/views/components/site-footer.php'; ?>
 </div>
 
 <nav class="tabbar" aria-label="منوی مشتری">

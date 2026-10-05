@@ -22,7 +22,7 @@ final class OnlinePaymentService
             if($amount<=0)throw new RuntimeException('مبلغ قابل پرداخت نیست.');
             $base=rtrim((string)Config::get('app.url',''),'/');
             if(!preg_match('~^https?://~',$base))throw new RuntimeException('نشانی اصلی برنامه برای بازگشت پرداخت تنظیم نشده است.');
-            $result=$this->gateway->request(Money::fromRials($amount),$base.'/payments/callback',['description'=>'تسویهٔ نوبت رشن']);
+            $result=$this->gateway->request(Money::fromRials($amount),$base.'/payments/callback',['description'=>'تسویهٔ نوبت ' . brand()]);
             if(!$result['ok']||empty($result['reference'])||empty($result['redirectUrl']))throw new RuntimeException('شروع پرداخت ممکن نشد. دوباره تلاش کنید.');
             $id=DB::insert('online_payment_attempts',['salon_id'=>$a['salon_id'],'appointment_id'=>$a['id'],'authority'=>$result['reference'],'redirect_url'=>$result['redirectUrl'],'amount'=>$amount]);
             return DB::selectOne('SELECT * FROM online_payment_attempts WHERE id=?',[$id]);

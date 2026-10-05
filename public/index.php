@@ -31,6 +31,25 @@ if (App\Core\Maintenance::active() && parse_url((string) ($_SERVER['REQUEST_URI'
     exit;
 }
 
+// حالت تعمیرِ دستیِ مدیر کل: سایت برای همه جز مدیران کل بسته است. ورود و
+// پنل مدیریت باز می‌مانند تا مدیر بتواند وارد شود و حالت را خاموش کند.
+if (App\Domain\System\SiteSettings::maintenanceOn()) {
+    $path = '/' . ltrim(substr((string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH), strlen(App\Core\Request::basePath())), '/');
+    $open = (bool) preg_match('#^/(login|logout|platform|system|account|health|robots\.txt|manifest\.webmanifest)(/|$)#', $path);
+    if (!$open && !(App\Core\Auth::check() && App\Core\Auth::isPlatformAdmin())) {
+        App\Core\Security::send();
+        http_response_code(503);
+        header('Retry-After: 600');
+        header('Cache-Control: no-store');
+        header('Content-Type: text/html; charset=utf-8');
+        echo App\Core\View::renderWithLayout('layouts.minimal', 'site.maintenance', [
+            'title' => 'در دست تعمیر',
+            'message' => App\Domain\System\SiteSettings::maintenanceMessage(),
+        ]);
+        exit;
+    }
+}
+
 // کارهای «پس از پاسخ» (مثل پیامک) فقط در درخواستِ وب عقب می‌افتند.
 App\Core\Deferred::enable();
 

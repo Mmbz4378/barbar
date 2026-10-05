@@ -31,6 +31,8 @@ if (is_file(BASE_PATH . '/vendor/autoload.php')) {
 
 Env::load(BASE_PATH . '/.env');
 Config::load(BASE_PATH . '/config');
+// تنظیمات پیامک و پرداختی که مدیر کل در پنل ذخیره کرده روی .env می‌نشیند (تنبل)
+Config::setOverlay(static fn (): array => App\Domain\System\SiteSettings::configOverlay());
 require BASE_PATH . '/app/Support/helpers.php';
 
 date_default_timezone_set((string) Config::get('app.timezone', 'Asia/Tehran'));

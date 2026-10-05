@@ -37,7 +37,7 @@ final class RateLimiter
     {
         $html = '<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8">'
             . '<meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="' . max(5, $retryAfter) . '">'
-            . '<title>کمی آهسته‌تر · رشن</title>'
+            . '<title>کمی آهسته‌تر</title>'
             . '<style>body{margin:0;min-height:100vh;display:grid;place-items:center;padding:16px;background:#f6f6f4;color:#1c1c1a;font:16px/1.9 Tahoma,system-ui,sans-serif;text-align:center}'
             . '@media (prefers-color-scheme:dark){body{background:#111110;color:#ededeb}}main{max-width:420px}h1{font-size:22px}</style></head>'
             . '<body><main><h1>درخواست‌ها زیاد شد</h1><p>از این شبکه در یک دقیقه درخواست زیادی رسید. چند لحظهٔ دیگر این صفحه خودش دوباره تلاش می‌کند.</p></main></body></html>';

@@ -743,6 +743,39 @@ try {
     check('شمارش صاحبان فعال سالن', App\Domain\Identity\AccountService::activeOwnerCount($menId) === $ownersBefore + 1);
     DB::update('users', ['is_active' => 0], 'id = :id', ['id' => $accId]);
     check('صاحبِ مسدود در شمارش صاحبان فعال نیست', App\Domain\Identity\AccountService::activeOwnerCount($menId) === $ownersBefore);
+
+    section('تنظیمات سایت و محتوا');
+    $ss = App\Domain\System\SiteSettings::class;
+    check('کد تأیید گوگل از تگ meta کامل برداشته می‌شود', $ss::parseVerification('<meta name="google-site-verification" content="AbC_123-xyz987" />') === 'AbC_123-xyz987');
+    check('کد تأیید نامعتبر پذیرفته نمی‌شود', $ss::parseVerification('<script>alert(1)</script>') === '');
+    $enamadParsed = $ss::parseEnamad('<a href="https://trustseal.enamad.ir/?id=123456&Code=AbCd1234Ef"><img src="x" onerror="alert(1)"></a>');
+    check('از کد اینماد فقط شناسه و کد برداشته می‌شود', $enamadParsed === ['id' => '123456', 'code' => 'AbCd1234Ef']);
+    check('متن بی‌ربط کد اینماد نیست', $ss::parseEnamad('سلام') === null);
+    check('نشانی‌های خطرناک رد می‌شوند', $ss::safeUrl('javascript:alert(1)') === null && $ss::safeUrl('//evil.com') === null && $ss::safeUrl('data:text/html,x') === null);
+    check('نشانی http(s) و مسیر داخلی پذیرفته می‌شوند', $ss::safeUrl('https://example.ir/x') !== null && $ss::safeUrl('/discover') === '/discover');
+    $ss::set('brand.name', 'برند آزمون');
+    check('نام برند از تنظیمات خوانده می‌شود', brand() === 'برند آزمون');
+    $ss::set('brand.name', null);
+    check('بی‌تنظیم، نام پیش‌فرض برمی‌گردد', brand() === App\Domain\System\SiteSettings::DEFAULT_BRAND);
+    if ($ss::canEncrypt()) {
+        $ss::setSecret('sms.kavenegar.api_key', 'top-secret-key-42');
+        $rawSecret = (string) DB::selectOne("SELECT setting_value FROM system_settings WHERE setting_key = 'site.sms.kavenegar.api_key'")['setting_value'];
+        check('رمز در دیتابیس رمزگذاری‌شده است، نه متن ساده', !str_contains($rawSecret, 'top-secret') && str_starts_with($rawSecret, 'enc:v1:'));
+        check('رمز با همان کلید برمی‌گردد', $ss::secret('sms.kavenegar.api_key') === 'top-secret-key-42');
+        $ss::set('sms.driver', 'kavenegar');
+        $overlay = $ss::configOverlay();
+        check('تنظیمات پنل روی config پیامک می‌نشیند', ($overlay['reshen.sms.driver'] ?? null) === 'kavenegar' && ($overlay['reshen.sms.credentials.kavenegar.api_key'] ?? null) === 'top-secret-key-42');
+        $ss::setMany(['sms.driver' => null, 'sms.kavenegar.api_key' => null]);
+    }
+    $md = App\Support\SafeMarkdown::render("## تیتر\nمتن <script>alert(1)</script> **پررنگ** [ب](javascript:alert(1)) [خوب](https://a.ir)\n\n- یک");
+    check('Markdown امن: اسکریپت به متن تبدیل می‌شود', !str_contains($md, '<script') && str_contains($md, '&lt;script&gt;'));
+    check('Markdown امن: پیوند javascript ساخته نمی‌شود', !str_contains($md, 'javascript:') && str_contains($md, 'href="https://a.ir"'));
+    check('Markdown امن: سرتیتر، پررنگ و فهرست', str_contains($md, '<h2>تیتر</h2>') && str_contains($md, '<strong>پررنگ</strong>') && str_contains($md, '<li>یک</li>'));
+    $pageRepo = new App\Domain\Content\PageRepository();
+    $pageId = $pageRepo->save(null, ['slug' => 'test-page', 'title' => 'آزمون', 'body' => 'متن', 'is_published' => 1, 'show_in_footer' => 1]);
+    check('صفحهٔ منتشرشده در پانویس می‌آید', in_array('test-page', array_column(App\Domain\Content\PageRepository::footer(), 'slug'), true));
+    $pageRepo->save($pageId, ['is_published' => 0]);
+    check('پیش‌نویس نه در پانویس است نه با نشانی باز می‌شود', !in_array('test-page', array_column(App\Domain\Content\PageRepository::footer(), 'slug'), true) && $pageRepo->findPublished('test-page') === null);
 } catch (Throwable $e) {
     $failed[] = 'خطای پیش‌بینی‌نشده: ' . $e->getMessage() . ' @ ' . basename($e->getFile()) . ':' . $e->getLine();
     echo "\n  ✗ " . end($failed) . "\n" . $e->getTraceAsString() . "\n";
@@ -751,6 +784,9 @@ try {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
+    // کش مشترکِ تنظیمات و صفحه‌ها را با دیتابیسِ برگشته هماهنگ کن
+    App\Core\Cache::bump('site_settings');
+    App\Core\Cache::bump('pages');
 }
 
 echo "\n" . str_repeat('─', 50) . "\n";

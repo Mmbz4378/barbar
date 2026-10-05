@@ -143,6 +143,16 @@ try {
     echo 'booking: ' . $e->getMessage() . "\n";
 }
 
+// صفحه‌های محتوایی نمونه (پانویس سایت و آزمون رابط)
+foreach ([
+    ['terms', 'قوانین و مقررات', "## رزرو نوبت\nبا ثبت نوبت، شمارهٔ موبایل شما برای پیامک تأیید و یادآوری استفاده می‌شود.\n\n## لغو\n- لغو تا ۲ ساعت پیش از نوبت رایگان است.\n- بیعانهٔ پرداخت‌شده طبق قانون هر سالن برمی‌گردد."],
+    ['privacy', 'حریم خصوصی', "اطلاعات شما فقط برای مدیریت نوبت استفاده می‌شود و در اختیار دیگران قرار نمی‌گیرد."],
+] as $i => [$slug, $title, $body]) {
+    if (DB::selectOne('SELECT id FROM pages WHERE slug = ?', [$slug]) === null) {
+        DB::insert('pages', ['slug' => $slug, 'title' => $title, 'body' => $body, 'is_published' => 1, 'show_in_footer' => 1, 'sort_order' => $i]);
+    }
+}
+
 echo "سالن مردانه: /s/" . DB::selectOne('SELECT slug FROM salons WHERE id=?', [$menId])['slug'] . "\n";
 echo "سالن بانوان: /s/" . DB::selectOne('SELECT slug FROM salons WHERE id=?', [$womenId])['slug'] . "\n";
 echo "ورود: php tools/login-link.php 09120000001\n";

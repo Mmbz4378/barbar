@@ -47,11 +47,11 @@ final class ManifestController extends Controller
             // id ثابت می‌ماند تا مرورگر نصبِ قبلی را همان اپ بشناسد،
             // نه یک اپ تازه کنار قبلی.
             'id' => $isSalon ? '/s/' . $salon['slug'] : '/panel',
-            'name' => $isSalon ? $salon['name'] : 'رشن — مدیریت سالن',
-            'short_name' => $isSalon ? $this->shortName($salon['name']) : 'رشن',
+            'name' => $isSalon ? $salon['name'] : brand(),
+            'short_name' => $isSalon ? $this->shortName($salon['name']) : $this->shortName(brand()),
             'description' => $isSalon
                 ? 'رزرو نوبت در ' . $salon['name']
-                : 'نوبت‌دهی و مدیریت آرایشگاه‌های مردانه و سالن‌های زیبایی بانوان',
+                : \App\Domain\System\SiteSettings::tagline(),
             'start_url' => $isSalon ? url('s/' . $salon['slug']) : url('panel'),
             'scope' => url(''),
             'display' => 'standalone',
@@ -61,12 +61,7 @@ final class ManifestController extends Controller
             'dir' => 'rtl',
             'lang' => 'fa-IR',
             'categories' => ['lifestyle', 'business'],
-            'icons' => [
-                ['src' => asset('icons/icon-192.png'), 'sizes' => '192x192', 'type' => 'image/png', 'purpose' => 'any'],
-                ['src' => asset('icons/icon-512.png'), 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'any'],
-                ['src' => asset('icons/icon-maskable-192.png'), 'sizes' => '192x192', 'type' => 'image/png', 'purpose' => 'maskable'],
-                ['src' => asset('icons/icon-maskable-512.png'), 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'maskable'],
-            ],
+            'icons' => $this->icons(),
         ];
 
         if (!$isSalon) {
@@ -75,12 +70,12 @@ final class ManifestController extends Controller
                 [
                     'name' => 'صف زنده',
                     'url' => url('panel'),
-                    'icons' => [['src' => asset('icons/icon-192.png'), 'sizes' => '192x192']],
+                    'icons' => [['src' => $this->icons()[0]['src'], 'sizes' => '192x192']],
                 ],
                 [
                     'name' => 'رزرو جدید',
                     'url' => url('panel/bookings/new'),
-                    'icons' => [['src' => asset('icons/icon-192.png'), 'sizes' => '192x192']],
+                    'icons' => [['src' => $this->icons()[0]['src'], 'sizes' => '192x192']],
                 ],
             ];
         }
@@ -93,6 +88,31 @@ final class ManifestController extends Controller
                 'Cache-Control' => 'public, max-age=3600',
             ]
         );
+    }
+
+    /**
+     * آیکون‌های اپ: اگر مدیر کل لوگو گذاشته، آیکون‌های ساخته‌شده از آن؛
+     * وگرنه آیکون پیش‌فرض (با نسخهٔ maskable).
+     *
+     * @return array<int,array<string,string>>
+     */
+    private function icons(): array
+    {
+        $i192 = \App\Domain\System\SiteSettings::iconPath(192);
+        $i512 = \App\Domain\System\SiteSettings::iconPath(512);
+        if ($i192 !== null && $i512 !== null) {
+            return [
+                ['src' => url($i192), 'sizes' => '192x192', 'type' => 'image/png', 'purpose' => 'any'],
+                ['src' => url($i512), 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'any'],
+            ];
+        }
+
+        return [
+            ['src' => asset('icons/icon-192.png'), 'sizes' => '192x192', 'type' => 'image/png', 'purpose' => 'any'],
+            ['src' => asset('icons/icon-512.png'), 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'any'],
+            ['src' => asset('icons/icon-maskable-192.png'), 'sizes' => '192x192', 'type' => 'image/png', 'purpose' => 'maskable'],
+            ['src' => asset('icons/icon-maskable-512.png'), 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'maskable'],
+        ];
     }
 
     /**

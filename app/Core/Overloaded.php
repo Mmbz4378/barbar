@@ -56,7 +56,7 @@ final class Overloaded extends Exception
         }
         echo '<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8">'
             . '<meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="10">'
-            . '<title>کمی شلوغ است · رشن</title>'
+            . '<title>کمی شلوغ است</title>'
             . '<style>body{margin:0;min-height:100vh;display:grid;place-items:center;padding:16px;background:#f6f6f4;color:#1c1c1a;font:16px/1.9 Tahoma,system-ui,sans-serif;text-align:center}'
             . '@media (prefers-color-scheme:dark){body{background:#111110;color:#ededeb}}main{max-width:420px}h1{font-size:22px}</style></head>'
             . '<body><main><h1>الان کمی شلوغ است</h1><p>تعداد زیادی هم‌زمان در حال رزروند. این صفحه چند ثانیهٔ دیگر خودش دوباره تلاش می‌کند؛ لازم نیست کاری بکنید.</p></main></body></html>';

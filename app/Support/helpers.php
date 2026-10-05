@@ -271,6 +271,14 @@ if (!function_exists('phone_local')) {
     }
 }
 
+if (!function_exists('brand')) {
+    /** نام سامانه که مدیر کل در تنظیمات گذاشته (پیش‌فرض «رشن»). */
+    function brand(): string
+    {
+        return App\Domain\System\SiteSettings::brandName();
+    }
+}
+
 if (!function_exists('old')) {
     function old(string $key, mixed $default = ''): mixed
     {

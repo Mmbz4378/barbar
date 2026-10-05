@@ -126,6 +126,19 @@ return [
     'sms' => [
         'driver' => Env::get('SMS_DRIVER', 'log'),
 
+        // اعتبارنامهٔ اپراتورها. از پنل مدیر کل (تنظیمات ← پیامک) هم تنظیم
+        // می‌شوند؛ مقدار پنل روی .env می‌نشیند (Config::setOverlay).
+        'credentials' => [
+            'melipayamak' => [
+                'username' => Env::get('SMS_MELIPAYAMAK_USERNAME', ''),
+                'password' => Env::get('SMS_MELIPAYAMAK_PASSWORD', ''),
+                'sender' => Env::get('SMS_MELIPAYAMAK_SENDER', ''),
+            ],
+            'kavenegar' => [
+                'api_key' => Env::get('SMS_KAVENEGAR_API_KEY', ''),
+            ],
+        ],
+
         // فقط برای درایور log (توسعه و آزمون بار): تأخیر ساختگی هر ارسال، تا
         // رفتارِ اپراتورِ کند شبیه‌سازی شود. در تولید درایور log به کار نمی‌رود.
         'log_delay_ms' => (int) Env::get('SMS_LOG_DELAY_MS', '0'),

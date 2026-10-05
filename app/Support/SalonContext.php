@@ -45,6 +45,6 @@ final class SalonContext
 
     public static function name(): string
     {
-        return (string) (self::$salon['name'] ?? 'رشن');
+        return (string) (self::$salon['name'] ?? brand());
     }
 }
