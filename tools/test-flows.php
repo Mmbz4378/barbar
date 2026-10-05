@@ -727,6 +727,22 @@ try {
     check('ثبت‌نام سالن به‌طور پیش‌فرض بسته است', App\Domain\System\SiteSettings::registrationMode() === 'closed');
     $pwEvents = (int) DB::selectOne('SELECT COUNT(*) AS c FROM login_events WHERE user_id = ?', [$pwUser])['c'];
     check('همهٔ تلاش‌های ورود ثبت می‌شوند', $pwEvents >= 10, (string) $pwEvents);
+
+    section('ساخت حساب از پنل مدیر');
+    [$accErr] = App\Domain\Identity\AccountService::validateNew(['name' => 'تکراری', 'phone' => '09127770100', 'password' => 'Fine-pass-123']);
+    check('موبایلِ دارای حساب برای حساب تازه پذیرفته نمی‌شود', isset($accErr['phone']));
+    [$accErr] = App\Domain\Identity\AccountService::validateNew(['o_name' => 'آزمون', 'o_phone' => '09127770200', 'o_username' => 'pwtest', 'o_password' => '123'], 'o_');
+    check('نام کاربری تکراری و رمز ضعیف با پیشوند فیلد گزارش می‌شوند', isset($accErr['o_username'], $accErr['o_password']));
+    [$accErr, $accData] = App\Domain\Identity\AccountService::validateNew(['name' => 'آزمون', 'phone' => '۰۹۱۲۷۷۷۰۲۰۰', 'generate' => '1']);
+    check('رمز تصادفی ساخته می‌شود و از قواعد رمز می‌گذرد', $accErr === [] && strlen($accData['password']) === 12 && PasswordAuth::policyError($accData['password'], $accData['phone'], null, 8) === null);
+    $accId = App\Domain\Identity\AccountService::create($accData, true);
+    $accRow = DB::selectOne('SELECT password_hash, must_change_password FROM users WHERE id = ?', [$accId]);
+    check('حساب تازه با رمز هش‌شده و «باید عوض شود» ساخته می‌شود', password_verify($accData['password'], (string) $accRow['password_hash']) && (int) $accRow['must_change_password'] === 1);
+    $ownersBefore = App\Domain\Identity\AccountService::activeOwnerCount($menId);
+    DB::insert('salon_user', ['salon_id' => $menId, 'user_id' => $accId, 'role' => 'owner']);
+    check('شمارش صاحبان فعال سالن', App\Domain\Identity\AccountService::activeOwnerCount($menId) === $ownersBefore + 1);
+    DB::update('users', ['is_active' => 0], 'id = :id', ['id' => $accId]);
+    check('صاحبِ مسدود در شمارش صاحبان فعال نیست', App\Domain\Identity\AccountService::activeOwnerCount($menId) === $ownersBefore);
 } catch (Throwable $e) {
     $failed[] = 'خطای پیش‌بینی‌نشده: ' . $e->getMessage() . ' @ ' . basename($e->getFile()) . ':' . $e->getLine();
     echo "\n  ✗ " . end($failed) . "\n" . $e->getTraceAsString() . "\n";

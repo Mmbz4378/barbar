@@ -25,135 +25,18 @@ final class PlatformController extends Controller
 {
     private const PER_PAGE = 30;
 
+    /** داشبورد مدیر کل — تا ساخته شود، فهرست سالن‌ها. */
     public function index(Request $request): Response
     {
-        $q = trim((string) $request->query('q', ''));
-        $status = (string) $request->query('status', '');
-        $audience = (string) $request->query('audience', '');
-        $page = max(1, (int) $request->query('page', '1'));
-
-        $where = ['1 = 1'];
-        $params = [];
-        if ($q !== '') {
-            $where[] = '(s.name LIKE ? OR s.slug LIKE ? OR s.city LIKE ? OR s.phone LIKE ?)';
-            $like = '%' . addcslashes($q, '%_\\') . '%';
-            array_push($params, $like, $like, $like, $like);
-        }
-        if ($status === 'inactive') {
-            $where[] = 's.is_active = 0';
-        } elseif (in_array($status, ['draft', 'pending', 'published', 'rejected'], true)) {
-            $where[] = 's.publication_status = ?';
-            $params[] = $status;
-        }
-        if (array_key_exists($audience, Audience::options())) {
-            $where[] = 's.audience = ?';
-            $params[] = $audience;
-        }
-        $whereSql = implode(' AND ', $where);
-
-        $total = (int) (DB::selectOne("SELECT COUNT(*) AS c FROM salons s WHERE {$whereSql}", $params)['c'] ?? 0);
-        $pages = max(1, (int) ceil($total / self::PER_PAGE));
-        $page = min($page, $pages);
-        $since = Now::today()->modify('-30 days')->format('Y-m-d 00:00:00');
-
-        $salons = DB::select(
-            "SELECT s.id, s.name, s.slug, s.city, s.audience, s.theme, s.plan_code, s.is_active, s.publication_status,
-                    s.sms_credit, s.trial_ends_at, s.created_at,
-                    (SELECT COUNT(*) FROM staff st WHERE st.salon_id = s.id AND st.is_active = 1) AS staff_count,
-                    (SELECT COUNT(*) FROM appointments a WHERE a.salon_id = s.id AND a.status = 'completed' AND a.actual_end_at >= ?) AS completed_30d
-               FROM salons s WHERE {$whereSql}
-              ORDER BY s.created_at DESC, s.id DESC
-              LIMIT " . self::PER_PAGE . ' OFFSET ' . (($page - 1) * self::PER_PAGE),
-            array_merge([$since], $params)
-        );
-
-        return $this->page('layouts.platform', 'platform.index', [
-            'title' => 'پنل پلتفرم',
-            'salons' => $salons,
-            'metrics' => $this->platformMetrics(),
-            'filters' => ['q' => $q, 'status' => $status, 'audience' => $audience],
-            'total' => $total,
-            'page' => $page,
-            'pages' => $pages,
-        ]);
-    }
-
-    public function show(Request $request): Response
-    {
-        $id = (int) $request->param('id');
-        $salon = DB::selectOne('SELECT * FROM salons WHERE id = ?', [$id]);
-        if ($salon === null) {
-            return $this->notFound('سالن یافت نشد.');
-        }
-
-        $since = Now::today()->modify('-30 days')->format('Y-m-d 00:00:00');
-        $members = DB::select(
-            "SELECT u.id, u.name, u.phone, su.role FROM salon_user su JOIN users u ON u.id = su.user_id
-              WHERE su.salon_id = ? ORDER BY FIELD(su.role, 'owner', 'manager', 'reception', 'staff'), u.name",
-            [$id]
-        );
-        $stats = DB::selectOne(
-            "SELECT
-                (SELECT COUNT(*) FROM staff WHERE salon_id = ? AND is_active = 1) AS staff,
-                (SELECT COUNT(*) FROM services WHERE salon_id = ? AND is_active = 1) AS services,
-                (SELECT COUNT(*) FROM customers WHERE salon_id = ?) AS customers,
-                (SELECT COUNT(*) FROM appointments WHERE salon_id = ? AND status = 'completed' AND actual_end_at >= ?) AS completed,
-                (SELECT COUNT(*) FROM appointments WHERE salon_id = ? AND status = 'no_show' AND scheduled_at >= ?) AS no_show,
-                (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE salon_id = ? AND paid_at >= ?) AS revenue",
-            [$id, $id, $id, $id, $since, $id, $since, $id, $since]
-        ) ?? [];
-        $auditLogs = DB::select(
-            "SELECT al.*, u.name AS actor_name, u.phone AS actor_phone FROM audit_logs al
-               LEFT JOIN users u ON u.id = al.actor_user_id
-              WHERE al.salon_id = ? ORDER BY al.id DESC LIMIT 25",
-            [$id]
-        );
-
-        return $this->page('layouts.platform', 'platform.show', [
-            'title' => $salon['name'],
-            'salon' => $salon,
-            'members' => $members,
-            'stats' => $stats,
-            'auditLogs' => $auditLogs,
-        ]);
-    }
-
-    public function setActive(Request $request): Response
-    {
-        $id = (int) $request->param('id');
-        $salon = DB::selectOne('SELECT id, is_active FROM salons WHERE id = ?', [$id]);
-        if ($salon === null) {
-            return $this->notFound('سالن یافت نشد.');
-        }
-        $active = $request->input('active') === '1';
-
-        DB::transaction(function () use ($id, $active) {
-            DB::update('salons', ['is_active' => $active ? 1 : 0], 'id = :id', ['id' => $id]);
-            $this->audit($id, $active ? 'salon_activate' : 'salon_deactivate', 'salon', $id);
-        });
-        SalonRepository::forget($id);
-
-        return $this->withSuccess($active ? 'سالن فعال شد.' : 'سالن غیرفعال شد؛ صفحهٔ رزرو و پنل آن از دسترس خارج است.', '/platform/' . $id);
-    }
-
-    public function impersonate(Request $request): Response
-    {
-        $id = (int) $request->param('id');
-        if (DB::selectOne('SELECT id FROM salons WHERE id = ?', [$id]) === null) {
-            return $this->notFound('سالن یافت نشد.');
-        }
-
-        $this->audit($id, 'support_login_as', 'salon', $id);
-        Auth::startImpersonating($id);
-
-        return $this->redirect('/panel');
+        return $this->redirect('/platform/salons');
     }
 
     public function stopImpersonating(Request $request): Response
     {
+        $salonId = Auth::isImpersonating() ? Auth::salonId() : null;
         Auth::stopImpersonating();
 
-        return $this->redirect('/platform');
+        return $this->redirect($salonId !== null ? '/platform/salons/' . $salonId : '/platform');
     }
 
     // ─── تعطیلات رسمی ─────────────────────────────────────────────────
@@ -228,15 +111,7 @@ final class PlatformController extends Controller
 
     private function audit(?int $salonId, string $action, string $subjectType, ?int $subjectId, array $meta = []): void
     {
-        DB::insert('audit_logs', [
-            'salon_id' => $salonId,
-            'actor_user_id' => Auth::id(),
-            'action' => $action,
-            'subject_type' => $subjectType,
-            'subject_id' => $subjectId,
-            'meta_json' => $meta !== [] ? json_encode($meta, JSON_UNESCAPED_UNICODE) : null,
-            'ip_address' => $_SERVER['REMOTE_ADDR'] ?? null,
-        ]);
+        \App\Domain\System\AuditLog::record($salonId, $action, $subjectType, $subjectId, $meta);
     }
 
     private function platformMetrics(): array
