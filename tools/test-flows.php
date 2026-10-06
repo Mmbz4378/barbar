@@ -697,6 +697,7 @@ try {
     check('نام کاربری عادی‌سازی می‌شود', $pa::normalizeUsername(' Ali.Barber۱ ') === 'ali.barber1');
     check('نام کاربری نامعتبر رد می‌شود', $pa::usernameError('1abc') !== null && $pa::usernameError('ab') !== null && $pa::usernameError('ali.barber1') === null);
 
+    check('رمز با نویسهٔ کنترلی (null) رد می‌شود، نه خطای ۵۰۰', PasswordAuth::policyError("Good-pass\0-123", null, null, 8) !== null);
     $pwUser = (int) DB::insert('users', ['phone' => '+989127770100', 'name' => 'آزمون رمز', 'username' => 'pwtest']);
     $pa::setPassword($pwUser, 'Good-pass-123');
     $pwAuth = new PasswordAuth();

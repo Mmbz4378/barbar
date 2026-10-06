@@ -77,6 +77,10 @@ final class PasswordAuth
     public static function policyError(string $password, ?string $phoneE164 = null, ?string $username = null, ?int $minLength = null): ?string
     {
         $min = $minLength ?? SiteSettings::minPasswordLength();
+        // نویسهٔ کنترلی (مثل null که bcrypt نمی‌پذیرد) از صفحه‌کلید نمی‌آید
+        if (preg_match('/[\x00-\x1F\x7F]/', $password) === 1 || !mb_check_encoding($password, 'UTF-8')) {
+            return 'رمز نویسهٔ نامعتبر دارد.';
+        }
         if (mb_strlen($password) < $min) {
             return sprintf('رمز دست‌کم %s نویسه باشد.', Jalali::toPersianDigits((string) $min));
         }
@@ -224,6 +228,6 @@ final class PasswordAuth
 
     private static function dummyHash(): string
     {
-        return self::$dummyHash ??= password_hash(random_bytes(16), PASSWORD_DEFAULT);
+        return self::$dummyHash ??= password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT);
     }
 }
