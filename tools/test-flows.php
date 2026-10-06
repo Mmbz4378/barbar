@@ -683,6 +683,8 @@ try {
     $otp = (new OtpService())->request(IranMobile::parse('09127770001'));
     check('مدارِ باز: OTP بی‌درنگ پیام روشن می‌دهد', !$otp['ok'] && (microtime(true) - $t0) < 1.0 && count($gw->sent) === $sentBefore, (string) ($otp['error'] ?? ''));
     SmsBreaker::reset();
+    $otpOk = (new OtpService())->request(IranMobile::parse('09127770003'));
+    check('مدارِ بسته: کد ورود واقعاً فرستاده می‌شود', $otpOk['ok'] && in_array('+989127770003', $gw->sent, true), (string) ($otpOk['error'] ?? ''));
     SmsManager::fake(null);
 
     // ─── حساب‌ها و ورود با رمز (نسخهٔ ۱۵) ─────────────────────────────

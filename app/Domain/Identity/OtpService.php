@@ -9,6 +9,7 @@ use App\Core\DB;
 use App\Core\RateLimiter;
 use App\Domain\Messaging\SmsBreaker;
 use App\Domain\Messaging\SmsManager;
+use App\Domain\System\SiteSettings;
 use App\Support\IranMobile;
 use App\Support\Jalali;
 use App\Support\Str;
@@ -90,7 +91,7 @@ final class OtpService
                 $phone->e164,
                 'otp',
                 [$code],
-                "کد ورود شما به " . App\Domain\System\SiteSettings::brandName() . ": {$code}\nتا ۲ دقیقه معتبر است."
+                "کد ورود شما به " . SiteSettings::brandName() . ": {$code}\nتا ۲ دقیقه معتبر است."
             ));
 
         if (!$result['ok']) {
