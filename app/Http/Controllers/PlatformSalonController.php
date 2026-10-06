@@ -311,7 +311,9 @@ final class PlatformSalonController extends Controller
             'phone' => preg_replace('/[^\d+]/', '', \App\Support\Jalali::fromPersianDigits((string) $request->input('phone', ''))) ?: null,
             'seats' => max(1, min(50, (int) int_input($request->input('seats', (string) $salon['seats'])))),
             'plan_code' => $plan,
-            'trial_ends_at' => $plan === 'trial' && $trialEnds !== null ? $trialEnds . ' 23:59:59' : ($plan === 'trial' ? $salon['trial_ends_at'] : null),
+            // همان روزِ قبلی، همان مقدار قبلی — وگرنه هر ذخیره ساعتش را عوض و «تغییر» ثبت می‌کرد
+            'trial_ends_at' => $plan !== 'trial' ? null
+                : ($trialEnds === null || $trialEnds === substr((string) $salon['trial_ends_at'], 0, 10) ? $salon['trial_ends_at'] : $trialEnds . ' 23:59:59'),
             'publication_status' => $publication,
             'is_active' => $request->input('is_active') === '1' ? 1 : 0,
         ];
