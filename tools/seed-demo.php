@@ -15,6 +15,7 @@ declare(strict_types=1);
  *   ۰۹۱۲۰۰۰۰۰۰۲  پذیرش سالن بانوان
  *   ۰۹۱۲۰۰۰۰۰۰۳  آرایشگرِ آرایشگاه مردانه
  *   ۰۹۱۲۰۰۰۰۰۰۹  مدیر ارشد (نام کاربری admin، رمز Demo-admin-2026 — فقط دادهٔ نمونه)
+ *   ۰۹۱۲۰۰۰۰۰۰۸  مدیر کل (داده‌شده از سوی مدیر ارشد)
  */
 
 require dirname(__DIR__) . '/app/bootstrap.php';
@@ -49,6 +50,12 @@ if (empty($admin['username'])) {
     DB::update('users', ['username' => 'admin'], 'id = :id', ['id' => $admin['id']]);
 }
 PasswordAuth::setPassword((int) $admin['id'], 'Demo-admin-2026');
+// یک مدیر کلِ عادی، داده‌شده از سوی مدیر ارشد (در دیتابیس تازه کاربر شمارهٔ ۵؛ آزمون رابط
+// صفحه‌اش را می‌بیند: «سپردن مدیر ارشدی» فقط روی صفحهٔ مدیر کلِ دیگر هست)
+$admin2 = $users->findOrCreate(IranMobile::parse('09120000008'), 'مدیر کل نمونه');
+if ((int) ($admin2['is_platform_admin'] ?? 0) !== 1) {
+    AdminPolicy::grant((int) $admin2['id'], (int) $admin['id']);
+}
 
 $setup = new SalonSetupService();
 $prices = static function (string $audience, array $map): array {

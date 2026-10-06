@@ -39,7 +39,7 @@ export const PAGES = [
   ['/platform/users', 'admin'],
   ['/platform/users/new', 'admin'],
   ['/platform/users/1', 'admin'],
-  ['/platform/users/884', 'admin'],
+  ['/platform/users/5', 'admin'], // seed-demo: مدیر کلِ نمونه — فرم «سپردن مدیر ارشدی»
   ['/account', 'admin'],
   ['/platform/settings?tab=brand', 'admin'],
   ['/platform/settings?tab=seo', 'admin'],
