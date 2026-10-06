@@ -55,6 +55,10 @@ jobs:
       - name: Inline style guard
         run: php tools/check-inline-styles.php
 
+      # «App\X» بی «\» اول درون namespace فقط هنگام اجرا ۵۰۰ می‌دهد؛ php -l نمی‌بیند
+      - name: Class reference guard
+        run: php tools/check-class-refs.php
+
       - name: Colour contrast
         run: node tools/check-contrast.mjs
 
