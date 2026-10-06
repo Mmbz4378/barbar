@@ -16,11 +16,16 @@ $inCard = !empty($wideCard); // قالب ورود خودش کارت دارد
 <?php if (!$inCard): ?>
 <div class="page-head">
   <div class="page-head__text">
-    <h1 class="page-head__title">حساب من</h1>
+    <h1 class="page-head__title">حساب من
+      <?php if (App\Domain\Identity\AdminPolicy::isSuper($user)): ?><span class="badge badge--accent">مدیر ارشد</span><?php elseif ((int) ($user['is_platform_admin'] ?? 0) === 1): ?><span class="badge badge--accent">مدیر کل</span><?php endif; ?>
+    </h1>
     <p class="page-head__sub">نام، نام کاربری، رمز و ورودهای اخیر</p>
   </div>
 </div>
 <div class="stack stack-lg container-md">
+<?php if (App\Domain\Identity\AdminPolicy::isSuper($user)): ?>
+  <div class="alert alert--info" role="note"><?= icon('shield') ?><div class="alert__body"><p class="alert__title">شما مدیر ارشد سامانه هستید</p><p class="text-sm">فقط شما مدیر کل می‌سازید یا برمی‌دارید، روی حساب مدیرهای دیگر کار می‌کنید و تنظیمات ورود، پیامک و پرداخت را عوض می‌کنید. رمزتان را قوی و جای امن نگه دارید؛ فراموشی رمز با کد پیامکی به همین موبایل است.</p></div></div>
+<?php endif; ?>
 <?php else: ?>
 <div class="stack stack-lg">
   <div class="cluster justify-between">

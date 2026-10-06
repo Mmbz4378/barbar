@@ -39,6 +39,7 @@ export const PAGES = [
   ['/platform/users', 'admin'],
   ['/platform/users/new', 'admin'],
   ['/platform/users/1', 'admin'],
+  ['/platform/users/884', 'admin'],
   ['/account', 'admin'],
   ['/platform/settings?tab=brand', 'admin'],
   ['/platform/settings?tab=seo', 'admin'],

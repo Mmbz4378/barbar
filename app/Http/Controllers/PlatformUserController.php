@@ -10,6 +10,7 @@ use App\Core\Request;
 use App\Core\Response;
 use App\Core\View;
 use App\Domain\Identity\AccountService;
+use App\Domain\Identity\AdminPolicy;
 use App\Domain\Identity\LoginEvents;
 use App\Domain\Identity\PasswordAuth;
 use App\Domain\System\AuditLog;
@@ -65,7 +66,7 @@ final class PlatformUserController extends Controller
         $page = min($page, $pages);
 
         $users = DB::select(
-            "SELECT u.id, u.name, u.phone, u.username, u.is_platform_admin, u.is_active, u.locked_until,
+            "SELECT u.id, u.name, u.phone, u.username, u.is_platform_admin, u.is_super_admin, u.is_active, u.locked_until,
                     u.password_hash IS NOT NULL AS has_password, u.must_change_password, u.last_login_at, u.created_at,
                     (SELECT GROUP_CONCAT(CONCAT(s.name, '|', su.role) ORDER BY s.name SEPARATOR ';;')
                        FROM salon_user su JOIN salons s ON s.id = su.salon_id
@@ -115,11 +116,14 @@ final class PlatformUserController extends Controller
                 $errors['role'] = 'نقش را انتخاب کنید.';
             }
         }
+        $isAdmin = ($input['is_platform_admin'] ?? '') === '1';
+        if ($isAdmin && ($deny = AdminPolicy::denyUnlessSuper()) !== null) {
+            $errors['is_platform_admin'] = $deny;
+        }
         if ($errors !== []) {
             return $this->invalid($request, $errors, '/platform/users/new');
         }
 
-        $isAdmin = ($input['is_platform_admin'] ?? '') === '1';
         $mustChange = ($input['must_change'] ?? '') === '1';
         $userId = (int) DB::transaction(static function () use ($data, $mustChange, $isAdmin, $salonId, $role) {
             $userId = AccountService::create($data, $mustChange, $isAdmin);
@@ -177,6 +181,9 @@ final class PlatformUserController extends Controller
             'events' => $events,
             'salons' => DB::select('SELECT id, name FROM salons ORDER BY name'),
             'isSelf' => $id === Auth::id(),
+            'deny' => AdminPolicy::denyActingOn($user),
+            'viewerIsSuper' => AdminPolicy::currentIsSuper(),
+            'grantedBy' => !empty($user['admin_granted_by']) ? DB::selectOne('SELECT id, name, phone FROM users WHERE id = ?', [(int) $user['admin_granted_by']]) : null,
         ]);
     }
 
@@ -189,6 +196,9 @@ final class PlatformUserController extends Controller
             return $this->notFound('کاربر یافت نشد.');
         }
         $back = '/platform/users/' . $id;
+        if (($deny = AdminPolicy::denyActingOn($user)) !== null) {
+            return $this->withError($deny, $back);
+        }
         $errors = [];
 
         $name = mb_substr(trim((string) $request->input('name', '')), 0, 120);
@@ -233,6 +243,9 @@ final class PlatformUserController extends Controller
             return $this->notFound('کاربر یافت نشد.');
         }
         $back = '/platform/users/' . $id . '#password';
+        if (($deny = AdminPolicy::denyActingOn($user)) !== null) {
+            return $this->withError($deny, $back);
+        }
         $generated = $request->input('generate') === '1';
         $password = $generated ? PasswordAuth::generate() : (string) $request->input('password', '');
         if (!$generated) {
@@ -270,8 +283,15 @@ final class PlatformUserController extends Controller
         $back = '/platform/users/' . $id;
         $isSelf = $id === Auth::id();
         $isActiveAdmin = (int) $user['is_platform_admin'] === 1 && (int) $user['is_active'] === 1;
+        $action = (string) $request->input('action', '');
+        $deny = in_array($action, ['grant_admin', 'revoke_admin', 'transfer_super'], true)
+            ? AdminPolicy::denyUnlessSuper()
+            : AdminPolicy::denyActingOn($user);
+        if ($deny !== null) {
+            return $this->withError($deny, $back);
+        }
 
-        switch ((string) $request->input('action', '')) {
+        switch ($action) {
             case 'block':
                 if ($isSelf) {
                     return $this->withError('خودتان را نمی‌توانید مسدود کنید.', $back);
@@ -306,22 +326,37 @@ final class PlatformUserController extends Controller
                 return $this->withSuccess('همهٔ نشست‌های این کاربر بسته شد.', $back);
 
             case 'grant_admin':
-                DB::update('users', ['is_platform_admin' => 1], 'id = :id', ['id' => $id]);
+                if ((int) $user['is_active'] !== 1) {
+                    return $this->withError('به حساب مسدود مدیریت کل داده نمی‌شود.', $back);
+                }
+                AdminPolicy::grant($id, Auth::id());
                 AuditLog::record(null, 'user.admin_granted', 'user', $id);
 
                 return $this->withSuccess('این کاربر حالا مدیر کل است.', $back);
 
             case 'revoke_admin':
-                if ($isSelf) {
-                    return $this->withError('مدیریت کل را از خودتان نمی‌توانید بگیرید.', $back);
+                if ($isSelf || AdminPolicy::isSuper($user)) {
+                    return $this->withError('مدیر ارشد مدیریت کل را از خودش نمی‌گیرد؛ اول مدیر ارشدی را به مدیر دیگری بسپارید.', $back);
                 }
                 if ($isActiveAdmin && AccountService::activeAdminCount() <= 1) {
                     return $this->withError('این آخرین مدیر کلِ فعال است.', $back);
                 }
-                DB::update('users', ['is_platform_admin' => 0], 'id = :id', ['id' => $id]);
+                AdminPolicy::revoke($id);
                 AuditLog::record(null, 'user.admin_revoked', 'user', $id);
 
-                return $this->withSuccess('مدیریت کل از این کاربر گرفته شد.', $back);
+                return $this->withSuccess('مدیریت کل از این کاربر گرفته شد و نشست‌هایش بسته شد.', $back);
+
+            case 'transfer_super':
+                if ($isSelf || !$isActiveAdmin) {
+                    return $this->withError('مدیر ارشدی فقط به مدیر کلِ فعال دیگری سپرده می‌شود.', $back);
+                }
+                $me = Auth::user() ?? [];
+                if (!empty($me['password_hash']) && !password_verify((string) $request->input('current_password', ''), (string) $me['password_hash'])) {
+                    return $this->withError('رمز فعلی خودتان درست نیست.', $back . '#super');
+                }
+                AdminPolicy::transferSuper((int) Auth::id(), $id);
+
+                return $this->withSuccess('مدیر ارشد حالا این کاربر است؛ شما مدیر کل می‌مانید.', $back);
         }
 
         return $this->withError('اقدام نامعتبر است.', $back);
@@ -331,12 +366,16 @@ final class PlatformUserController extends Controller
     public function addMembership(Request $request): Response
     {
         $id = (int) $request->param('id');
-        if (DB::selectOne('SELECT id FROM users WHERE id = ?', [$id]) === null) {
+        $user = DB::selectOne('SELECT * FROM users WHERE id = ?', [$id]);
+        if ($user === null) {
             return $this->notFound('کاربر یافت نشد.');
         }
         $salonId = (int) $request->input('salon_id', '0');
         $role = (string) $request->input('role', '');
         $back = '/platform/users/' . $id . '#memberships';
+        if (($deny = AdminPolicy::denyActingOn($user)) !== null) {
+            return $this->withError($deny, $back);
+        }
         if (DB::selectOne('SELECT id FROM salons WHERE id = ?', [$salonId]) === null || !array_key_exists($role, PlatformSalonController::ROLES)) {
             return $this->withError('سالن و نقش را انتخاب کنید.', $back);
         }

@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Core\Config;
 use App\Core\Cron;
 use App\Core\DB;
 use App\Core\Request;
 use App\Core\Response;
+use App\Domain\Identity\AdminPolicy;
 use App\Domain\Reports\PlatformReports;
 use App\Domain\Reports\ReportRange;
 use App\Domain\System\SiteSettings;
@@ -61,6 +63,27 @@ final class PlatformDashboardController extends Controller
         $add = static function (string $tone, string $icon, string $text, string $href) use (&$alerts): void {
             $alerts[] = compact('tone', 'icon', 'text', 'href');
         };
+
+        // ─── امنیت ───
+        if (($unrecorded = AdminPolicy::unrecordedAdmins()) !== []) {
+            $add('danger', 'shield', fa_num(count($unrecorded)) . ' مدیر کل بیرون از سامانه ساخته شده (پرچم مستقیم در دیتابیس عوض شده). اگر خودتان نساخته‌اید، مدیریتش را بگیرید.', '/platform/users?type=admins');
+        }
+        if (AdminPolicy::superAdmin() === null) {
+            $add('danger', 'shield', 'مدیر ارشد تعریف نشده؛ هیچ‌کس نمی‌تواند مدیر کل بسازد یا بردارد. یک بار tools/make_platform_admin.php را با موبایل یکی از مدیرهای کل اجرا کنید.', '/platform/users?type=admins');
+        }
+        // بی‌قفل، هرکس نصاب را باز کند .env را با دیتابیس خودش بازنویسی می‌کند
+        if (!is_file(BASE_PATH . '/storage/installed.lock')) {
+            $add('danger', 'lock', 'فایل قفل نصب (storage/installed.lock) نیست؛ نصاب برای همه باز است. همین حالا یک فایل خالی با همین نام بسازید.', '/doctor.php');
+        }
+        if (is_file(BASE_PATH . '/storage/claim-admin.txt')) {
+            $add('warning', 'lock', 'فایل storage/claim-admin.txt مانده است؛ دیگر کاری نمی‌کند، پاکش کنید.', '/doctor.php');
+        }
+        if ((bool) Config::get('app.debug', false) && Config::get('app.env') === 'production') {
+            $add('danger', 'alert', 'نمایش خطا (APP_DEBUG) روی سایت واقعی روشن است و جزئیات فنی را به بازدیدکننده نشان می‌دهد. در .env خاموشش کنید.', '/doctor.php');
+        }
+        if ((string) Config::get('reshen.sms.driver', 'log') === 'log') {
+            $add('warning', 'message', 'پیامک واقعی راه نیفتاده؛ کدهای ورود فقط در فایل storage/logs/sms.log نوشته می‌شوند.', '/platform/settings?tab=sms');
+        }
 
         if (SiteSettings::maintenanceOn()) {
             $add('warning', 'cog', 'حالت تعمیر روشن است؛ سایت برای بازدیدکننده‌ها بسته است.', '/platform/settings?tab=maintenance');

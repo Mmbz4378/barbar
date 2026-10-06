@@ -17,7 +17,12 @@ use App\Http\Controllers\PlatformSalonController as PSC;
   </div></section>
   <section class="card"><div class="card__body stack">
     <h2 class="title-sm">دسترسی</h2>
-    <label class="check"><input type="checkbox" name="is_platform_admin" value="1" <?= old('is_platform_admin') === '1' ? 'checked' : '' ?>><span class="check__text"><span class="strong">مدیر کل سامانه</span><span class="check__hint">به همهٔ سالن‌ها، کاربران، تنظیمات و گزارش‌ها دسترسی کامل دارد.</span></span></label>
+    <?php if (App\Domain\Identity\AdminPolicy::currentIsSuper()): ?>
+      <label class="check"><input type="checkbox" name="is_platform_admin" value="1" <?= old('is_platform_admin') === '1' ? 'checked' : '' ?>><span class="check__text"><span class="strong">مدیر کل سامانه</span><span class="check__hint">به همهٔ سالن‌ها، کاربران، تنظیمات و گزارش‌ها دسترسی دارد؛ جز کارهای مدیر ارشد (ساختن مدیر، تنظیمات ورود و پیامک و پرداخت).</span></span></label>
+      <?= partial('field-error', ['key' => 'is_platform_admin']) ?>
+    <?php else: ?>
+      <p class="text-sm muted"><?= icon('lock') ?> مدیر کل تازه را فقط مدیر ارشد می‌سازد.</p>
+    <?php endif; ?>
     <div class="grid-auto" style="--min:200px">
       <div class="field">
         <label class="field__label" for="salon_id">عضو پنل سالن <span class="field__optional">(اختیاری)</span></label>

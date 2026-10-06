@@ -9,6 +9,7 @@ use App\Core\Cache;
 use App\Core\Config;
 use App\Core\Request;
 use App\Core\Response;
+use App\Domain\Identity\AdminPolicy;
 use App\Domain\Messaging\SmsManager;
 use App\Domain\System\AuditLog;
 use App\Domain\System\BrandAssets;
@@ -36,6 +37,13 @@ final class PlatformSettingsController extends Controller
         'maintenance' => ['نگهداری', 'cog'],
     ];
 
+    /**
+     * زبانه‌هایی که فقط مدیر ارشد عوض می‌کند: هرکس اعتبارنامهٔ پیامک را به حساب
+     * خودش ببرد، کدهای ورود و بازیابی رمز همه را در اپراتور می‌خواند؛ روش‌های
+     * ورود و درگاه پرداخت هم همین‌قدر حساس‌اند (docs/admin-panel.md).
+     */
+    public const SUPER_TABS = ['auth', 'sms', 'payment'];
+
     public function show(Request $request): Response
     {
         $tab = (string) $request->query('tab', 'brand');
@@ -51,6 +59,7 @@ final class PlatformSettingsController extends Controller
                 'payment_driver' => (string) Config::get('reshen.payment.driver', 'disabled'),
             ],
             'system' => $tab === 'maintenance' ? $this->systemInfo() : [],
+            'locked' => in_array($tab, self::SUPER_TABS, true) && !AdminPolicy::currentIsSuper(),
         ]);
     }
 
@@ -61,6 +70,9 @@ final class PlatformSettingsController extends Controller
             return $this->notFound();
         }
         $back = '/platform/settings?tab=' . $tab;
+        if (in_array($tab, self::SUPER_TABS, true) && ($deny = AdminPolicy::denyUnlessSuper()) !== null) {
+            return $this->withError($deny, $back);
+        }
 
         try {
             $result = match ($tab) {

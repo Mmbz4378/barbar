@@ -82,6 +82,55 @@ if ($installed && $canMigrate && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST
     }
 }
 
+/*
+ * ساختن نخستین مدیر هنگام راه‌اندازی، بدون Terminal — برای نصب‌های پیش از ۱۵
+ * که مدیر کل ندارند (نصاب ۱۵ خودش مدیر ارشد را می‌سازد).
+ *
+ * اثبات مالکیت هاست: کدی که این صفحه به همین نشست می‌دهد باید از File Manager
+ * در storage/claim-admin.txt نوشته شود؛ فقط کسی که به فایل‌های هاست دسترسی دارد
+ * از این در می‌گذرد، نه هر صاحب سالنی. فقط تا وقتی هیچ مدیر کلِ فعالی نیست:
+ * پس از ساخته‌شدن مدیر ارشد، این فایل (مثل نصاب و خط فرمان) دیگر کسی را مدیر
+ * نمی‌کند و مدیر بعدی را فقط مدیر ارشد از پنل می‌سازد.
+ */
+$claimFile = BASE_PATH . '/storage/claim-admin.txt';
+$canClaim = false;
+$claimCode = '';
+$claimMessage = null;
+try {
+    $canClaim = $installed && $pendingMigrations === [] && Auth::check()
+        && in_array(Auth::role(), ['owner', 'manager'], true)
+        && App\Domain\Identity\AdminPolicy::bootstrapAllowed();
+} catch (Throwable $e) {
+    $canClaim = false;
+}
+if ($canClaim) {
+    $claimCode = (string) App\Core\Session::get('claim_admin_code', '');
+    if ($claimCode === '') {
+        $claimCode = 'ADMIN-' . strtoupper(bin2hex(random_bytes(5)));
+        App\Core\Session::put('claim_admin_code', $claimCode);
+    }
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '') === 'claim_admin') {
+        $written = is_file($claimFile) ? trim((string) @file_get_contents($claimFile, false, null, 0, 200)) : '';
+        if (!hash_equals(csrf_token(), (string) ($_POST['_csrf'] ?? ''))) {
+            $claimMessage = ['danger', 'نشست منقضی شده؛ صفحه را تازه کنید و دوباره بزنید.'];
+        } elseif ($written === '') {
+            $claimMessage = ['danger', 'فایل storage/claim-admin.txt پیدا نشد یا خالی است.'];
+        } elseif (!hash_equals($claimCode, $written)) {
+            $claimMessage = ['danger', 'کد درون فایل با کد همین صفحه یکی نیست؛ کد را دقیقاً همان‌طور که این‌جا هست بنویسید.'];
+        } elseif (!App\Domain\Identity\AdminPolicy::bootstrapAllowed()) {
+            $claimMessage = ['danger', 'در این فاصله مدیر کلی ساخته شده است؛ این راه بسته شد.'];
+            $canClaim = false;
+        } else {
+            App\Domain\Identity\AdminPolicy::grant((int) Auth::id(), null, true);
+            @unlink($claimFile);
+            App\Core\Session::forget('claim_admin_code');
+            App\Domain\System\AuditLog::record(null, 'user.admin_claimed', 'user', Auth::id());
+            $canClaim = false;
+            $claimMessage = ['success', 'شما مدیر ارشد سامانه شدید. از این پس مدیر کل تازه را فقط شما از پنل مدیریت می‌سازید و این راه بسته است.'];
+        }
+    }
+}
+
 $groups = (new HealthCheck())->run();
 
 $counts = ['ok' => 0, 'warn' => 0, 'fail' => 0];
@@ -132,6 +181,32 @@ foreach ($groups as $rows) {
         <?php if (!$allOk): ?><p class="text-sm">اجرای دوباره را ادامه ندهید؛ پیام خطا را به پشتیبانی بدهید یا از پشتیبان دیتابیس برگردید.</p><?php endif; ?>
       </div>
     </div>
+  <?php endif; ?>
+
+  <?php if ($claimMessage !== null): ?>
+    <div class="alert alert--<?= e($claimMessage[0]) ?> mb-6" role="status">
+      <?= icon($claimMessage[0] === 'success' ? 'circle-check' : 'alert') ?>
+      <div class="alert__body"><p class="alert__title"><?= e($claimMessage[1]) ?></p>
+        <?php if ($claimMessage[0] === 'success'): ?><p><a class="link" href="<?= e(url('/account')) ?>">رمز و نام کاربری بگذارید</a> · <a class="link" href="<?= e(url('/platform')) ?>">پنل مدیریت</a></p><?php endif; ?>
+      </div>
+    </div>
+  <?php endif; ?>
+
+  <?php if ($canClaim): ?>
+    <section class="card card--accent mb-6" aria-labelledby="claim-title"><div class="card__body stack stack-sm">
+      <h2 class="card__title" id="claim-title">این سامانه هنوز مدیر کل ندارد</h2>
+      <p class="text-sm">مدیر کل سالن‌ها و صاحبانشان را می‌سازد، رمز تعیین می‌کند و تنظیمات سایت را در اختیار دارد. اگر صاحب این هاست هستید، بدون Terminal خودتان <strong>مدیر ارشد</strong> شوید:</p>
+      <ol class="text-sm stack stack-xs" style="padding-inline-start:20px;margin:0">
+        <li>در cPanel ← <strong>File Manager</strong>، پوشهٔ <span class="ltr">storage</span> پروژه را باز کنید.</li>
+        <li>فایل تازه‌ای به نام <code class="ltr">claim-admin.txt</code> بسازید و فقط این کد را در آن بنویسید: <code class="ltr"><?= e($claimCode) ?></code></li>
+        <li>دکمهٔ زیر را بزنید. فایل پس از تأیید خودکار پاک می‌شود.</li>
+      </ol>
+      <form method="post" action="">
+        <?= csrf_field() ?><input type="hidden" name="action" value="claim_admin">
+        <button class="btn btn--primary" type="submit"><?= icon('shield') ?> بررسی و مدیر ارشد شدن</button>
+      </form>
+      <p class="text-xs muted">کد فقط برای همین نشست است. این راه فقط تا وقتی باز است که هیچ مدیر کلی نباشد؛ پس از آن هیچ فایلی کسی را مدیر نمی‌کند.</p>
+    </div></section>
   <?php endif; ?>
 
   <?php if ($installed && $pendingMigrations !== []): ?>

@@ -62,7 +62,7 @@ $types = [
                 </a>
               </td>
               <td data-label="دسترسی">
-                <?php if ((int) $u['is_platform_admin'] === 1): ?><span class="badge badge--accent">مدیر کل</span><?php endif; ?>
+                <?php if ((int) $u['is_platform_admin'] === 1): ?><span class="badge badge--accent"><?= (int) ($u['is_super_admin'] ?? 0) === 1 ? 'مدیر ارشد' : 'مدیر کل' ?></span><?php endif; ?>
                 <?php foreach (array_filter(explode(';;', (string) $u['memberships'])) as $mem): [$sn, $sr] = array_pad(explode('|', $mem, 2), 2, ''); ?>
                   <span class="badge badge--outline"><?= e($sn) ?> · <?= e(PSC::ROLES[$sr] ?? $sr) ?></span>
                 <?php endforeach; ?>

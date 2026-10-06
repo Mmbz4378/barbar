@@ -116,7 +116,8 @@ $failedBefore = $available !== null && in_array($available['version'], (array) (
               <?php if (!empty($h['log_text'])): ?>
                 <details><summary class="text-sm link">جزئیات فنی</summary><pre class="code-block text-xs mt-2"><?= e((string) $h['log_text']) ?></pre></details>
               <?php endif; ?>
-              <?php if (!empty($h['db_backup_file']) && is_file(BASE_PATH . '/' . $h['db_backup_file']) && in_array($h['status'], ['failed', 'rolled_back'], true)): ?>
+              <?php if (!empty($h['db_backup_file']) && is_file(BASE_PATH . '/' . $h['db_backup_file']) && in_array($h['status'], ['failed', 'rolled_back'], true)
+                  && (App\Domain\Identity\AdminPolicy::bootstrapAllowed() || App\Domain\Identity\AdminPolicy::currentIsSuper())): ?>
                 <form method="post" action="<?= e(url('system/updates/' . $h['id'] . '/restore-db')) ?>" data-confirm="دیتابیس به لحظهٔ پیش از این به‌روزرسانی برمی‌گردد و هرچه بعد از آن ثبت شده (نوبت، پرداخت) از بین می‌رود. فقط اگر سامانه خراب است این کار را بکنید. ادامه؟" data-confirm-ok="بازگردانی دیتابیس">
                   <?= csrf_field() ?><button class="btn btn--danger-ghost btn--sm" type="submit"><?= icon('refresh') ?> بازگردانی دیتابیس به پیش از این به‌روزرسانی</button>
                 </form>

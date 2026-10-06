@@ -9,6 +9,7 @@ use App\Core\Config;
 use App\Core\DB;
 use App\Core\Request;
 use App\Core\Response;
+use App\Domain\Identity\AdminPolicy;
 use App\Domain\System\Updater;
 use App\Support\Version;
 use Throwable;
@@ -96,6 +97,11 @@ final class SystemUpdateController extends Controller
     public function restoreDatabase(Request $request): Response
     {
         $id = (int) $request->param('id');
+        // دیتابیسِ قدیمی فهرستِ مدیرهای قدیمی را هم برمی‌گرداند؛ مدیرِ برداشته‌شده
+        // با بازگردانی پشتیبانِ پیش از آن دوباره مدیر می‌شد.
+        if (!AdminPolicy::bootstrapAllowed() && ($deny = AdminPolicy::denyUnlessSuper()) !== null) {
+            return $this->withError($deny, '/system/updates');
+        }
         try {
             (new Updater())->restoreDatabase($id);
             DB::insert('audit_logs', [

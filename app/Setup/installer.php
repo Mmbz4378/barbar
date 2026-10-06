@@ -380,10 +380,18 @@ function write_env(array $db, string $siteUrl): ?string
     $examplePath = RESHEN_ROOT . '/.env.example';
     $env = is_file($examplePath) ? (string) file_get_contents($examplePath) : '';
 
+    // نصب دوباره کلید قبلی را نگه می‌دارد؛ کلید تازه رمزهای ذخیره‌شده در
+    // تنظیمات (پیامک، پرداخت) را برای همیشه ناخوانا می‌کرد.
+    $previousKey = null;
+    $currentEnv = RESHEN_ROOT . '/.env';
+    if (is_file($currentEnv) && preg_match('/^APP_KEY=["\']?([^"\'\s#]{32,})/m', (string) @file_get_contents($currentEnv), $match)) {
+        $previousKey = $match[1];
+    }
+
     $values = [
         'APP_ENV' => 'production',
         'APP_DEBUG' => 'false',
-        'APP_KEY' => bin2hex(random_bytes(32)),
+        'APP_KEY' => $previousKey ?? bin2hex(random_bytes(32)),
         'APP_URL' => $siteUrl !== '' ? $siteUrl : detected_url(),
         'DB_HOST' => $db['host'],
         'DB_PORT' => $db['port'],
@@ -477,6 +485,23 @@ function admin_from_post(array &$errors): array
  */
 function create_platform_admin(array $admin): ?string
 {
+    /*
+     * فقط نخستین مدیر از این‌جا ساخته می‌شود. اگر کسی قفل نصب را پاک کند و
+     * نصاب را روی دیتابیسی که مدیر دارد دوباره اجرا کند، مدیر تازه‌ای ساخته
+     * نمی‌شود و رمز هیچ حسابی عوض نمی‌شود؛ مدیر بعدی را فقط مدیر ارشد از پنل
+     * می‌سازد (App\Domain\Identity\AdminPolicy).
+     */
+    if (!App\Domain\Identity\AdminPolicy::bootstrapAllowed()) {
+        App\Core\DB::insert('audit_logs', [
+            'action' => 'install.admin_skipped',
+            'subject_type' => 'system',
+            'ip_address' => $_SERVER['REMOTE_ADDR'] ?? null,
+        ]);
+        $_SESSION['install_admin_skipped'] = true;
+
+        return null;
+    }
+
     $taken = App\Core\DB::selectOne('SELECT id, phone FROM users WHERE username = ?', [$admin['username']]);
     if ($taken !== null && $taken['phone'] !== $admin['phone']) {
         return 'نام کاربری «' . $admin['username'] . '» در این دیتابیس مال کاربر دیگری است؛ نام دیگری انتخاب کنید.';
@@ -489,6 +514,9 @@ function create_platform_admin(array $admin): ?string
         'password_changed_at' => date('Y-m-d H:i:s'),
         'must_change_password' => 0,
         'is_platform_admin' => 1,
+        'is_super_admin' => 1,
+        'admin_granted_by' => null,
+        'admin_granted_at' => date('Y-m-d H:i:s'),
         'is_active' => 1,
     ];
     $existing = App\Core\DB::selectOne('SELECT id FROM users WHERE phone = ?', [$admin['phone']]);
@@ -622,23 +650,40 @@ function render_done(): void
 
       <div class="verdict ok">نصب با موفقیت انجام شد.</div>
 
+      <?php if (!empty($_SESSION['install_admin_skipped'])): ?>
+        <div class="alert">این دیتابیس از قبل مدیر کل داشت؛ حساب مدیر تازه‌ای ساخته نشد و رمز هیچ حسابی
+          عوض نشد. با حساب مدیر موجود وارد شوید. مدیر کل تازه را فقط مدیر ارشد از پنل مدیریت می‌سازد.</div>
+      <?php endif; ?>
+
       <div class="card">
         <h2>حالا چه کنید</h2>
         <ol>
           <li><strong>وارد شوید.</strong> صفحهٔ <code>/login</code> را باز کنید و با نام کاربری
-              (یا موبایل) و رمز مدیر وارد شوید. به «پنل مدیریت» می‌روید.</li>
+              (یا موبایل) و رمز مدیر وارد شوید. به «پنل مدیریت» می‌روید. این حساب
+              <strong>مدیر ارشد</strong> است: فقط او مدیر کل دیگری می‌سازد.</li>
           <li><strong>سالن‌ها را بسازید.</strong> در پنل مدیریت ← سالن‌ها ← «سالن تازه»، سالن و
               صاحبش را با نام کاربری و رمز بسازید. ثبت‌نام عمومی سالن بسته است و از
               «تنظیمات ← ورود و ثبت‌نام» باز می‌شود.</li>
-          <li><strong>پیامک را تنظیم کنید.</strong> تا وقتی <code>SMS_DRIVER</code> در فایل
-              <code>.env</code> روی <code>log</code> باشد، هیچ پیامکی ارسال نمی‌شود و کد ورود
-              فقط در <code>storage/logs/sms.log</code> نوشته می‌شود. برای سالن واقعی باید
-              ملی‌پیامک یا کاوه‌نگار را تنظیم کنید.</li>
+          <li><strong>پیامک را تنظیم کنید.</strong> در پنل مدیریت ← تنظیمات ← پیامک. تا آن موقع
+              هیچ پیامکی ارسال نمی‌شود و کدهای ورود در <code>storage/logs/sms.log</code> نوشته
+              می‌شوند. برای سالن واقعی ملی‌پیامک یا کاوه‌نگار را تنظیم کنید.</li>
           <li><strong>الگوی پیامک را ثبت کنید.</strong> کد ورود روی خط خدماتی مشترک با متن آزاد
               ارسال نمی‌شود. تأیید الگو چند روز طول می‌کشد — همین امروز شروع کنید.</li>
           <li><strong>کرون را فعال کنید.</strong> بدون آن، یادآورها و پیامک‌های صف ارسال
-              نمی‌شوند. راهنمایش در <code>docs/40-deploy/01-cpanel.md</code> است.</li>
+              نمی‌شوند. راهنمایش در <code>نصب.md</code> بخش ۷ است.</li>
         </ol>
+
+        <h2>نکات امنیتی پس از نصب</h2>
+        <ul>
+          <li>فایل <code>storage/installed.lock</code> را هرگز پاک نکنید: بی آن، هرکس این صفحه را باز کند
+              می‌تواند <code>.env</code> را بازنویسی کند. پاک‌کردن <code>public/install.php</code> هم مجاز است.</li>
+          <li>فایل <code>.env</code> رمز دیتابیس و کلید برنامه (<code>APP_KEY</code>) را دارد: آن را برای کسی
+              نفرستید و کلید را عوض نکنید؛ رمزهای ذخیره‌شده در تنظیمات با همین کلید رمزگذاری شده‌اند.</li>
+          <li>از این پس هیچ فایل یا دستوری مدیر کل تازه نمی‌سازد؛ نصاب، خط فرمان و File Manager فقط وقتی
+              مدیر می‌سازند که هیچ مدیر کلی نباشد.</li>
+          <li>تا پیامک واقعی راه نیفتاده، کدهای ورود در فایل نوشته می‌شوند و هرکس به فایل‌های هاست
+              دسترسی دارد آن‌ها را می‌خواند. رمز مدیر را جای امنی نگه دارید.</li>
+        </ul>
 
         <p class="note">
           برای اطمینان از سلامت همه‌چیز، صفحهٔ <code>doctor.php</code> را باز کنید.

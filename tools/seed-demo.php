@@ -14,7 +14,7 @@ declare(strict_types=1);
  *   ۰۹۱۲۰۰۰۰۰۰۱  صاحب هر دو سالن
  *   ۰۹۱۲۰۰۰۰۰۰۲  پذیرش سالن بانوان
  *   ۰۹۱۲۰۰۰۰۰۰۳  آرایشگرِ آرایشگاه مردانه
- *   ۰۹۱۲۰۰۰۰۰۰۹  مدیر پلتفرم
+ *   ۰۹۱۲۰۰۰۰۰۰۹  مدیر ارشد (نام کاربری admin، رمز Demo-admin-2026 — فقط دادهٔ نمونه)
  */
 
 require dirname(__DIR__) . '/app/bootstrap.php';
@@ -24,6 +24,8 @@ use App\Core\DB;
 use App\Domain\Booking\BookingService;
 use App\Domain\Catalog\CatalogTemplates;
 use App\Domain\Catalog\ServiceRepository;
+use App\Domain\Identity\AdminPolicy;
+use App\Domain\Identity\PasswordAuth;
 use App\Domain\Identity\UserRepository;
 use App\Domain\Queue\QueueService;
 use App\Domain\Salon\SalonSetupService;
@@ -39,7 +41,14 @@ $owner = $users->findOrCreate(IranMobile::parse('09120000001'), 'مهدی رضا
 $reception = $users->findOrCreate(IranMobile::parse('09120000002'), 'سارا کریمی');
 $barberUser = $users->findOrCreate(IranMobile::parse('09120000003'), 'علی محمدی');
 $admin = $users->findOrCreate(IranMobile::parse('09120000009'), 'مدیر پلتفرم');
-DB::update('users', ['is_platform_admin' => 1], 'id = :id', ['id' => $admin['id']]);
+// مدیر از راه سامانه (مثل نصاب)؛ برای مدیرها لینک ورود ساخته نمی‌شود، پس رمز دارد
+if (AdminPolicy::bootstrapAllowed()) {
+    AdminPolicy::grant((int) $admin['id'], null, true);
+}
+if (empty($admin['username'])) {
+    DB::update('users', ['username' => 'admin'], 'id = :id', ['id' => $admin['id']]);
+}
+PasswordAuth::setPassword((int) $admin['id'], 'Demo-admin-2026');
 
 $setup = new SalonSetupService();
 $prices = static function (string $audience, array $map): array {
@@ -156,3 +165,4 @@ foreach ([
 echo "سالن مردانه: /s/" . DB::selectOne('SELECT slug FROM salons WHERE id=?', [$menId])['slug'] . "\n";
 echo "سالن بانوان: /s/" . DB::selectOne('SELECT slug FROM salons WHERE id=?', [$womenId])['slug'] . "\n";
 echo "ورود: php tools/login-link.php 09120000001\n";
+echo "مدیر ارشد: نام کاربری admin، رمز Demo-admin-2026\n";

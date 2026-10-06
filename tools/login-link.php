@@ -13,7 +13,7 @@ declare(strict_types=1);
  *   ۲. خرابیِ پیامک — حساب اپراتور تمام شده و همه بیرون مانده‌اند
  *
  * روی هاستی که SSH ندارد، همین فایل را می‌شود از «Cron Job» یک‌باره یا
- * از ترمینالِ cPanel اجرا کرد.
+ * از ترمینالِ cPanel اجرا کرد. برای حساب مدیرهای کل کار نمی‌کند.
  */
 
 require dirname(__DIR__) . '/app/bootstrap.php';
@@ -32,6 +32,15 @@ $phone = IranMobile::tryParse($raw);
 
 if ($phone === null) {
     fwrite(STDERR, "شمارهٔ «{$raw}» معتبر نیست.\n");
+    exit(1);
+}
+
+// حساب مدیرهای کل از این راه باز نمی‌شود: هرکس به خط فرمان هاست دسترسی دارد
+// نباید بی‌اجازه وارد پنل مدیریت شود. مدیر کل از «رمز را فراموش کرده‌اید؟» استفاده
+// می‌کند؛ نخستین مدیر را tools/make_platform_admin.php می‌سازد.
+$admin = App\Core\DB::selectOne('SELECT id FROM users WHERE phone = ? AND is_platform_admin = 1', [$phone->e164]);
+if ($admin !== null) {
+    fwrite(STDERR, "این شماره مدیر کل است؛ برای مدیرها لینک ورود ساخته نمی‌شود. در صفحهٔ ورود «رمز را فراموش کرده‌اید؟» را بزنید.\n");
     exit(1);
 }
 

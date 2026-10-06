@@ -779,6 +779,49 @@ try {
     check('صفحهٔ منتشرشده در پانویس می‌آید', in_array('test-page', array_column(App\Domain\Content\PageRepository::footer(), 'slug'), true));
     $pageRepo->save($pageId, ['is_published' => 0]);
     check('پیش‌نویس نه در پانویس است نه با نشانی باز می‌شود', !in_array('test-page', array_column(App\Domain\Content\PageRepository::footer(), 'slug'), true) && $pageRepo->findPublished('test-page') === null);
+    section('مدیر ارشد و مدیرهای کل');
+    $ap = App\Domain\Identity\AdminPolicy::class;
+    $actAs = static function (?int $userId): void {
+        $_SESSION = $userId === null ? [] : ['user_id' => $userId, 'auth_v' => (int) DB::selectOne('SELECT auth_version FROM users WHERE id = ?', [$userId])['auth_version']];
+        foreach (['valid', 'userCache', 'membershipCache'] as $prop) {
+            $ref = new ReflectionProperty(App\Core\Auth::class, $prop);
+            $ref->setValue(null, null);
+        }
+    };
+    DB::statement('UPDATE users SET is_platform_admin = 0, is_super_admin = 0');
+    check('بی‌مدیر، ساختن نخستین مدیر (نصاب، خط فرمان، فایل) باز است', $ap::bootstrapAllowed());
+    $superId = (int) DB::insert('users', ['phone' => '+989127771001', 'name' => 'مدیر ارشد آزمون']);
+    $adminId = (int) DB::insert('users', ['phone' => '+989127771002', 'name' => 'مدیر کل آزمون']);
+    $admin2Id = (int) DB::insert('users', ['phone' => '+989127771003', 'name' => 'مدیر کل دوم']);
+    $plainId = (int) DB::insert('users', ['phone' => '+989127771004', 'name' => 'کاربر ساده']);
+    $ap::grant($superId, null, true);
+    check('پس از نخستین مدیر، هیچ راهِ بیرون از پنل مدیر نمی‌سازد', !$ap::bootstrapAllowed());
+    $actAs($superId);
+    $ap::grant($adminId, $superId);
+    $ap::grant($admin2Id, $superId);
+    check('مدیرِ داده‌شده از پنل، اجازه‌دهنده و تاریخ دارد', (int) DB::selectOne('SELECT admin_granted_by FROM users WHERE id = ?', [$adminId])['admin_granted_by'] === $superId);
+    check('مدیر ارشد روی حساب مدیر کل کار می‌کند و مدیر می‌سازد', $ap::denyActingOn(DB::selectOne('SELECT * FROM users WHERE id = ?', [$adminId])) === null && $ap::denyUnlessSuper() === null);
+    $actAs($adminId);
+    check('مدیر کلِ عادی مدیر نمی‌سازد و تنظیمات حساس را عوض نمی‌کند', $ap::denyUnlessSuper() !== null);
+    check('مدیر کلِ عادی به حساب مدیر ارشد دست نمی‌زند', $ap::denyActingOn(DB::selectOne('SELECT * FROM users WHERE id = ?', [$superId])) !== null);
+    check('مدیر کلِ عادی به حساب مدیر کلِ دیگر (موبایل، رمز، مسدودی) دست نمی‌زند', $ap::denyActingOn(DB::selectOne('SELECT * FROM users WHERE id = ?', [$admin2Id])) !== null);
+    check('مدیر کلِ عادی کاربر ساده را مدیریت می‌کند', $ap::denyActingOn(DB::selectOne('SELECT * FROM users WHERE id = ?', [$plainId])) === null);
+    [, $adminAccData] = App\Domain\Identity\AccountService::validateNew(['name' => 'ساخته‌شده', 'phone' => '09127771005', 'generate' => '1']);
+    $actAs($superId);
+    $madeAdmin = App\Domain\Identity\AccountService::create($adminAccData, true, true);
+    check('حساب مدیرِ ساخته‌شده از پنل، نام اجازه‌دهنده را دارد', (int) DB::selectOne('SELECT admin_granted_by FROM users WHERE id = ?', [$madeAdmin])['admin_granted_by'] === $superId);
+    $versionBefore = (int) DB::selectOne('SELECT auth_version FROM users WHERE id = ?', [$admin2Id])['auth_version'];
+    $ap::revoke($admin2Id);
+    $revoked = DB::selectOne('SELECT is_platform_admin, auth_version FROM users WHERE id = ?', [$admin2Id]);
+    check('گرفتن مدیریت کل نشست‌های او را هم می‌بندد', (int) $revoked['is_platform_admin'] === 0 && (int) $revoked['auth_version'] === $versionBefore + 1);
+    check('مدیر ارشدی فقط به مدیر کلِ فعال سپرده می‌شود', throws(fn () => $ap::transferSuper($superId, $plainId)) !== null);
+    $ap::transferSuper($superId, $adminId);
+    check('پس از سپردن، مدیر ارشد تازه یکی است و قبلی مدیر کل می‌ماند', (int) ($ap::superAdmin()['id'] ?? 0) === $adminId
+        && (int) DB::selectOne('SELECT is_platform_admin FROM users WHERE id = ?', [$superId])['is_platform_admin'] === 1);
+    DB::update('users', ['is_platform_admin' => 1], 'id = :id', ['id' => $plainId]);
+    check('مدیرِ ساخته‌شده مستقیم در دیتابیس شناسایی می‌شود', in_array($plainId, array_map('intval', array_column($ap::unrecordedAdmins(), 'id')), true));
+    $actAs(null);
+
     section('گزارش‌های سراسری');
     $rr = App\Domain\Reports\ReportRange::class;
     $_GET = ['range' => 'custom', 'from_y' => '1405', 'from_m' => '7', 'from_d' => '10', 'to_y' => '1405', 'to_m' => '7', 'to_d' => '1'];

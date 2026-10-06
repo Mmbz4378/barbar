@@ -40,6 +40,9 @@ final class AuditLabels
         'user.admin_granted' => 'دادن مدیریت کل',
         'user.admin_granted_cli' => 'دادن مدیریت کل (خط فرمان)',
         'user.admin_revoked' => 'گرفتن مدیریت کل',
+        'user.super_transferred' => 'سپردن مدیر ارشدی',
+        'user.admin_claimed' => 'ساخت نخستین مدیر از صفحهٔ سلامت',
+        'install.admin_skipped' => 'نصب دوباره بی‌ساخت مدیر (مدیر از قبل بود)',
         // حساب خود کاربر
         'account.password_set' => 'تعیین رمز',
         'account.password_changed' => 'تغییر رمز',
@@ -110,6 +113,7 @@ final class AuditLabels
                 'after' => 'مانده: ' . fa_num((int) $value),
                 'reason' => 'دلیل: ' . self::value('text', $value),
                 'owner' => 'صاحب: کاربر #' . fa_num((int) $value),
+                'previous' => 'مدیر ارشد قبلی: کاربر #' . fa_num((int) $value),
                 'new_owner' => $value ? 'حساب صاحب تازه ساخته شد' : 'صاحب از کاربران موجود',
                 'admin' => $value ? 'با دسترسی مدیر کل' : '',
                 'generated' => $value ? 'رمز تصادفی' : 'رمز دستی',

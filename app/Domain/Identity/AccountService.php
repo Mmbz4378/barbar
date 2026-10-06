@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Identity;
 
+use App\Core\Auth;
 use App\Core\DB;
 use App\Support\IranMobile;
 
@@ -81,6 +82,8 @@ final class AccountService
             'must_change_password' => $mustChange ? 1 : 0,
             'password_changed_at' => date('Y-m-d H:i:s'),
             'is_platform_admin' => $isAdmin ? 1 : 0,
+            'admin_granted_by' => $isAdmin ? Auth::id() : null,
+            'admin_granted_at' => $isAdmin ? date('Y-m-d H:i:s') : null,
         ]);
     }
 
