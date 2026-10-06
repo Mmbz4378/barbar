@@ -25,12 +25,6 @@ final class PlatformController extends Controller
 {
     private const PER_PAGE = 30;
 
-    /** داشبورد مدیر کل — تا ساخته شود، فهرست سالن‌ها. */
-    public function index(Request $request): Response
-    {
-        return $this->redirect('/platform/salons');
-    }
-
     public function stopImpersonating(Request $request): Response
     {
         $salonId = Auth::isImpersonating() ? Auth::salonId() : null;
@@ -112,43 +106,5 @@ final class PlatformController extends Controller
     private function audit(?int $salonId, string $action, string $subjectType, ?int $subjectId, array $meta = []): void
     {
         \App\Domain\System\AuditLog::record($salonId, $action, $subjectType, $subjectId, $meta);
-    }
-
-    private function platformMetrics(): array
-    {
-        $since7 = Now::today()->modify('-7 days')->format('Y-m-d 00:00:00');
-        $since30 = Now::today()->modify('-30 days')->format('Y-m-d 00:00:00');
-
-        $salons = DB::selectOne(
-            "SELECT SUM(is_active = 1) AS active, SUM(is_active = 1 AND audience = 'men') AS men,
-                    SUM(is_active = 1 AND audience = 'women') AS women, SUM(is_active = 1 AND audience = 'unisex') AS unisex,
-                    SUM(publication_status = 'pending') AS pending, SUM(is_active = 1 AND sms_credit < 20) AS low_sms
-               FROM salons"
-        ) ?? [];
-        $completedThisWeek = (int) (DB::selectOne(
-            "SELECT COUNT(*) AS c FROM appointments WHERE status = 'completed' AND actual_end_at >= ?",
-            [$since7]
-        )['c'] ?? 0);
-        $avgMae = DB::selectOne(
-            "SELECT AVG(ABS(TIMESTAMPDIFF(MINUTE, estimated_start_at, actual_start_at))) AS mae
-               FROM appointments WHERE estimated_start_at IS NOT NULL AND actual_start_at IS NOT NULL AND actual_end_at >= ?",
-            [$since30]
-        )['mae'] ?? null;
-        $rate = DB::selectOne(
-            "SELECT SUM(status = 'completed') AS completed, SUM(status IN ('completed','no_show')) AS total
-               FROM appointments WHERE created_at >= ?",
-            [$since30]
-        );
-        $pendingReviews = (int) (DB::selectOne("SELECT COUNT(*) AS c FROM reviews WHERE moderation_status = 'pending'")['c'] ?? 0);
-
-        return [
-            'active_salons' => (int) ($salons['active'] ?? 0),
-            'by_audience' => ['men' => (int) ($salons['men'] ?? 0), 'women' => (int) ($salons['women'] ?? 0), 'unisex' => (int) ($salons['unisex'] ?? 0)],
-            'pending' => (int) ($salons['pending'] ?? 0) + $pendingReviews,
-            'low_sms' => (int) ($salons['low_sms'] ?? 0),
-            'completed_this_week' => $completedThisWeek,
-            'mae_minutes' => $avgMae !== null ? round((float) $avgMae, 1) : null,
-            'end_registration_rate' => $rate && (int) $rate['total'] > 0 ? round(((int) $rate['completed'] / (int) $rate['total']) * 100, 1) : null,
-        ];
     }
 }

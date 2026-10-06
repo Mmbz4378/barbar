@@ -15,7 +15,11 @@ use App\Http\Middleware\VerifyCsrf;
 
 // پنل مدیر کل. مسیرهای مشخص پیش از «/platform/{id}» ثبت می‌شوند (اولین تطابق برنده است).
 $router->group(['middleware' => [PlatformAdminRequired::class]], function ($router) {
-    $router->get('/platform', [PlatformController::class, 'index']);
+    $router->get('/platform', [App\Http\Controllers\PlatformDashboardController::class, 'index']);
+    $router->get('/platform/reports', [App\Http\Controllers\PlatformReportController::class, 'index']);
+    $router->get('/platform/reports/export', [App\Http\Controllers\PlatformReportController::class, 'export']);
+    $router->get('/platform/audit', [App\Http\Controllers\PlatformAuditController::class, 'index']);
+    $router->get('/platform/audit/export', [App\Http\Controllers\PlatformAuditController::class, 'export']);
 
     $router->get('/platform/salons', [PlatformSalonController::class, 'index']);
     $router->get('/platform/salons/new', [PlatformSalonController::class, 'create']);

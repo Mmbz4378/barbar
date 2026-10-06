@@ -776,6 +776,60 @@ try {
     check('صفحهٔ منتشرشده در پانویس می‌آید', in_array('test-page', array_column(App\Domain\Content\PageRepository::footer(), 'slug'), true));
     $pageRepo->save($pageId, ['is_published' => 0]);
     check('پیش‌نویس نه در پانویس است نه با نشانی باز می‌شود', !in_array('test-page', array_column(App\Domain\Content\PageRepository::footer(), 'slug'), true) && $pageRepo->findPublished('test-page') === null);
+    section('گزارش‌های سراسری');
+    $rr = App\Domain\Reports\ReportRange::class;
+    $_GET = ['range' => 'custom', 'from_y' => '1405', 'from_m' => '7', 'from_d' => '10', 'to_y' => '1405', 'to_m' => '7', 'to_d' => '1'];
+    $swapped = $rr::fromRequest(new App\Core\Request());
+    check('بازهٔ دلخواهِ وارونه درست می‌شود', $swapped->from < $swapped->to && $swapped->days() === 10, $swapped->start() . ' → ' . $swapped->end());
+    $_GET = ['range' => 'custom', 'from_y' => '1390', 'from_m' => '1', 'from_d' => '1', 'to_y' => '1405', 'to_m' => '7', 'to_d' => '1'];
+    check('بازهٔ خیلی بلند محدود می‌شود', $rr::fromRequest(new App\Core\Request())->days() === 401);
+    $_GET = ['range' => '<bad>'];
+    check('بازهٔ ناشناخته ← پیش‌فرض ۳۰ روز', $rr::fromRequest(new App\Core\Request())->days() === 30);
+    $_GET = ['range' => 'month'];
+    [, , $monthDay] = App\Support\Jalali::fromDateTime($rr::fromRequest(new App\Core\Request())->from);
+    check('«این ماه» از روز اول ماه شمسی شروع می‌شود', $monthDay === 1);
+    $_GET = [];
+    $week = $rr::lastDays(7);
+    $prevWeek = $week->previous();
+    check('دورهٔ قبل هم‌اندازه و درست پیش از بازه است', $prevWeek->days() === 7 && $prevWeek->to->modify('+1 day') == $week->from);
+
+    Now::freeze($day->modify('+5 days'));
+    $range = $rr::lastDays(14);
+    $menReports = new App\Domain\Reports\PlatformReports(['salon_id' => $menId]);
+    $kpi = $menReports->kpis($range);
+    $direct = DB::selectOne(
+        "SELECT COUNT(*) AS n, SUM(status = 'cancelled') AS c FROM appointments WHERE salon_id = ? AND scheduled_at BETWEEN ? AND ?",
+        [$menId, $range->start(), $range->end()]
+    );
+    check('شمار نوبت گزارش با شمارش مستقیم یکی است', $kpi['bookings'] === (int) $direct['n'] && $kpi['bookings'] > 0, $kpi['bookings'] . ' / ' . $direct['n']);
+    check('فیلتر سالن فقط همان سالن را می‌شمارد', $kpi['active_salons'] === 1 && $kpi['cancelled'] === (int) $direct['c']);
+    $daily = $menReports->daily($range);
+    check('سری روزانه همهٔ روزهای بازه را دارد و جمعش درست است', count($daily) === 14 && array_sum(array_column($daily, 'bookings')) === $kpi['bookings']);
+    $heat = $menReports->heatmap($range);
+    $heatSum = 0;
+    foreach ($heat['grid'] as $hours) {
+        $heatSum += array_sum($hours);
+    }
+    check('نقشهٔ شلوغی ۷ روز هفته دارد', count($heat['grid']) === 7 && $heatSum > 0);
+    $otherReports = new App\Domain\Reports\PlatformReports(['salon_id' => $womenId]);
+    check('گزارش یک سالن دادهٔ سالن دیگر را نمی‌شمارد', $otherReports->kpis($range)['bookings'] + $kpi['bookings'] <= (new App\Domain\Reports\PlatformReports())->kpis($range)['bookings']);
+    $ranked = (new App\Domain\Reports\PlatformReports())->salons($range, 'revenue', 500);
+    $revenues = array_map('intval', array_column($ranked, 'revenue'));
+    $sortedRevenues = $revenues;
+    rsort($sortedRevenues);
+    check('رتبه‌بندی سالن‌ها بر اساس درآمد نزولی است', $ranked !== [] && $revenues === $sortedRevenues);
+    check('رتبه‌بندی با ستون ناشناخته خطا نمی‌دهد', is_array((new App\Domain\Reports\PlatformReports())->salons($range, 'name; DROP TABLE x', 5)));
+    check('همهٔ گزارش‌ها روی فیلتر شهر و نوع اجرا می‌شوند', is_array((new App\Domain\Reports\PlatformReports(['city' => 'تهران', 'audience' => 'men']))->services($range)) && count((new App\Domain\Reports\PlatformReports(['audience' => 'women']))->growth(12)) === 12);
+    Now::freeze(null);
+
+    $described = implode(' · ', App\Support\AuditLabels::describe('{"changes":{"plan_code":{"from":"trial","to":"pro"}},"role":"owner"}'));
+    check('جزئیات رویداد به‌جای JSON خام خوانا نوشته می‌شود', str_contains($described, 'طرح: از «آزمایشی» به «حرفه‌ای»') && str_contains($described, 'صاحب سالن'), $described);
+    check('جزئیات خالی یا خراب خطا نمی‌دهد', App\Support\AuditLabels::describe(null) === [] && App\Support\AuditLabels::describe('{bad') === []);
+    $csv = App\Support\Csv::response('گزارش ۱.csv', ['نام', 'مبلغ'], [['=HYPERLINK("http://x")', -5000], ['+98 912', '@SUM(A1)'], ['سالن عادی', '12']]);
+    check('CSV با BOM شروع می‌شود تا Excel فارسی را درست بخواند', str_starts_with($csv->body, "\xEF\xBB\xBF"));
+    check('خانه‌های فرمول‌مانند خنثی می‌شوند (CSV injection)', str_contains($csv->body, "'=HYPERLINK") && str_contains($csv->body, "'+98 912") && str_contains($csv->body, "'@SUM"));
+    check('عدد منفی دست نمی‌خورد', str_contains($csv->body, ',-5000'));
+    check('نام فایل فقط نویسه‌های امن دارد', preg_match('/filename="[A-Za-z0-9._-]+"/', $csv->headers['Content-Disposition']) === 1);
 } catch (Throwable $e) {
     $failed[] = 'خطای پیش‌بینی‌نشده: ' . $e->getMessage() . ' @ ' . basename($e->getFile()) . ':' . $e->getLine();
     echo "\n  ✗ " . end($failed) . "\n" . $e->getTraceAsString() . "\n";
